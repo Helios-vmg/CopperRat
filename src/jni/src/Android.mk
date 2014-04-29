@@ -1,0 +1,46 @@
+LOCAL_PATH := $(call my-dir)
+
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := main
+
+SDL_PATH := ../SDL
+
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/../include
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libogg-1.3.1/include/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libvorbis-1.3.4/include/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/
+
+# Add your application source files here...
+LOCAL_SRC_FILES := $(SDL_PATH)/src/main/android/SDL_android_main.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/main.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libogg-1.3.1/src/bitwise.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libogg-1.3.1/src/framing.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/analysis.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/bitrate.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/block.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/codebook.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/envelope.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/floor0.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/floor1.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/info.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/lookup.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/lpc.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/lsp.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/mapping0.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/mdct.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/psy.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/registry.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/res0.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/sharedbook.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/smallft.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/synthesis.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/vorbisenc.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/vorbisfile.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/window.c
+
+LOCAL_SHARED_LIBRARIES := SDL2
+
+LOCAL_LDLIBS := -lGLESv1_CM -lGLESv2 -llog
+
+include $(BUILD_SHARED_LIBRARY)
