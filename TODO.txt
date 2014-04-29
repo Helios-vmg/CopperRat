@@ -1,7 +1,6 @@
 TODO:
 (Core)
-* Implement more decoders. Currently only Ogg Vorbis implemented. On that note,
-  I found a bug while trying to test the build with two very low quality files.
+* Implement more decoders. Currently only Ogg Vorbis implemented.
 * Optimize memory usage. There are too many page faults.
 * Implement seeking, pausing, etc.
 * Implement metadata readers.

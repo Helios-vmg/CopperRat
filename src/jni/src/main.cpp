@@ -621,7 +621,7 @@ sample_count_t ResamplingFilter::read(audio_buffer_t buffer, audio_position_t po
 					//    position*this->src_rate
 					//would need, pessimistically, a position value greater than 15 years in order to overflow.
 					//(2^64-1)/192000/192000/86400/365.2425 ~= 15.86
-					audio_position_t src_sample = position * this->src_rate / this->dst_rate;
+					audio_position_t src_sample = (position + i) * this->src_rate / this->dst_rate;
 					const sample_t *sample = this->decoder[src_sample];
 					if (!sample)
 						break;
@@ -752,7 +752,7 @@ AudioPlayer::AudioPlayer(){
 
 AudioPlayer::~AudioPlayer(){
 	this->run = 0;
-	//SDL_WaitThread(this->sdl_thread, 0);
+	SDL_WaitThread(this->sdl_thread, 0);
 	while (!this->queue.is_empty())
 		this->queue.pop().free();
 }
@@ -772,7 +772,6 @@ void AudioPlayer::thread(){
 #if 0
 		{
 			unsigned fullness = unsigned(this->queue.size() * 40 / this->queue.max_size);
-			//std::cerr <<"queue.size() = [";
 			char display[41];
 			display[40] = 0;
 			for (unsigned i = 0; i < 40; i++)
@@ -787,7 +786,6 @@ void AudioPlayer::thread(){
 				continue;
 			}
 			const char *filename = this->playlist.front();
-			//std::cerr <<"now playing "<<this->playlist.front()<<std::endl;
 			this->now_playing = new AudioStream(filename, 44100, 2, DEFAULT_BUFFER_SIZE);
 			this->playlist.pop();
 		}
@@ -796,10 +794,8 @@ void AudioPlayer::thread(){
 		Clock::t t1 = c();
 		cpu_time = t1 - t0;
 		playback_time = double(buffer.sample_count) / (44.1 * 2.0);
-		//std::cerr << cpu_time / playback_time * 100 <<" %\t"<<playback_time / cpu_time<<std::endl;
 		if (!buffer.data){
 			delete this->now_playing;
-			//this->now_playing = new AudioStream("f:/Data/Music/Judas Priest/test.ogg", 44100, 2, DEFAULT_BUFFER_SIZE);
 			this->now_playing = 0;
 			continue;
 		}
@@ -815,7 +811,6 @@ void AudioPlayer::test(){
 			if (!this->playlist.size())
 				break;
 			const char *filename = this->playlist.front();
-			//std::cerr <<"now playing "<<this->playlist.front()<<std::endl;
 			this->now_playing = new AudioStream(filename, 44100, 2, DEFAULT_BUFFER_SIZE);
 			this->playlist.pop();
 		}
