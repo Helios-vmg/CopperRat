@@ -13,7 +13,16 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/
 
 # Add your application source files here...
 LOCAL_SRC_FILES := $(SDL_PATH)/src/main/android/SDL_android_main.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioBuffer.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioPlayer.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioStream.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/CommonFunctions.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/Decoder.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/main.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/OggDecoder.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/Queue.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/ResamplingFilter.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/Threads.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/../libogg-1.3.1/src/bitwise.c
 LOCAL_SRC_FILES += $(LOCAL_PATH)/../libogg-1.3.1/src/framing.c
 LOCAL_SRC_FILES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/analysis.c
