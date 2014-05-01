@@ -1,8 +1,7 @@
 #ifndef _OS_H
 #define _OS_H
 
-#define LITTLE_ENDIAN 1
-#define BYTE_ORDER LITTLE_ENDIAN
+#include <endian.h>
 
 /********************************************************************
  *                                                                  *
