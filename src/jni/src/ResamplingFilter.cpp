@@ -5,14 +5,14 @@
 ResamplingFilter *ResamplingFilter::create(Decoder &decoder, unsigned d){
 	unsigned src_rate = decoder.get_sampling_rate();
 	if (src_rate == d)
-		return new ResamplingFilter(decoder, d);
+		return new IdentityResamplingFilter(decoder, d);
 	if (src_rate < d)
 		return new UpsamplingFilter(decoder, d);
 	return new DownsamplingFilter(decoder, d);
 }
 
 
-sample_count_t ResamplingFilter::read(audio_buffer_t buffer, audio_position_t position){
+sample_count_t IdentityResamplingFilter::read(audio_buffer_t buffer, audio_position_t position){
 	return this->decoder.direct_output(buffer, position);
 }
 
