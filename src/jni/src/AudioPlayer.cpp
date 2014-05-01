@@ -5,6 +5,8 @@ AudioPlayer::AudioPlayer(){
 	//Put your test tracks here when compiling for Windows.
 	//TODO: Other systems.
 #else
+	this->playlist.push("/sdcard/external_sd/Music/testA.ogg");
+	this->playlist.push("/sdcard/external_sd/Music/testB.ogg");
 	//Put your test tracks here when compiling for Android.
 #endif
 	this->queue.max_size = 100;
