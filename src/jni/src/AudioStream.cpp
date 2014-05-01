@@ -9,7 +9,7 @@ AudioStream::AudioStream(const char *filename, unsigned frequency, unsigned chan
 	this->filter = 0;
 	if (!this->decoder)
 		return;
-	this->filter = new ResamplingFilter(*this->decoder, frequency);
+	this->filter = ResamplingFilter::create(*this->decoder, frequency);
 }
 
 AudioStream::~AudioStream(){

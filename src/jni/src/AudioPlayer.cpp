@@ -4,8 +4,11 @@ AudioPlayer::AudioPlayer(){
 #ifdef WIN32
 	//Put your test tracks here when compiling for Windows.
 	//TODO: Other systems.
+	this->playlist.push("f:/Data/Music/Beethoven/CC-sharealike/testA.ogg");
+	this->playlist.push("f:/Data/Music/Beethoven/CC-sharealike/testB.ogg");
 #else
-	this->playlist.push("/sdcard/external_sd/Music/Evangelion-Cruel Angel.ogg");
+	this->playlist.push("/sdcard/external_sd/Music/testA.ogg");
+	this->playlist.push("/sdcard/external_sd/Music/testB.ogg");
 	//Put your test tracks here when compiling for Android.
 #endif
 	this->queue.max_size = 100;
