@@ -14,8 +14,11 @@
  function: arm7 and later wide math functions
 
  ********************************************************************/
-#define _ARM_ASSEM_
 
+#ifndef _ARM_ASSEM_
+#define _ARM_ASSEM_
+#endif
+ 
 #ifdef _ARM_ASSEM_
 
 #if !defined(_V_WIDE_MATH) && !defined(_LOW_ACCURACY_)
