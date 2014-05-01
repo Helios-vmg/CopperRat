@@ -5,6 +5,7 @@ AudioPlayer::AudioPlayer(){
 	//Put your test tracks here when compiling for Windows.
 	//TODO: Other systems.
 #else
+	this->playlist.push("/sdcard/external_sd/Music/Evangelion-Cruel Angel.ogg");
 	//Put your test tracks here when compiling for Android.
 #endif
 	this->queue.max_size = 100;
