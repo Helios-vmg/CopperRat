@@ -30,9 +30,8 @@ void AudioCallback(void *udata, Uint8 *stream, int len){
 }
 
 int main(int argc, char **argv){
-	//const size_t N=1<<24;
-	//char *raw_buffer=new char[N];
 	AudioPlayer player;
+#ifndef PROFILING
 	SDL_Init(SDL_INIT_AUDIO);
 	SDL_AudioSpec specs;
 	specs.freq = 44100;
@@ -46,4 +45,6 @@ int main(int argc, char **argv){
 	SDL_PauseAudio(0);
 	while (1)
 		SDL_Delay(1000);
+#endif
+	return 0;
 }

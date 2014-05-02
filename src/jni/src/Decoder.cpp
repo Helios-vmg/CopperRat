@@ -7,18 +7,12 @@ Decoder *Decoder::create(const char *filename){
 }
 
 const sample_t *Decoder::operator[](audio_position_t position){
-	while (1){
-		bool below;
-		const sample_t *sample = this->buffers.get_sample(position, below);
-		if (!sample){
-			if (below)
-				return 0;
-			if (!this->read_next())
-				return 0;
-			continue;
-		}
-		return sample;
-	}
+	bool below;
+	const sample_t *ret;
+	do
+		ret = this->buffers.get_sample(position, below);
+	while (!ret && !below && this->read_next());
+	return ret;
 }
 
 sample_count_t Decoder::direct_output(audio_buffer_t buffer, audio_position_t sample){

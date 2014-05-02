@@ -2,35 +2,83 @@
 #include "CommonFunctions.h"
 #include <cmath>
 
+ResamplingFilter::ResamplingFilter(Decoder &decoder, unsigned dst_rate): decoder(decoder), src_rate(decoder.get_sampling_rate()), dst_rate(dst_rate){
+}
+
 ResamplingFilter *ResamplingFilter::create(Decoder &decoder, unsigned d){
 	unsigned src_rate = decoder.get_sampling_rate();
 	if (src_rate == d)
 		return new IdentityResamplingFilter(decoder, d);
 	if (src_rate < d)
-		return new UpsamplingFilter(decoder, d);
+		return UpsamplingFilter::create(decoder, d);
 	return new DownsamplingFilter(decoder, d);
 }
-
 
 sample_count_t IdentityResamplingFilter::read(audio_buffer_t buffer, audio_position_t position){
 	return this->decoder.direct_output(buffer, position);
 }
 
-sample_count_t UpsamplingFilter::read(audio_buffer_t buffer, audio_position_t position){
+UpsamplingFilter *UpsamplingFilter::create(Decoder &decoder, unsigned dst_rate){
+	unsigned src_rate = decoder.get_sampling_rate();
+	unsigned div = gcd(src_rate, dst_rate);
+	unsigned dividend = dst_rate / div;
+	if (div == src_rate && is_power_of_2(dividend))
+		return new UpsamplingFilterPower(decoder, dst_rate, integer_log2(dividend));
+	return new UpsamplingFilterGeneric(decoder, dst_rate);
+}
+
+sample_count_t UpsamplingFilterPower::read(audio_buffer_t buffer, audio_position_t position){
 	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
 	sample_count_t samples_read = 0;
-	for (unsigned i = 0; i < buffer.sample_count; i++){
-		//This multiplication:
-		//    position*this->src_rate
-		//would need, pessimistically, a position value greater than 15 years in order to overflow.
-		//(2^64-1)/192000/192000/86400/365.2425 ~= 15.86
-		audio_position_t src_sample = (position + i) * this->src_rate / this->dst_rate;
+	for (; samples_read != buffer.sample_count; samples_read++){
+		audio_position_t src_sample = (position + samples_read) >> this->power;
 		const sample_t *sample = this->decoder[src_sample];
 		if (!sample)
 			break;
-		for (unsigned j = 0; j < buffer.channel_count; j++)
-			*(buffer.data++) = *(sample++);
-		samples_read++;
+		switch (buffer.channel_count){
+			case 7:
+				*(buffer.data++) = *(sample++);
+			case 6:
+				*(buffer.data++) = *(sample++);
+			case 5:
+				*(buffer.data++) = *(sample++);
+			case 4:
+				*(buffer.data++) = *(sample++);
+			case 3:
+				*(buffer.data++) = *(sample++);
+			case 2:
+				*(buffer.data++) = *(sample++);
+			case 1:
+				*(buffer.data++) = *(sample++);
+		}
+	}
+	return samples_read;
+}
+
+sample_count_t UpsamplingFilterGeneric::read(audio_buffer_t buffer, audio_position_t position){
+	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
+	sample_count_t samples_read = 0;
+	for (; samples_read != buffer.sample_count; samples_read++){
+		audio_position_t src_sample = (position + samples_read) * this->src_rate / this->dst_rate;
+		const sample_t *sample = this->decoder[src_sample];
+		if (!sample)
+			break;
+		switch (buffer.channel_count){
+			case 7:
+				*(buffer.data++) = *(sample++);
+			case 6:
+				*(buffer.data++) = *(sample++);
+			case 5:
+				*(buffer.data++) = *(sample++);
+			case 4:
+				*(buffer.data++) = *(sample++);
+			case 3:
+				*(buffer.data++) = *(sample++);
+			case 2:
+				*(buffer.data++) = *(sample++);
+			case 1:
+				*(buffer.data++) = *(sample++);
+		}
 	}
 	return samples_read;
 }
