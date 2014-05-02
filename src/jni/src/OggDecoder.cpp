@@ -26,9 +26,9 @@ OggDecoder::OggDecoder(const char *filename){
 }
 
 OggDecoder::~OggDecoder(){
+	ov_clear(&this->ogg_file);
 	if (this->file)
 		fclose(this->file);
-	ov_clear(&this->ogg_file);
 }
 
 const char *ogg_code_to_string(int e){

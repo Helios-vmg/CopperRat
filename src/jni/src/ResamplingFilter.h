@@ -7,8 +7,9 @@ protected:
 	Decoder &decoder;
 	unsigned src_rate;
 	unsigned dst_rate;
+	unsigned multiplier;
 public:
-	ResamplingFilter(Decoder &decoder, unsigned dst_rate): decoder(decoder), src_rate(decoder.get_sampling_rate()), dst_rate(dst_rate){}
+	ResamplingFilter(Decoder &decoder, unsigned dst_rate);
 	virtual ~ResamplingFilter(){}
 	virtual sample_count_t read(audio_buffer_t buffer, audio_position_t position) = 0;
 	static ResamplingFilter *create(Decoder &decoder, unsigned dst_rate);

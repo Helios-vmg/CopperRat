@@ -2,6 +2,11 @@
 #include "CommonFunctions.h"
 #include <cmath>
 
+ResamplingFilter::ResamplingFilter(Decoder &decoder, unsigned dst_rate): decoder(decoder), src_rate(decoder.get_sampling_rate()), dst_rate(dst_rate){
+	this->multiplier = this->src_rate << 8;
+	this->multiplier /= this->dst_rate;
+}
+
 ResamplingFilter *ResamplingFilter::create(Decoder &decoder, unsigned d){
 	unsigned src_rate = decoder.get_sampling_rate();
 	if (src_rate == d)
@@ -19,18 +24,27 @@ sample_count_t IdentityResamplingFilter::read(audio_buffer_t buffer, audio_posit
 sample_count_t UpsamplingFilter::read(audio_buffer_t buffer, audio_position_t position){
 	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
 	sample_count_t samples_read = 0;
-	for (unsigned i = 0; i < buffer.sample_count; i++){
-		//This multiplication:
-		//    position*this->src_rate
-		//would need, pessimistically, a position value greater than 15 years in order to overflow.
-		//(2^64-1)/192000/192000/86400/365.2425 ~= 15.86
-		audio_position_t src_sample = (position + i) * this->src_rate / this->dst_rate;
-		const sample_t *sample = this->decoder[src_sample];
+	audio_position_t src_sample = position << 8;
+	for (; samples_read < buffer.sample_count; samples_read++, src_sample += this->multiplier){
+		const sample_t *sample = this->decoder[src_sample >> 8];
 		if (!sample)
 			break;
-		for (unsigned j = 0; j < buffer.channel_count; j++)
-			*(buffer.data++) = *(sample++);
-		samples_read++;
+		switch (buffer.channel_count){
+			case 7:
+				*(buffer.data++) = *(sample++);
+			case 6:
+				*(buffer.data++) = *(sample++);
+			case 5:
+				*(buffer.data++) = *(sample++);
+			case 4:
+				*(buffer.data++) = *(sample++);
+			case 3:
+				*(buffer.data++) = *(sample++);
+			case 2:
+				*(buffer.data++) = *(sample++);
+			case 1:
+				*(buffer.data++) = *(sample++);
+		}
 	}
 	return samples_read;
 }
