@@ -22,35 +22,61 @@ UpsamplingFilter *UpsamplingFilter::create(Decoder &decoder, unsigned dst_rate){
 	unsigned src_rate = decoder.get_sampling_rate();
 	unsigned div = gcd(src_rate, dst_rate);
 	unsigned dividend = dst_rate / div;
-	if (div == src_rate && is_power_of_2(dividend))
+	if (div == src_rate && is_power_of_2(dividend)){
+		if (decoder.get_channel_count() == 2)
+			return new UpsamplingFilterPowerStereo(decoder, dst_rate, integer_log2(dividend));
 		return new UpsamplingFilterPower(decoder, dst_rate, integer_log2(dividend));
+	}
 	return new UpsamplingFilterGeneric(decoder, dst_rate);
 }
 
 sample_count_t UpsamplingFilterPower::read(audio_buffer_t buffer, audio_position_t position){
 	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
 	sample_count_t samples_read = 0;
+	unsigned times = 1 << this->power;
 	for (; samples_read != buffer.sample_count; samples_read++){
 		audio_position_t src_sample = (position + samples_read) >> this->power;
 		const sample_t *sample = this->decoder[src_sample];
 		if (!sample)
 			break;
-		switch (buffer.channel_count){
-			case 7:
-				*(buffer.data++) = *(sample++);
-			case 6:
-				*(buffer.data++) = *(sample++);
-			case 5:
-				*(buffer.data++) = *(sample++);
-			case 4:
-				*(buffer.data++) = *(sample++);
-			case 3:
-				*(buffer.data++) = *(sample++);
-			case 2:
-				*(buffer.data++) = *(sample++);
-			case 1:
-				*(buffer.data++) = *(sample++);
+		for (unsigned i = 0; i != times && samples_read != buffer.sample_count; samples_read++, i++){
+			const sample_t *temp = sample;
+			switch (buffer.channel_count){
+				case 7:
+					*(buffer.data++) = *(temp++);
+				case 6:
+					*(buffer.data++) = *(temp++);
+				case 5:
+					*(buffer.data++) = *(temp++);
+				case 4:
+					*(buffer.data++) = *(temp++);
+				case 3:
+					*(buffer.data++) = *(temp++);
+				case 2:
+					*(buffer.data++) = *(temp++);
+				case 1:
+					*(buffer.data++) = *temp;
+			}
 		}
+	}
+	return samples_read;
+}
+
+sample_count_t UpsamplingFilterPowerStereo::read(audio_buffer_t buffer, audio_position_t position){
+	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
+	sample_count_t samples_read = 0;
+	unsigned times = 1 << this->power;
+	stereo_sample_t *dst = (stereo_sample_t *)buffer.data;
+	const stereo_sample_t *sample_p;
+	while (1){
+		if (samples_read == buffer.sample_count)
+			break;
+		sample_p = (const stereo_sample_t *)this->decoder[(position + samples_read) >> this->power];
+		if (!sample_p)
+			break;
+		stereo_sample_t sample = *sample_p;
+		for (unsigned i = 0; i != times && samples_read != buffer.sample_count; samples_read++, i++)
+			*(dst++) = sample;
 	}
 	return samples_read;
 }

@@ -13,6 +13,7 @@ protected:
 public:
 	virtual ~Decoder(){}
 	virtual unsigned get_sampling_rate() = 0;
+	virtual unsigned get_channel_count() = 0;
 	const sample_t *operator[](audio_position_t);
 	sample_count_t direct_output(audio_buffer_t buffer, audio_position_t initial_position);
 	static Decoder *create(const char *);
