@@ -57,21 +57,27 @@ audio_buffer_t OggDecoder::read_more(){
 	audio_buffer_t ret = audio_buffer_t::alloc(this->channels, samples_to_read);
 	size_t size = 0;
 	while (size < bytes_to_read){
-		int r = ov_read(&this->ogg_file, ((char *)ret.data) + size, int(bytes_to_read - size), 0, 2, 1, &this->bitstream);
+		int r = ov_read(&this->ogg_file, ((char *)ret[0]) + size, int(bytes_to_read - size), 0, 2, 1, &this->bitstream);
 		if (r < 0)
 			abort();
 		if (!r){
-			if (!size){
+			if (!size)
 				ret.free();
-				ret.data = 0;
-				ret.sample_count = 0;
-			}
 			break;
 		}
 		size += r;
 	}
-	ret.sample_count = ret.samples_produced = unsigned(size / bytes_per_sample);
+	ret.set_sample_count(unsigned(size / bytes_per_sample));
 	return ret;
+}
+
+AudioFormat OggDecoder::get_audio_format(){
+	AudioFormat ret = { this->channels, 2, this->frequency };
+	return ret;
+}
+
+bool OggDecoder::seek(audio_position_t pos){
+	return !ov_pcm_seek(&this->ogg_file, pos);
 }
 
 size_t OggDecoder::read(void *buffer, size_t size, size_t nmemb, void *s){

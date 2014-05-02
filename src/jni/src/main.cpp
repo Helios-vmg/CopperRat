@@ -2,11 +2,7 @@
 
 void AudioCallback(void *udata, Uint8 *stream, int len){
 	AudioPlayer *player = (AudioPlayer *)udata;
-	audio_buffer_t dst_buffer;
-	dst_buffer.data = (sample_t *)stream;
-	dst_buffer.channel_count = 2;
-	const unsigned bytes_per_sample = dst_buffer.channel_count * 2;
-	dst_buffer.sample_count = len / bytes_per_sample;
+	const unsigned bytes_per_sample = 2 * 2;
 
 	unsigned samples_written = 0;
 	while ((unsigned)len > samples_written * bytes_per_sample){
@@ -18,11 +14,9 @@ void AudioCallback(void *udata, Uint8 *stream, int len){
 			return;
 		}
 		audio_buffer_t &buffer = *buffer_pointer;
-		unsigned samples_to_copy = std::min(buffer.samples_produced - buffer.samples_consumed, len / bytes_per_sample - samples_written);
-		memcpy(stream + bytes_written, buffer[buffer.samples_consumed], samples_to_copy* bytes_per_sample);
-		buffer.samples_consumed += samples_to_copy;
-		samples_written += samples_to_copy;
-		if (buffer.samples_consumed == buffer.samples_produced){
+		size_t ctb_res = buffer.copy_to_buffer(stream + bytes_written, len - samples_written * bytes_per_sample);
+		samples_written += ctb_res / bytes_per_sample;
+		if (!buffer.samples()){
 			buffer = player->queue.pop();
 			buffer.free();
 		}
