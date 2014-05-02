@@ -6,6 +6,9 @@ LOCAL_MODULE := main
 
 SDL_PATH := ../SDL
 
+LOCAL_CFLAGS += -O3  #-DPROFILING
+LOCAL_CXXFLAGS = -O3 #-DPROFILING
+
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../include
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libogg-1.3.1/include/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libvorbis-1.3.4/include/
