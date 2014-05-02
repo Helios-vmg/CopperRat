@@ -40,6 +40,13 @@ public:
 	sample_count_t read(audio_buffer_t buffer, audio_position_t position);
 };
 
+class UpsamplingFilterPowerStereo : public UpsamplingFilter{
+	unsigned power;
+public:
+	UpsamplingFilterPowerStereo(Decoder &decoder, unsigned dst_rate, unsigned power): UpsamplingFilter(decoder, dst_rate), power(power){}
+	sample_count_t read(audio_buffer_t buffer, audio_position_t position);
+};
+
 class DownsamplingFilter : public ResamplingFilter{
 public:
 	DownsamplingFilter(Decoder &decoder, unsigned dst_rate): ResamplingFilter(decoder, dst_rate){}

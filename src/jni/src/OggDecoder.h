@@ -20,6 +20,9 @@ public:
 	unsigned get_sampling_rate(){
 		return this->frequency;
 	}
+	unsigned get_channel_count(){
+		return this->channels;
+	}
 
 	static size_t read(void *buffer, size_t size, size_t nmemb, void *s);
 	static int seek(void *s, ogg_int64_t offset, int whence);
