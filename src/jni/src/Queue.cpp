@@ -34,19 +34,17 @@ const sample_t *RingBufferQueue::get_sample(audio_position_t p, bool &below){
 	if (below)
 		return 0;
 	size_t diff = size_t(p - this->position);
+	char last = this->size - 1;
 	switch (this->size){
-		case 0:
-			return 0;
-		case 1:
-			if ((*this)[0].sample_count <= diff)
-				return 0;
-			return (*this)[0][diff];
 		case 2:
 			if ((*this)[0].sample_count > diff)
 				return (*this)[0][diff];
-			if ((*this)[1].sample_count <= diff)
+		case 1:
+			if ((*this)[last].sample_count <= diff)
 				return 0;
-			return (*this)[1][diff];
+			return (*this)[last][diff];
+		case 0:
+			return 0;
 	}
 	assert(0);
 	return 0;
@@ -59,16 +57,8 @@ unsigned RingBufferQueue::copy_buffer(audio_buffer_t &buffer, audio_position_t &
 	unsigned diff = unsigned(p - this->position);
 	unsigned samples_to_copy;
 	unsigned bytes_to_copy;
+	char last = this->size - 1;
 	switch (this->size){
-		case 0:
-			return 0;
-		case 1:
-			if ((*this)[0].sample_count <= diff)
-				return 0;
-			samples_to_copy = std::min(buffer.sample_count, (*this)[0].sample_count - diff);
-			bytes_to_copy = samples_to_copy * buffer.channel_count * 2;
-			memcpy(buffer.data, (*this)[0][diff], bytes_to_copy);
-			return samples_to_copy;
 		case 2:
 			if ((*this)[0].sample_count>diff){
 				samples_to_copy = std::min(buffer.sample_count, (*this)[0].sample_count - diff);
@@ -77,12 +67,15 @@ unsigned RingBufferQueue::copy_buffer(audio_buffer_t &buffer, audio_position_t &
 				return samples_to_copy;
 			}
 			diff -= (*this)[0].sample_count;
-			if ((*this)[1].sample_count <= diff)
+		case 1:
+			if ((*this)[last].sample_count <= diff)
 				return 0;
-			samples_to_copy = std::min(buffer.sample_count, (*this)[1].sample_count - diff);
+			samples_to_copy = std::min(buffer.sample_count, (*this)[last].sample_count - diff);
 			bytes_to_copy = samples_to_copy * buffer.channel_count * 2;
-			memcpy(buffer.data, (*this)[1][diff], bytes_to_copy);
+			memcpy(buffer.data, (*this)[last][diff], bytes_to_copy);
 			return samples_to_copy;
+		case 0:
+			return 0;
 	}
 	assert(0);
 	return 0;

@@ -4,6 +4,7 @@ AudioPlayer::AudioPlayer(){
 #ifdef WIN32
 	//Put your test tracks here when compiling for Windows.
 	//TODO: Other systems.
+	this->playlist.push("f:/Data/Music/Beethoven/CC-sharealike/Iv.Presto.ogg");
 #else
 	//Put your test tracks here when compiling for Android.
 #endif
@@ -34,6 +35,7 @@ int AudioPlayer::_thread(void *p){
 #ifdef PROFILING
 #if defined WIN32
 #include <iostream>
+#include <fstream>
 #else
 #include <fstream>
 #include <sstream>
@@ -66,7 +68,7 @@ void AudioPlayer::thread(){
 		audio_buffer_t buffer = this->now_playing->read_new();
 		playback_time = double(buffer.sample_count) / (44.1 * 2.0);
 #ifdef PROFILING
-		samples_decoded += buffer.samples_produced / buffer.channel_count;
+		samples_decoded += buffer.samples_produced;
 #endif
 		if (!buffer.data){
 			delete this->now_playing;
@@ -85,6 +87,7 @@ void AudioPlayer::thread(){
 	{
 		double times = (samples_decoded / ((t1 - t0) / 1000.0)) / 44100.0;
 #ifdef WIN32
+		std::cout <<(t1 - t0)<<" ms\n";
 		std::cout <<times<<"x\n";
 #else
 		std::ofstream file("/sdcard/external_sd/log.txt", std::ios::app);
