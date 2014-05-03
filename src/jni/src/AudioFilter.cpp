@@ -1,4 +1,4 @@
-#include "ResamplingFilter.h"
+#include "AudioFilter.h"
 #include "CommonFunctions.h"
 #include <cmath>
 #include <cassert>
@@ -22,7 +22,7 @@ public:
 		return samples * this->dst_format.bytes_per_channel / this->src_format.bytes_per_channel;
 	}
 };
-
+/*
 class BitShiftingFilter : public AudioFilter{
 public:
 	BitShiftingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}
@@ -31,7 +31,7 @@ public:
 		return samples * this->dst_format.bytes_per_channel / this->src_format.bytes_per_channel;
 	}
 };
-
+*/
 class ChannelMixingFilter : public AudioFilter{
 public:
 	ChannelMixingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}

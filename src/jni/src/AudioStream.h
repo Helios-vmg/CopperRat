@@ -1,6 +1,6 @@
 #ifndef AUDIOSTREAM_H
 #define AUDIOSTREAM_H
-#include "ResamplingFilter.h"
+#include "AudioFilter.h"
 #include <memory>
 //#define DUMP_OUTPUT
 
