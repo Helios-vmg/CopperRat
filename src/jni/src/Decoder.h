@@ -6,8 +6,6 @@
 class Decoder{
 	audio_position_t current_position;
 protected:
-	bool offset_operator_helper(const sample_t *&ret, audio_position_t sample, int index);
-	bool direct_output_helper(sample_count_t &ret, audio_buffer_t &buffer, audio_position_t &initial_position, int index);
 	virtual bool seek(audio_position_t) = 0;
 	virtual audio_buffer_t read_more() = 0;
 public:

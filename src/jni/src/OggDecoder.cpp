@@ -54,10 +54,10 @@ audio_buffer_t OggDecoder::read_more(){
 	const size_t samples_to_read = 1024;
 	const size_t bytes_per_sample = this->channels*2;
 	const size_t bytes_to_read = samples_to_read*bytes_per_sample;
-	audio_buffer_t ret = audio_buffer_t::alloc(this->channels, samples_to_read);
+	audio_buffer_t ret = audio_buffer_t::alloc<Sint16>(this->channels, samples_to_read);
 	size_t size = 0;
 	while (size < bytes_to_read){
-		int r = ov_read(&this->ogg_file, ((char *)ret[0]) + size, int(bytes_to_read - size), 0, 2, 1, &this->bitstream);
+		int r = ov_read(&this->ogg_file, ((char *)ret.get_sample_use_channels<Sint16>(0)) + size, int(bytes_to_read - size), 0, 2, 1, &this->bitstream);
 		if (r < 0)
 			abort();
 		if (!r){
