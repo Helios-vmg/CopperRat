@@ -42,6 +42,7 @@ int AudioPlayer::_thread(void *p){
 #include <android/log.h>
 #endif
 #endif
+#include <fstream>
 
 double playback_time = 0;
 
@@ -66,11 +67,11 @@ void AudioPlayer::thread(){
 			this->playlist.pop();
 		}
 		audio_buffer_t buffer = this->now_playing->read_new();
-		playback_time = double(buffer.sample_count) / (44.1 * 2.0);
+		playback_time = double(buffer.samples()) / (44.1 * 2.0);
 #ifdef PROFILING
-		samples_decoded += buffer.samples_produced;
+		samples_decoded += buffer.samples();
 #endif
-		if (!buffer.data){
+		if (!buffer){
 			delete this->now_playing;
 			this->now_playing = 0;
 			continue;
@@ -109,7 +110,7 @@ void AudioPlayer::test(){
 			this->playlist.pop();
 		}
 		audio_buffer_t buffer = this->now_playing->read_new();
-		if (!buffer.data){
+		if (!buffer){
 			delete this->now_playing;
 			this->now_playing = 0;
 			continue;

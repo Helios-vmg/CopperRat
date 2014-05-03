@@ -1,145 +1,251 @@
 #include "ResamplingFilter.h"
 #include "CommonFunctions.h"
 #include <cmath>
+#include <cassert>
 
-ResamplingFilter::ResamplingFilter(Decoder &decoder, unsigned dst_rate): decoder(decoder), src_rate(decoder.get_sampling_rate()), dst_rate(dst_rate){
+class AudioFilter{
+protected:
+	AudioFormat src_format;
+	AudioFormat dst_format;
+public:
+	AudioFilter(const AudioFormat &src_format, const AudioFormat &dst_format): src_format(src_format), dst_format(dst_format){}
+	virtual ~AudioFilter(){}
+	virtual void read(audio_buffer_t &buffer) = 0;
+};
+
+class BitShiftingFilter : public AudioFilter{
+public:
+	BitShiftingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}
+	static BitShiftingFilter *create(const AudioFormat &src_format, const AudioFormat &dst_format);
+};
+
+class ChannelMixingFilter : public AudioFilter{
+public:
+	ChannelMixingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}
+	static ChannelMixingFilter *create(const AudioFormat &src_format, const AudioFormat &dst_format);
+};
+
+class ResamplingFilter : public AudioFilter{
+public:
+	ResamplingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}
+	virtual ~ResamplingFilter(){}
+	static ResamplingFilter *create(const AudioFormat &src_format, const AudioFormat &dst_format);
+};
+
+class UpsamplingFilter : public ResamplingFilter{
+public:
+	UpsamplingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): ResamplingFilter(src_format, dst_format){}
+	virtual ~UpsamplingFilter(){}
+	static UpsamplingFilter *create(const AudioFormat &src_format, const AudioFormat &dst_format);
+};
+
+class UpsamplingFilterGeneric : public UpsamplingFilter{
+public:
+	UpsamplingFilterGeneric(const AudioFormat &src_format, const AudioFormat &dst_format): UpsamplingFilter(src_format, dst_format){}
+	void read(audio_buffer_t &buffer);
+};
+
+class UpsamplingFilterPower : public UpsamplingFilter{
+	unsigned power;
+public:
+	UpsamplingFilterPower(const AudioFormat &src_format, const AudioFormat &dst_format, unsigned power): UpsamplingFilter(src_format, dst_format), power(power){}
+	void read(audio_buffer_t &buffer);
+};
+
+class UpsamplingFilterPowerStereo : public UpsamplingFilter{
+	unsigned power;
+public:
+	UpsamplingFilterPowerStereo(const AudioFormat &src_format, const AudioFormat &dst_format, unsigned power): UpsamplingFilter(src_format, dst_format), power(power){}
+	void read(audio_buffer_t &buffer);
+};
+
+class DownsamplingFilter : public ResamplingFilter{
+public:
+	DownsamplingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): ResamplingFilter(src_format, dst_format){}
+	void read(audio_buffer_t &buffer);
+};
+
+AudioFilterManager::AudioFilterManager(Decoder &decoder, const AudioFormat &dst_format): decoder(decoder){
+	AudioFormat src_format = decoder.get_audio_format();
+#if 0
+	//TODO
+	if (src_format.bytes_per_channel != dst_format.bytes_per_channel)
+		this->filters.push_back(BitShiftingFilter::create(src_format, dst_format));
+	if (src_format.channels != dst_format.channels)
+		this->filters.push_back(ChannelMixingFilter::create(src_format, dst_format));
+#endif
+	if (src_format.freq != dst_format.freq)
+		this->filters.push_back(ResamplingFilter::create(src_format, dst_format));
 }
 
-ResamplingFilter *ResamplingFilter::create(Decoder &decoder, unsigned d){
-	unsigned src_rate = decoder.get_sampling_rate();
-	if (src_rate == d)
-		return new IdentityResamplingFilter(decoder, d);
-	if (src_rate < d)
-		return UpsamplingFilter::create(decoder, d);
-	return new DownsamplingFilter(decoder, d);
+AudioFilterManager::~AudioFilterManager(){
+	for (size_t i = 0; i < this->filters.size(); i++)
+		delete this->filters[i];
 }
 
-sample_count_t IdentityResamplingFilter::read(audio_buffer_t buffer, audio_position_t position){
-	return this->decoder.direct_output(buffer, position);
+audio_buffer_t AudioFilterManager::read(audio_position_t position, size_t &samples_read_from_decoder){
+	audio_buffer_t buffer = this->decoder.read_more(position);
+	if (!buffer)
+		return buffer;
+	samples_read_from_decoder = buffer.samples();
+	audio_buffer_t ret = buffer.clone_with_minimum_length(buffer.byte_length() * 4);
+	for (size_t i = 0; i < this->filters.size(); i++)
+		this->filters[i]->read(ret);
+	return ret;
 }
 
-UpsamplingFilter *UpsamplingFilter::create(Decoder &decoder, unsigned dst_rate){
-	unsigned src_rate = decoder.get_sampling_rate();
+ResamplingFilter *ResamplingFilter::create(const AudioFormat &src_format, const AudioFormat &dst_format){
+	if (src_format.freq < dst_format.freq)
+		return UpsamplingFilter::create(src_format, dst_format);
+	return new DownsamplingFilter(src_format, dst_format);
+}
+
+UpsamplingFilter *UpsamplingFilter::create(const AudioFormat &src_format, const AudioFormat &dst_format){
+	unsigned src_rate = src_format.freq;
+	unsigned dst_rate = dst_format.freq;
 	unsigned div = gcd(src_rate, dst_rate);
 	unsigned dividend = dst_rate / div;
 	if (div == src_rate && is_power_of_2(dividend)){
-		if (decoder.get_channel_count() == 2)
-			return new UpsamplingFilterPowerStereo(decoder, dst_rate, integer_log2(dividend));
-		return new UpsamplingFilterPower(decoder, dst_rate, integer_log2(dividend));
+		unsigned log = integer_log2(dividend);
+		if (src_format.channels == 2)
+			return new UpsamplingFilterPowerStereo(src_format, dst_format, log);
+		return new UpsamplingFilterPower(src_format, dst_format, log);
 	}
-	return new UpsamplingFilterGeneric(decoder, dst_rate);
+	return new UpsamplingFilterGeneric(src_format, dst_format);
 }
 
-sample_count_t UpsamplingFilterPower::read(audio_buffer_t buffer, audio_position_t position){
+void UpsamplingFilterGeneric::read(audio_buffer_t &buffer){
 	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
-	sample_count_t samples_read = 0;
-	unsigned times = 1 << this->power;
-	for (; samples_read != buffer.sample_count; samples_read++){
-		audio_position_t src_sample = (position + samples_read) >> this->power;
-		const sample_t *sample = this->decoder[src_sample];
-		if (!sample)
-			break;
-		for (unsigned i = 0; i != times && samples_read != buffer.sample_count; samples_read++, i++){
-			const sample_t *temp = sample;
-			switch (buffer.channel_count){
+	const unsigned src_rate = this->src_format.freq;
+	const unsigned dst_rate = this->dst_format.freq;
+	sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
+	sample_count_t samples_unwritten = samples_to_process;
+	const unsigned original_last_sample = buffer.samples() - 1;
+	const unsigned n0 = samples_to_process - 1;
+	const unsigned channel_count = this->dst_format.channels;
+	while (--samples_unwritten){
+		sample_t *dst_sample = buffer[samples_unwritten];
+		audio_position_t src_sample_pos = samples_unwritten * src_rate / dst_rate;
+		const sample_t *src_sample = buffer[src_sample_pos];
+		if (channel_count <= 8)
+			switch (channel_count){
+				case 8:
+					*(dst_sample++) = *(src_sample++);
 				case 7:
-					*(buffer.data++) = *(temp++);
+					*(dst_sample++) = *(src_sample++);
 				case 6:
-					*(buffer.data++) = *(temp++);
+					*(dst_sample++) = *(src_sample++);
 				case 5:
-					*(buffer.data++) = *(temp++);
+					*(dst_sample++) = *(src_sample++);
 				case 4:
-					*(buffer.data++) = *(temp++);
+					*(dst_sample++) = *(src_sample++);
 				case 3:
-					*(buffer.data++) = *(temp++);
+					*(dst_sample++) = *(src_sample++);
 				case 2:
-					*(buffer.data++) = *(temp++);
+					*(dst_sample++) = *(src_sample++);
 				case 1:
-					*(buffer.data++) = *temp;
+					*(dst_sample++) = *(src_sample++);
 			}
-		}
+		else
+			for (unsigned i = 0; i != channel_count; i++)
+				*(dst_sample++) = *(src_sample++);
 	}
-	return samples_read;
+	buffer.set_sample_count(samples_to_process);
 }
 
-sample_count_t UpsamplingFilterPowerStereo::read(audio_buffer_t buffer, audio_position_t position){
+void UpsamplingFilterPower::read(audio_buffer_t &buffer){
 	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
-	sample_count_t samples_read = 0;
+	const unsigned src_rate = this->src_format.freq;
+	const unsigned dst_rate = this->dst_format.freq;
+	sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
+	sample_count_t samples_unwritten = samples_to_process;
+	const unsigned original_last_sample = buffer.samples() - 1;
+	const unsigned n0 = samples_to_process - 1;
+	const unsigned channel_count = this->dst_format.channels;
 	unsigned times = 1 << this->power;
-	stereo_sample_t *dst = (stereo_sample_t *)buffer.data;
-	const stereo_sample_t *sample_p;
-	while (1){
-		if (samples_read == buffer.sample_count)
-			break;
-		sample_p = (const stereo_sample_t *)this->decoder[(position + samples_read) >> this->power];
-		if (!sample_p)
-			break;
-		stereo_sample_t sample = *sample_p;
-		for (unsigned i = 0; i != times && samples_read != buffer.sample_count; samples_read++, i++)
-			*(dst++) = sample;
-	}
-	return samples_read;
-}
-
-sample_count_t UpsamplingFilterGeneric::read(audio_buffer_t buffer, audio_position_t position){
-	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
-	sample_count_t samples_read = 0;
-	for (; samples_read != buffer.sample_count; samples_read++){
-		audio_position_t src_sample = (position + samples_read) * this->src_rate / this->dst_rate;
-		const sample_t *sample = this->decoder[src_sample];
-		if (!sample)
-			break;
-		switch (buffer.channel_count){
-			case 7:
-				*(buffer.data++) = *(sample++);
-			case 6:
-				*(buffer.data++) = *(sample++);
-			case 5:
-				*(buffer.data++) = *(sample++);
-			case 4:
-				*(buffer.data++) = *(sample++);
-			case 3:
-				*(buffer.data++) = *(sample++);
-			case 2:
-				*(buffer.data++) = *(sample++);
-			case 1:
-				*(buffer.data++) = *(sample++);
+	while (samples_unwritten){
+		audio_position_t src_sample_pos = (samples_unwritten - 1) >> this->power;
+		const sample_t *src_sample = buffer[src_sample_pos];
+		for (unsigned i = 0; i != times && --samples_unwritten; i++){
+			sample_t *dst_sample = buffer[samples_unwritten];
+			const sample_t *temp = src_sample;
+			if (channel_count <= 8)
+				switch (channel_count){
+					case 8:
+						*(dst_sample++) = *(temp++);
+					case 7:
+						*(dst_sample++) = *(temp++);
+					case 6:
+						*(dst_sample++) = *(temp++);
+					case 5:
+						*(dst_sample++) = *(temp++);
+					case 4:
+						*(dst_sample++) = *(temp++);
+					case 3:
+						*(dst_sample++) = *(temp++);
+					case 2:
+						*(dst_sample++) = *(temp++);
+					case 1:
+						*(dst_sample++) = *temp;
+				}
+			else
+				for (unsigned i = 0; i != channel_count; i++)
+					*(dst_sample++) = *(temp++);
 		}
 	}
-	return samples_read;
+	buffer.set_sample_count(samples_to_process);
 }
 
-sample_count_t DownsamplingFilter::read(audio_buffer_t buffer, audio_position_t position){
-	sample_count_t samples_read = 0;
-	for (unsigned i = 0; i < buffer.sample_count; i++){
-		double fraction = double(this->src_rate) / double(this->dst_rate);
-		double src_sample0 = position*fraction;
-		double src_sample1 = (position + 1) * fraction;
+void UpsamplingFilterPowerStereo::read(audio_buffer_t &buffer){
+	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
+	const unsigned src_rate = this->src_format.freq;
+	const unsigned dst_rate = this->dst_format.freq;
+	sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
+	sample_count_t samples_unwritten = samples_to_process;
+	const unsigned original_last_sample = buffer.samples() - 1;
+	const unsigned n0 = samples_to_process - 1;
+	const unsigned channel_count = this->dst_format.channels;
+	unsigned times = 1 << this->power;
+	while (samples_unwritten){
+		audio_position_t src_sample_pos = (samples_unwritten - 1) >> this->power;
+		stereo_sample_t src_sample = *(stereo_sample_t *)buffer[src_sample_pos];
+		stereo_sample_t *dst_sample = (stereo_sample_t *)buffer[samples_unwritten];
+		for (unsigned i = 0; i != times && --samples_unwritten; i++)
+			*(dst_sample--) = src_sample;
+	}
+	buffer.set_sample_count(samples_to_process);
+}
+
+void DownsamplingFilter::read(audio_buffer_t &buffer){
+	sample_count_t samples_to_process = buffer.samples();
+	sample_count_t samples_written = 0;
+	const unsigned src_rate = this->src_format.freq;
+	const unsigned dst_rate = this->dst_format.freq;
+	stereo_sample_t *dst_sample = (stereo_sample_t *)buffer[0];
+	const unsigned channel_count = this->dst_format.channels;
+	double fraction = double(src_rate) / double(dst_rate);
+	for (; samples_written != samples_to_process; samples_written++){
+		double src_sample0 = samples_written * fraction;
+		double src_sample1 = (samples_written + 1) * fraction;
 		double accumulators[256] = {0};
 		double count=0;
-		bool end=0;
+		bool end = 0;
 		for (double j = src_sample0; j < src_sample1;){
 			double next = floor(j + 1);
-			const sample_t *sample = this->decoder[(audio_position_t)j];
-			if (!sample){
-				end = 1;
-				break;
-			}
+			const sample_t *sample = buffer[(audio_position_t)j];
 			double limit = (next < src_sample1) ? next : src_sample1;
-			for (unsigned channel = 0; channel < buffer.channel_count; channel++){
+			for (unsigned channel = 0; channel < channel_count; channel++){
 				double value = s16_to_double(sample[channel]);
 				accumulators[channel] += (limit - j) * value;
 			}
 			count += limit - j;
 			j = next;
 		}
+		assert(count);
 		if (count){
-			for (unsigned channel = 0; channel < buffer.channel_count; channel++)
-				*(buffer.data++) = double_to_s16(accumulators[channel] / count);
-			samples_read++;
+			for (unsigned channel = 0; channel < channel_count; channel++)
+				*(dst_sample++) = double_to_s16(accumulators[channel] / count);
 		}
-		if (end)
-			break;
 	}
-	return samples_read;
+	buffer.set_sample_count(samples_written);
 }
