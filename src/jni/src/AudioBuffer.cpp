@@ -15,11 +15,8 @@ audio_buffer_t audio_buffer_t::clone() const{
 
 audio_buffer_t audio_buffer_t::clone_with_minimum_length(size_t bytes) const{
 	size_t length = std::max(this->byte_length(), bytes);
-	audio_buffer_t ret;
+	audio_buffer_t ret = *this;
 	ret.data = malloc(length);
-	ret.sample_count = this->sample_count;
-	ret.channel_count = this->channel_count;
-	ret.data_offset = this->data_offset;
 	memcpy(ret.data, this->data, this->full_byte_length());
 	return ret;
 }

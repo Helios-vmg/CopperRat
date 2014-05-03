@@ -210,7 +210,7 @@ struct UpsamplingFilter_Creator<N, N>{
 };
 
 UpsamplingFilter *UpsamplingFilter::create(const AudioFormat &src_format, const AudioFormat &dst_format){
-	return UpsamplingFilter_Creator<1, 2>::create(src_format, dst_format, dst_format.channels);
+	return UpsamplingFilter_Creator<1, 3>::create(src_format, dst_format, dst_format.channels);
 }
 
 void DownsamplingFilter::read(audio_buffer_t &buffer){
