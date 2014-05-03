@@ -76,8 +76,10 @@ public:
 	void coerce_into_length(size_t bytes){
 		this->sample_count = (memory_sample_count_t)((bytes + this->bps - 1) / this->bps);
 	}
-	audio_buffer_t clone() const;
-	audio_buffer_t clone_with_minimum_length(size_t bytes) const;
+	audio_buffer_t clone() const{
+		return this->clone_with_minimum_length(this->samples());
+	}
+	audio_buffer_t clone_with_minimum_length(memory_sample_count_t) const;
 	template <typename NumberT, unsigned Channels>
 	size_t copy_to_buffer(void *dst, size_t max_bytes){
 		size_t bytes_to_copy = std::min<size_t>(this->byte_length(), max_bytes);

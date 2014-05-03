@@ -11,18 +11,34 @@ public:
 	AudioFilter(const AudioFormat &src_format, const AudioFormat &dst_format): src_format(src_format), dst_format(dst_format){}
 	virtual ~AudioFilter(){}
 	virtual void read(audio_buffer_t &buffer) = 0;
+	virtual memory_sample_count_t calculate_required_size(memory_sample_count_t) = 0;
 };
 
 class BitShiftingFilter : public AudioFilter{
 public:
 	BitShiftingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}
 	static BitShiftingFilter *create(const AudioFormat &src_format, const AudioFormat &dst_format);
+	memory_sample_count_t calculate_required_size(memory_sample_count_t samples){
+		return samples * this->dst_format.bytes_per_channel / this->src_format.bytes_per_channel;
+	}
+};
+
+class BitShiftingFilter : public AudioFilter{
+public:
+	BitShiftingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}
+	static BitShiftingFilter *create(const AudioFormat &src_format, const AudioFormat &dst_format);
+	memory_sample_count_t calculate_required_size(memory_sample_count_t samples){
+		return samples * this->dst_format.bytes_per_channel / this->src_format.bytes_per_channel;
+	}
 };
 
 class ChannelMixingFilter : public AudioFilter{
 public:
 	ChannelMixingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}
 	static ChannelMixingFilter *create(const AudioFormat &src_format, const AudioFormat &dst_format);
+	memory_sample_count_t calculate_required_size(memory_sample_count_t samples){
+		return samples * this->dst_format.channels / this->src_format.channels;
+	}
 };
 
 class ResamplingFilter : public AudioFilter{
@@ -30,6 +46,9 @@ public:
 	ResamplingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}
 	virtual ~ResamplingFilter(){}
 	static ResamplingFilter *create(const AudioFormat &src_format, const AudioFormat &dst_format);
+	memory_sample_count_t calculate_required_size(memory_sample_count_t samples){
+		return samples * this->dst_format.freq / this->src_format.freq;
+	}
 };
 
 class UpsamplingFilter : public ResamplingFilter{
@@ -131,7 +150,7 @@ public:
 		typedef typename UpsamplingFilterCond<NumberT, Channels, PowerVersion>::src_sample_t src_sample_t;
 		unsigned dst_rate = this->dst_format.freq;
 		unsigned src_rate = this->src_format.freq;
-		memory_sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
+		memory_sample_count_t samples_to_process = this->calculate_required_size(buffer.samples() * dst_rate / src_rate);
 		UpsamplingFilterCond<NumberT, Channels, PowerVersion> ufc(
 			buffer,
 			power,
@@ -163,6 +182,7 @@ AudioFilterManager::AudioFilterManager(Decoder &decoder, const AudioFormat &dst_
 #endif
 	if (src_format.freq != dst_format.freq)
 		this->filters.push_back(ResamplingFilter::create(src_format, dst_format));
+	this->dont_convert = !this->filters.size();
 }
 
 AudioFilterManager::~AudioFilterManager(){
@@ -172,10 +192,12 @@ AudioFilterManager::~AudioFilterManager(){
 
 audio_buffer_t AudioFilterManager::read(audio_position_t position, memory_sample_count_t &samples_read_from_decoder){
 	audio_buffer_t buffer = this->decoder.read_more(position);
-	if (!buffer)
+	if (!buffer || this->dont_convert)
 		return buffer;
-	samples_read_from_decoder = buffer.samples();
-	audio_buffer_t ret = buffer.clone_with_minimum_length(buffer.byte_length() * 4);
+	memory_sample_count_t samples_required = samples_read_from_decoder = buffer.samples();
+	for (size_t i = 0; i < this->filters.size(); i++)
+		samples_required = this->filters[i]->calculate_required_size(samples_required);
+	audio_buffer_t ret = buffer.clone_with_minimum_length(samples_required);
 	for (size_t i = 0; i < this->filters.size(); i++)
 		this->filters[i]->read(ret);
 	return ret;
