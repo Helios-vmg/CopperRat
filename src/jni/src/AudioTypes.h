@@ -4,7 +4,9 @@
 
 typedef Sint16 sample_t;
 typedef Sint32 stereo_sample_t;
+typedef Uint32 memory_sample_count_t;
 typedef Uint64 sample_count_t;
+typedef Uint32 memory_audio_position_t;
 typedef Uint64 audio_position_t;
 
 struct AudioFormat{

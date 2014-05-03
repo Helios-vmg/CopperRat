@@ -4,7 +4,7 @@ void AudioCallback(void *udata, Uint8 *stream, int len){
 	AudioPlayer *player = (AudioPlayer *)udata;
 	const unsigned bytes_per_sample = 2 * 2;
 
-	unsigned samples_written = 0;
+	sample_count_t samples_written = 0;
 	while ((unsigned)len > samples_written * bytes_per_sample){
 		audio_buffer_t *buffer_pointer;
 		size_t bytes_written = samples_written * bytes_per_sample;

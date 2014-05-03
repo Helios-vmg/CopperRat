@@ -118,14 +118,14 @@ void UpsamplingFilterGeneric::read(audio_buffer_t &buffer){
 	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
 	const unsigned src_rate = this->src_format.freq;
 	const unsigned dst_rate = this->dst_format.freq;
-	sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
-	sample_count_t samples_unwritten = samples_to_process;
-	const unsigned original_last_sample = buffer.samples() - 1;
-	const unsigned n0 = samples_to_process - 1;
+	memory_sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
+	memory_sample_count_t samples_unwritten = samples_to_process;
+	const memory_audio_position_t original_last_sample = buffer.samples() - 1;
+	const memory_sample_count_t n0 = samples_to_process - 1;
 	const unsigned channel_count = this->dst_format.channels;
 	while (--samples_unwritten){
 		sample_t *dst_sample = buffer[samples_unwritten];
-		audio_position_t src_sample_pos = samples_unwritten * src_rate / dst_rate;
+		memory_audio_position_t src_sample_pos = samples_unwritten * src_rate / dst_rate;
 		const sample_t *src_sample = buffer[src_sample_pos];
 		if (channel_count <= 8)
 			switch (channel_count){
@@ -157,14 +157,14 @@ void UpsamplingFilterPower::read(audio_buffer_t &buffer){
 	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
 	const unsigned src_rate = this->src_format.freq;
 	const unsigned dst_rate = this->dst_format.freq;
-	sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
-	sample_count_t samples_unwritten = samples_to_process;
-	const unsigned original_last_sample = buffer.samples() - 1;
-	const unsigned n0 = samples_to_process - 1;
+	memory_sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
+	memory_sample_count_t samples_unwritten = samples_to_process;
+	const memory_audio_position_t original_last_sample = buffer.samples() - 1;
+	const memory_sample_count_t n0 = samples_to_process - 1;
 	const unsigned channel_count = this->dst_format.channels;
 	unsigned times = 1 << this->power;
 	while (samples_unwritten){
-		audio_position_t src_sample_pos = (samples_unwritten - 1) >> this->power;
+		memory_audio_position_t src_sample_pos = (samples_unwritten - 1) >> this->power;
 		const sample_t *src_sample = buffer[src_sample_pos];
 		for (unsigned i = 0; i != times && --samples_unwritten; i++){
 			sample_t *dst_sample = buffer[samples_unwritten];
@@ -200,14 +200,14 @@ void UpsamplingFilterPowerStereo::read(audio_buffer_t &buffer){
 	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
 	const unsigned src_rate = this->src_format.freq;
 	const unsigned dst_rate = this->dst_format.freq;
-	sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
-	sample_count_t samples_unwritten = samples_to_process;
-	const unsigned original_last_sample = buffer.samples() - 1;
-	const unsigned n0 = samples_to_process - 1;
+	memory_sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
+	memory_sample_count_t samples_unwritten = samples_to_process;
+	const memory_audio_position_t original_last_sample = buffer.samples() - 1;
+	const memory_sample_count_t n0 = samples_to_process - 1;
 	const unsigned channel_count = this->dst_format.channels;
 	unsigned times = 1 << this->power;
 	while (samples_unwritten){
-		audio_position_t src_sample_pos = (samples_unwritten - 1) >> this->power;
+		memory_audio_position_t src_sample_pos = (samples_unwritten - 1) >> this->power;
 		stereo_sample_t src_sample = *(stereo_sample_t *)buffer[src_sample_pos];
 		stereo_sample_t *dst_sample = (stereo_sample_t *)buffer[samples_unwritten];
 		for (unsigned i = 0; i != times && --samples_unwritten; i++)
@@ -218,7 +218,7 @@ void UpsamplingFilterPowerStereo::read(audio_buffer_t &buffer){
 
 void DownsamplingFilter::read(audio_buffer_t &buffer){
 	sample_count_t samples_to_process = buffer.samples();
-	sample_count_t samples_written = 0;
+	memory_sample_count_t samples_written = 0;
 	const unsigned src_rate = this->src_format.freq;
 	const unsigned dst_rate = this->dst_format.freq;
 	stereo_sample_t *dst_sample = (stereo_sample_t *)buffer[0];
@@ -232,7 +232,7 @@ void DownsamplingFilter::read(audio_buffer_t &buffer){
 		bool end = 0;
 		for (double j = src_sample0; j < src_sample1;){
 			double next = floor(j + 1);
-			const sample_t *sample = buffer[(audio_position_t)j];
+			const sample_t *sample = buffer[(memory_audio_position_t)j];
 			double limit = (next < src_sample1) ? next : src_sample1;
 			for (unsigned channel = 0; channel < channel_count; channel++){
 				double value = s16_to_double(sample[channel]);
