@@ -6,6 +6,7 @@ AudioPlayer::AudioPlayer(){
 	//TODO: Other systems.
 	this->playlist.push("f:/Data/Music/Beethoven/CC-sharealike/Iv.Presto.ogg");
 #else
+	this->playlist.push("/sdcard/external_sd/Music/Iv.Presto.ogg");
 	//Put your test tracks here when compiling for Android.
 #endif
 	this->queue.max_size = 100;

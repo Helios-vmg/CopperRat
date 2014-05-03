@@ -37,4 +37,14 @@ T integer_log2(T n){
 	return ret;
 }
 
+template <typename T>
+struct Unpointify{
+};
+
+template <typename T>
+struct Unpointify<T *>{
+	typedef T t;
+};
+#define UNPOINTER(x) typename Unpointify<x>::t
+
 #endif

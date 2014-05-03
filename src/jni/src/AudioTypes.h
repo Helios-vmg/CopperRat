@@ -20,6 +20,11 @@ struct PACKING_ATTRIBUTE sample_t{
 	NumberT values[Channels];
 };
 
+template <typename NumberT>
+struct PACKING_ATTRIBUTE sample_t<NumberT, 0>{
+	NumberT values;
+};
+
 #if defined _MSC_VER || defined __GNUC__
 #pragma pack(pop)
 #endif

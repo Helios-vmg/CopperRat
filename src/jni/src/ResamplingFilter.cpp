@@ -39,102 +39,109 @@ public:
 	static UpsamplingFilter *create(const AudioFormat &src_format, const AudioFormat &dst_format);
 };
 
-template <typename NumberT, unsigned Channels>
-class UpsamplingFilterGeneric : public UpsamplingFilter{
-public:
-	UpsamplingFilterGeneric(const AudioFormat &src_format, const AudioFormat &dst_format): UpsamplingFilter(src_format, dst_format){}
-	void read(audio_buffer_t &buffer){
-		//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
-		const unsigned src_rate = this->src_format.freq;
-		const unsigned dst_rate = this->dst_format.freq;
-		memory_sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
-		memory_sample_count_t samples_unwritten = samples_to_process;
-		const memory_audio_position_t original_last_sample = buffer.samples() - 1;
-		const memory_sample_count_t n0 = samples_to_process - 1;
-		const unsigned channel_count = this->dst_format.channels;
-		while (--samples_unwritten){
-			sample_t<NumberT, Channels> *dst_sample = buffer.get_sample<NumberT, Channels>(samples_unwritten);
-			memory_audio_position_t src_sample_pos = samples_unwritten * src_rate / dst_rate;
-			const sample_t<NumberT, Channels> *src_sample = buffer.get_sample<NumberT, Channels>(src_sample_pos);
-			*dst_sample = *src_sample;
-		}
-		buffer.set_sample_count(samples_to_process);
-	}
+template <typename NumberT, unsigned Channels, bool PowerVersion>
+struct UpsamplingFilterCondTypes{
+	typedef sample_t<NumberT, Channels> *dst_sample_t;
+	typedef const sample_t<NumberT, Channels> *src_sample_t;
 };
 
-template <typename NumberT>
-class UpsamplingFilterGeneric<NumberT, 0> : public UpsamplingFilter{
-public:
-	UpsamplingFilterGeneric(const AudioFormat &src_format, const AudioFormat &dst_format): UpsamplingFilter(src_format, dst_format){}
-	void read(audio_buffer_t &buffer){
-		//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
-		const unsigned src_rate = this->src_format.freq;
-		const unsigned dst_rate = this->dst_format.freq;
-		memory_sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
-		memory_sample_count_t samples_unwritten = samples_to_process;
-		const memory_audio_position_t original_last_sample = buffer.samples() - 1;
-		const memory_sample_count_t n0 = samples_to_process - 1;
-		const unsigned channel_count = this->dst_format.channels;
-		while (--samples_unwritten){
-			sample_t<NumberT, 1> *dst_sample = buffer.get_sample_use_channels<NumberT>(samples_unwritten);
-			memory_audio_position_t src_sample_pos = samples_unwritten * src_rate / dst_rate;
-			const sample_t<NumberT, 1> *src_sample = buffer.get_sample_use_channels<NumberT>(src_sample_pos);
-			memcpy(dst_sample, src_sample, sizeof(NumberT) * channel_count);
-		}
-		buffer.set_sample_count(samples_to_process);
-	}
+template <typename NumberT, bool PowerVersion>
+struct UpsamplingFilterCondTypes<NumberT, 0, PowerVersion>{
+	typedef sample_t<NumberT, 1> *dst_sample_t;
+	typedef const sample_t<NumberT, 1> *src_sample_t;
 };
 
-template <typename NumberT, unsigned Channels>
-class UpsamplingFilterPower : public UpsamplingFilter{
-	unsigned power;
-public:
-	UpsamplingFilterPower(const AudioFormat &src_format, const AudioFormat &dst_format, unsigned power): UpsamplingFilter(src_format, dst_format), power(power){}
-	void read(audio_buffer_t &buffer){
-		//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
-		const unsigned src_rate = this->src_format.freq;
-		const unsigned dst_rate = this->dst_format.freq;
-		memory_sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
-		memory_sample_count_t samples_unwritten = samples_to_process;
-		const memory_audio_position_t original_last_sample = buffer.samples() - 1;
-		const memory_sample_count_t n0 = samples_to_process - 1;
-		const unsigned channel_count = this->dst_format.channels;
-		unsigned times = 1 << this->power;
-		sample_t<NumberT, Channels> *dst_sample = buffer.get_sample<NumberT, Channels>(samples_unwritten);
-		while (samples_unwritten){
-			memory_audio_position_t src_sample_pos = (samples_unwritten - 1) >> this->power;
-			sample_t<NumberT, Channels> src_sample = *buffer.get_sample<NumberT, Channels>(src_sample_pos);
-			for (unsigned i = 0; i != times && --samples_unwritten; i++)
-				*(dst_sample--) = src_sample;
-		}
-		buffer.set_sample_count(samples_to_process);
+template <typename NumberT, unsigned Channels, bool PowerVersion>
+struct UpsamplingFilterCond{
+	const unsigned power,
+		times,
+		src_rate,
+		dst_rate;
+	audio_buffer_t buffer;
+	memory_sample_count_t samples_unwritten;
+	const unsigned channel_count;
+	typedef typename UpsamplingFilterCondTypes<NumberT, Channels, PowerVersion>::dst_sample_t dst_sample_t;
+	typedef typename UpsamplingFilterCondTypes<NumberT, Channels, PowerVersion>::src_sample_t src_sample_t;
+	UpsamplingFilterCond(
+			audio_buffer_t buffer,
+			unsigned power,
+			memory_sample_count_t samples_unwritten,
+			unsigned channel_count,
+			unsigned src_rate,
+			unsigned dst_rate):
+		power(power),
+		times(1 << power),
+		buffer(buffer),
+		samples_unwritten(samples_unwritten),
+		channel_count(channel_count),
+		src_rate(src_rate),
+		dst_rate(dst_rate){}
+	bool continue_loop(){
+		if (!PowerVersion)
+			return !!--this->samples_unwritten;
+		return !!this->samples_unwritten;
 	}
-};
-
-template <typename NumberT>
-class UpsamplingFilterPower<NumberT, 0> : public UpsamplingFilter{
-	unsigned power;
-public:
-	UpsamplingFilterPower(const AudioFormat &src_format, const AudioFormat &dst_format, unsigned power): UpsamplingFilter(src_format, dst_format), power(power){}
-	void read(audio_buffer_t &buffer){
-		//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
-		const unsigned src_rate = this->src_format.freq;
-		const unsigned dst_rate = this->dst_format.freq;
-		memory_sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
-		memory_sample_count_t samples_unwritten = samples_to_process;
-		const memory_audio_position_t original_last_sample = buffer.samples() - 1;
-		const memory_sample_count_t n0 = samples_to_process - 1;
-		const unsigned channel_count = this->dst_format.channels;
-		unsigned times = 1 << this->power;
-		sample_t<NumberT, 1> *dst_sample = buffer.get_sample_use_channels<NumberT>(samples_unwritten);
-		while (samples_unwritten){
-			memory_audio_position_t src_sample_pos = (samples_unwritten - 1) >> this->power;
-			sample_t<NumberT, 1> *src_sample = buffer.get_sample_use_channels<NumberT>(src_sample_pos);
-			for (unsigned i = 0; i != times && --samples_unwritten; i++){
-				memcpy(dst_sample, src_sample, sizeof(NumberT) * channel_count);
-				dst_sample -= channel_count;
+	dst_sample_t get_dst(){
+		if (Channels)
+			return (dst_sample_t)buffer.get_sample<NumberT, Channels>(this->samples_unwritten);
+		return (dst_sample_t)buffer.get_sample_use_channels<NumberT>(this->samples_unwritten);
+	}
+	src_sample_t get_src(){
+		memory_audio_position_t src_sample_pos;
+		if (PowerVersion)
+			src_sample_pos = (samples_unwritten - 1) >> this->power;
+		else
+			src_sample_pos = samples_unwritten * src_rate / dst_rate;
+		src_sample_t ret;
+		if (Channels)
+			ret = (src_sample_t)buffer.get_sample<NumberT, Channels>(src_sample_pos);
+		else
+			ret = (src_sample_t)buffer.get_sample_use_channels<NumberT>(src_sample_pos);
+		return ret;
+	}
+	void do_assignment(dst_sample_t dst, src_sample_t src){
+		if (!PowerVersion){
+			if (Channels)
+				*dst = *src;
+			else
+				memcpy(dst, src, sizeof(NumberT) * this->channel_count);
+		}else{
+			if (Channels){
+				UNPOINTER(src_sample_t) src_sample = *src;
+				for (unsigned i = 0; i != this->times && --this->samples_unwritten; i++)
+					*(dst--) = src_sample;
+			}else{
+				for (unsigned i = 0; i != this->times && --this->samples_unwritten; i++){
+					memcpy(dst, src, sizeof(NumberT) * this->channel_count);
+					dst -= this->channel_count;
+				}
 			}
 		}
+	}
+};
+
+template <typename NumberT, unsigned Channels, bool PowerVersion>
+class UpsamplingFilterGeneric : public UpsamplingFilter{
+	unsigned power;
+public:
+	UpsamplingFilterGeneric(const AudioFormat &src_format, const AudioFormat &dst_format, unsigned power = 0): UpsamplingFilter(src_format, dst_format), power(power){}
+	//Upsampling performed by nearest neighbor. (Sort of. The position value gets truncated, not rounded.)
+	void read(audio_buffer_t &buffer){
+		typedef typename UpsamplingFilterCond<NumberT, Channels, PowerVersion>::dst_sample_t dst_sample_t;
+		typedef typename UpsamplingFilterCond<NumberT, Channels, PowerVersion>::src_sample_t src_sample_t;
+		unsigned dst_rate = this->dst_format.freq;
+		unsigned src_rate = this->src_format.freq;
+		memory_sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
+		UpsamplingFilterCond<NumberT, Channels, PowerVersion> ufc(
+			buffer,
+			power,
+			samples_to_process,
+			this->dst_format.channels,
+			src_rate,
+			dst_rate
+		);
+		while (ufc.continue_loop())
+			ufc.do_assignment(ufc.get_dst(), ufc.get_src());
 		buffer.set_sample_count(samples_to_process);
 	}
 };
@@ -163,7 +170,7 @@ AudioFilterManager::~AudioFilterManager(){
 		delete this->filters[i];
 }
 
-audio_buffer_t AudioFilterManager::read(audio_position_t position, size_t &samples_read_from_decoder){
+audio_buffer_t AudioFilterManager::read(audio_position_t position, memory_sample_count_t &samples_read_from_decoder){
 	audio_buffer_t buffer = this->decoder.read_more(position);
 	if (!buffer)
 		return buffer;
@@ -188,9 +195,9 @@ inline UpsamplingFilter *UpsamplingFilter_Creator_helper(const AudioFormat &src_
 	unsigned dividend = dst_rate / div;
 	if (div == src_rate && is_power_of_2(dividend)){
 		unsigned log = integer_log2(dividend);
-		return new UpsamplingFilterPower<Sint16, N>(src_format, dst_format, log);
+		return new UpsamplingFilterGeneric<Sint16, N, true>(src_format, dst_format, log);
 	}
-	return new UpsamplingFilterGeneric<Sint16, N>(src_format, dst_format);
+	return new UpsamplingFilterGeneric<Sint16, N, false>(src_format, dst_format);
 }
 
 template <unsigned I, unsigned N>

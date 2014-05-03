@@ -10,6 +10,9 @@ class audio_buffer_t{
 	unsigned channel_count;
 	unsigned bps;
 public:
+	void *raw_pointer(memory_audio_position_t i){
+		return (char *)this->data + (i + this->data_offset) * this->bps;
+	}
 	template <typename NumberT, unsigned Channels>
 	sample_t<NumberT, Channels> *get_sample(memory_audio_position_t i){
 		return (sample_t<NumberT, Channels> *)this->data + (i + this->data_offset);
