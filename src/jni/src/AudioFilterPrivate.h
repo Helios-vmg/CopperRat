@@ -11,6 +11,8 @@ public:
 	virtual memory_sample_count_t calculate_required_size(memory_sample_count_t) = 0;
 };
 
+#define INTEGER_TYPE_LIST NODE(Sint16) cons NODE(Sint8) cons NODE(Sint32) cons NODE(Uint8) cons NODE(Uint16) cons NODE(Uint32) cons NODE(Sint64) cons NODE(Uint64)
+
 class SignednessFilter : public AudioFilter{
 public:
 	SignednessFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}

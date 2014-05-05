@@ -9,9 +9,14 @@ struct Converter{
 	static Dst convert(Src z){
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable: 4307; disable: 4293)
+//Disable: "integral contant overflow".
+#pragma warning(disable: 4307)
+//Disable: "shift count negative or too big, undefined behavior".
+#pragma warning(disable: 4293)
+//Disable: "truncation of constant value".
+#pragma warning(disable: 4309)
 #endif
-		//The lines below may generate errors in your compiler. They're perfectly safe.
+		//The lines below may generate warnings in your compiler. They're perfectly safe.
 		if (sizeof(Dst) > sizeof(Src)){
 			const unsigned shift = (sizeof(Dst) - sizeof(Src)) * CHAR_BIT;
 			return (Dst)z << shift;
@@ -80,14 +85,5 @@ BitShiftingFilter *create_shifter_step1(const TypeCons<T1, T2> &list, const Audi
 }
 
 BitShiftingFilter *BitShiftingFilter::create(const AudioFormat &src_format, const AudioFormat &dst_format){
-	return create_shifter_step1(
-		NODE(Sint8) cons
-		NODE(Sint16) cons
-		NODE(Sint32) cons
-		NODE(Uint8) cons
-		NODE(Uint16) cons
-		NODE(Uint32) cons
-		NODE(Sint64) cons
-		NODE(Uint64)
-	, src_format, dst_format);
+	return create_shifter_step1(INTEGER_TYPE_LIST, src_format, dst_format);
 }

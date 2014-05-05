@@ -6,15 +6,21 @@
 
 AudioFilterManager::AudioFilterManager(Decoder &decoder, const AudioFormat &dst_format): decoder(decoder){
 	AudioFormat src_format = decoder.get_audio_format();
+	AudioFormat temp = src_format;
+	temp.is_signed = dst_format.is_signed;
+	if (src_format.is_signed != temp.is_signed)
+		this->filters.push_back(SignednessFilter::create(src_format, temp));
+	temp.bytes_per_channel = dst_format.bytes_per_channel;
+	if (src_format.bytes_per_channel != temp.bytes_per_channel)
+		this->filters.push_back(BitShiftingFilter::create(src_format, temp));
+	temp.channels = dst_format.channels;
 #if 0
-	//TODO
-	if (src_format.bytes_per_channel != dst_format.bytes_per_channel)
-		this->filters.push_back(BitShiftingFilter::create(src_format, dst_format));
-	if (src_format.channels != dst_format.channels)
-		this->filters.push_back(ChannelMixingFilter::create(src_format, dst_format));
+	if (src_format.channels != temp.channels)
+		this->filters.push_back(ChannelMixingFilter::create(src_format, temp));
 #endif
-	if (src_format.freq != dst_format.freq)
-		this->filters.push_back(ResamplingFilter::create(src_format, dst_format));
+	temp.freq = dst_format.freq;
+	if (src_format.freq != temp.freq)
+		this->filters.push_back(ResamplingFilter::create(src_format, temp));
 	this->dont_convert = !this->filters.size();
 }
 

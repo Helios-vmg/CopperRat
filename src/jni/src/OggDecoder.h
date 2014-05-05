@@ -23,7 +23,9 @@ public:
 	unsigned get_channel_count(){
 		return this->channels;
 	}
-	AudioFormat get_audio_format();
+	AudioFormat get_audio_format(){
+		return AudioFormat(true, 2, this->channels, this->frequency);
+	}
 	bool seek(audio_position_t);
 
 	static size_t read(void *buffer, size_t size, size_t nmemb, void *s);

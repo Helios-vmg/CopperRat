@@ -30,9 +30,15 @@ struct PACKING_ATTRIBUTE sample_t<NumberT, 0>{
 #endif
 
 struct AudioFormat{
-	unsigned channels;
+	bool is_signed;
 	unsigned bytes_per_channel;
+	unsigned channels;
 	unsigned freq;
+	AudioFormat(bool is_signed, unsigned bytes_per_channel, unsigned channels, unsigned freq):
+		is_signed(is_signed),
+		bytes_per_channel(bytes_per_channel),
+		channels(channels),
+		freq(freq){}
 };
 
 #endif

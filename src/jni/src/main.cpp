@@ -15,7 +15,7 @@ void AudioCallback(void *udata, Uint8 *stream, int len){
 		}
 		audio_buffer_t &buffer = *buffer_pointer;
 		size_t ctb_res = buffer.copy_to_buffer<Sint16, 2>(stream + bytes_written, len - samples_written * bytes_per_sample);
-		samples_written += ctb_res / bytes_per_sample;
+		samples_written += (memory_sample_count_t)(ctb_res / bytes_per_sample);
 		if (!buffer.samples()){
 			buffer = player->queue.pop();
 			buffer.free();

@@ -28,6 +28,7 @@ LOCAL_SRC_FILES += $(LOCAL_PATH)/main.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/OggDecoder.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Queue.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/ResamplingFilter.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/SignednessFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Threads.cpp
 
 LOCAL_SHARED_LIBRARIES := SDL2

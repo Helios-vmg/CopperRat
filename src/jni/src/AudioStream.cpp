@@ -9,7 +9,7 @@ AudioStream::AudioStream(const char *filename, unsigned frequency, unsigned chan
 	this->decoder.reset(Decoder::create(filename));
 	if (!this->decoder.get())
 		return;
-	AudioFormat dst_format = { channels, 2, frequency };
+	AudioFormat dst_format(true, 2, channels, frequency);
 	filter.reset(new AudioFilterManager(*this->decoder, dst_format));
 #ifdef DUMP_OUTPUT
 	std::string s = filename;

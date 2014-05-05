@@ -71,11 +71,6 @@ audio_buffer_t OggDecoder::read_more(){
 	return ret;
 }
 
-AudioFormat OggDecoder::get_audio_format(){
-	AudioFormat ret = { this->channels, 2, this->frequency };
-	return ret;
-}
-
 bool OggDecoder::seek(audio_position_t pos){
 	return !ov_pcm_seek(&this->ogg_file, pos);
 }

@@ -216,4 +216,5 @@ pip-log.txt
 
 src/obj/
 src/jni/SDL/test/
+src/jni/include/boost/
 *.so
