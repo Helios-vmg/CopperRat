@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cassert>
 
-AudioFilterManager::AudioFilterManager(Decoder &decoder, const AudioFormat &dst_format): decoder(decoder){
+AudioFilterManager::AudioFilterManager(Decoder &decoder, const AudioFormat &dst_format): decoder(decoder), dst_format(dst_format){
 	AudioFormat src_format = decoder.get_audio_format();
 	AudioFormat temp = src_format;
 	temp.is_signed = dst_format.is_signed;
@@ -33,10 +33,14 @@ audio_buffer_t AudioFilterManager::read(audio_position_t position, memory_sample
 	audio_buffer_t buffer = this->decoder.read_more(position);
 	if (!buffer || this->dont_convert)
 		return buffer;
-	memory_sample_count_t samples_required = samples_read_from_decoder = buffer.samples();
-	for (size_t i = 0; i < this->filters.size(); i++)
-		samples_required = this->filters[i]->calculate_required_size(samples_required);
-	audio_buffer_t ret = buffer.clone_with_minimum_length(samples_required);
+	samples_read_from_decoder = buffer.samples();
+	size_t bytes_required = buffer.byte_length(),
+		max_bytes = bytes_required;
+	for (size_t i = 0; i < this->filters.size(); i++){
+		bytes_required = this->filters[i]->calculate_required_size(bytes_required);
+		max_bytes = std::max(max_bytes, bytes_required);
+	}
+	audio_buffer_t ret = buffer.clone_with_minimum_byte_length(max_bytes, &this->dst_format);
 	for (size_t i = 0; i < this->filters.size(); i++)
 		this->filters[i]->read(ret);
 	return ret;
