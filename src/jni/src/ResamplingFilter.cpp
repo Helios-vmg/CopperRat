@@ -2,6 +2,19 @@
 #include "CommonFunctions.h"
 #include <cassert>
 
+class UpsamplingFilter : public ResamplingFilter{
+public:
+	UpsamplingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): ResamplingFilter(src_format, dst_format){}
+	virtual ~UpsamplingFilter(){}
+	static UpsamplingFilter *create(const AudioFormat &src_format, const AudioFormat &dst_format);
+};
+
+class DownsamplingFilter : public ResamplingFilter{
+public:
+	DownsamplingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): ResamplingFilter(src_format, dst_format){}
+	void read(audio_buffer_t &buffer);
+};
+
 template <typename NumberT, unsigned Channels, bool PowerVersion>
 struct UpsamplingFilterCondTypes{
 	typedef sample_t<NumberT, Channels> *dst_sample_t;
@@ -94,7 +107,7 @@ public:
 		typedef typename UpsamplingFilterCond<NumberT, Channels, PowerVersion>::src_sample_t src_sample_t;
 		unsigned dst_rate = this->dst_format.freq;
 		unsigned src_rate = this->src_format.freq;
-		memory_sample_count_t samples_to_process = this->calculate_required_size(buffer.samples() * dst_rate / src_rate);
+		memory_sample_count_t samples_to_process = buffer.samples() * dst_rate / src_rate;
 		UpsamplingFilterCond<NumberT, Channels, PowerVersion> ufc(
 			buffer,
 			power,

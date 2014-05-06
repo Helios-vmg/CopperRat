@@ -14,10 +14,8 @@ AudioFilterManager::AudioFilterManager(Decoder &decoder, const AudioFormat &dst_
 	if (src_format.bytes_per_channel != temp.bytes_per_channel)
 		this->filters.push_back(BitShiftingFilter::create(src_format, temp));
 	temp.channels = dst_format.channels;
-#if 0
 	if (src_format.channels != temp.channels)
 		this->filters.push_back(ChannelMixingFilter::create(src_format, temp));
-#endif
 	temp.freq = dst_format.freq;
 	if (src_format.freq != temp.freq)
 		this->filters.push_back(ResamplingFilter::create(src_format, temp));
@@ -37,7 +35,7 @@ audio_buffer_t AudioFilterManager::read(audio_position_t position, memory_sample
 	size_t bytes_required = buffer.byte_length(),
 		max_bytes = bytes_required;
 	for (size_t i = 0; i < this->filters.size(); i++){
-		bytes_required = this->filters[i]->calculate_required_size(bytes_required);
+		bytes_required = this->filters[i]->calculate_required_byte_size(bytes_required);
 		max_bytes = std::max(max_bytes, bytes_required);
 	}
 	audio_buffer_t ret = buffer.clone_with_minimum_byte_length(max_bytes, &this->dst_format);

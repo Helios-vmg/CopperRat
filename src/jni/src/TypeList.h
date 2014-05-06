@@ -6,6 +6,16 @@ struct TypeNil{
 	void iterate(F &f) const{}
 };
 
+template <int N>
+struct TypeIntNode{
+	static const int value = N;
+};
+
+template <int N>
+struct TypeUnsignedNode{
+	static const unsigned value = N;
+};
+
 template <typename T1, typename T2>
 struct TypeCons;
 
@@ -40,7 +50,7 @@ struct TypeCons{
 
 template <typename ListType, typename F>
 void iterate_type_list(const ListType &lt, F &f){
-	lt.iterate<ListType>(f);
+	lt.template iterate<ListType>(f);
 }
 
 #endif

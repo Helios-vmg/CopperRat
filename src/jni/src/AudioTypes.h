@@ -39,6 +39,9 @@ struct AudioFormat{
 		bytes_per_channel(bytes_per_channel),
 		channels(channels),
 		freq(freq){}
+	unsigned bytes_per_sample() const{
+		return this->bytes_per_channel * this->channels;
+	}
 };
 
 #endif

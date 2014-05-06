@@ -27,7 +27,6 @@ public:
 				const DstT max = std::numeric_limits<DstT>::max();
 				const SrcT bigmax = std::numeric_limits<SrcT>::max();
 				//This if should be eliminated at compile time.
-#ifdef
 				if (min == -max){
 					//The easy case first:
 					if (x <= (SrcT)max)
@@ -58,7 +57,6 @@ public:
 				}
 			}
 		}
-		buffer.set_sample_count(this->calculate_required_size(buffer.samples()));
 	}
 };
 

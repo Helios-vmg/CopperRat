@@ -47,7 +47,6 @@ public:
 			for (size_t i = 0; i != array_size; i++)
 				dst_array[i] = Converter<DstT, SrcT>::convert(src_array[i]);
 		}
-		buffer.set_sample_count(this->calculate_required_size(buffer.samples()));
 	}
 };
 
