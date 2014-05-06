@@ -79,7 +79,13 @@ public:
 	audio_buffer_t clone() const{
 		return this->clone_with_minimum_length(this->samples());
 	}
-	audio_buffer_t clone_with_minimum_length(memory_sample_count_t) const;
+	audio_buffer_t clone_with_minimum_length(memory_sample_count_t samples) const{
+		return this->clone_with_minimum_length_in_target_format(samples, AudioFormat(0, this->bps / this->channel_count, this->channel_count, 0));
+	}
+	audio_buffer_t clone_with_minimum_length_in_target_format(memory_sample_count_t samples, const AudioFormat &af) const{
+		return this->clone_with_minimum_byte_length(samples * af.bytes_per_sample(), &af);
+	}
+	audio_buffer_t clone_with_minimum_byte_length(size_t bytes, const AudioFormat *new_format = 0) const;
 	template <typename NumberT, unsigned Channels>
 	size_t copy_to_buffer(void *dst, size_t max_bytes){
 		size_t bytes_to_copy = std::min<size_t>(this->byte_length(), max_bytes);

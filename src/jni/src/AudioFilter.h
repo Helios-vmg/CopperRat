@@ -8,6 +8,7 @@ class AudioFilter;
 class AudioFilterManager{
 	Decoder &decoder;
 	std::vector<AudioFilter *> filters;
+	AudioFormat dst_format;
 	bool dont_convert;
 public:
 	AudioFilterManager(Decoder &decoder, const AudioFormat &dst_format);

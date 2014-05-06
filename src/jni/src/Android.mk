@@ -7,7 +7,7 @@ LOCAL_MODULE := main
 SDL_PATH := ../SDL
 
 LOCAL_CFLAGS += -O3  #-DPROFILING
-LOCAL_CXXFLAGS = -O3 #-DPROFILING
+LOCAL_CXXFLAGS = -O3 -std=c++0x #-DPROFILING
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../include
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libogg-1.3.1/include/
@@ -22,6 +22,7 @@ LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioPlayer.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioStream.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/BitShiftingFilter.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/ChannelMixingFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/CommonFunctions.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Decoder.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/main.cpp
