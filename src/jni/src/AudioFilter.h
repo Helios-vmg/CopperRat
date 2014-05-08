@@ -7,9 +7,12 @@ class AudioFilter;
 
 class AudioFilterManager{
 	Decoder &decoder;
+	bool filter_allocated;
 	std::vector<AudioFilter *> filters;
 	AudioFormat dst_format;
 	bool dont_convert;
+
+	void allocate_filters();
 public:
 	AudioFilterManager(Decoder &decoder, const AudioFormat &dst_format);
 	~AudioFilterManager();

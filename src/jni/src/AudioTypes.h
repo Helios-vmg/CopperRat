@@ -34,6 +34,7 @@ struct AudioFormat{
 	unsigned bytes_per_channel;
 	unsigned channels;
 	unsigned freq;
+	AudioFormat(){}
 	AudioFormat(bool is_signed, unsigned bytes_per_channel, unsigned channels, unsigned freq):
 		is_signed(is_signed),
 		bytes_per_channel(bytes_per_channel),

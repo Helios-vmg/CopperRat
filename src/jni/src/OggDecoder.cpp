@@ -10,7 +10,7 @@ OggDecoder::OggDecoder(const char *filename){
 #pragma warning(pop)
 #endif
 	if (!this->file)
-		abort();
+		throw DecoderInitializationException();
 	this->bitstream = 0;
 	ov_callbacks cb;
 	cb.read_func = OggDecoder::read;
@@ -19,7 +19,7 @@ OggDecoder::OggDecoder(const char *filename){
 	cb.close_func = 0;
 	int error = ov_open_callbacks(this, &this->ogg_file, 0, 0, cb);
 	if (error < 0)
-		abort();
+		throw DecoderInitializationException();
 	vorbis_info *i = ov_info(&this->ogg_file, this->bitstream);
 	this->frequency = i->rate;
 	this->channels = i->channels;
