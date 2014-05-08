@@ -17,6 +17,7 @@ class audio_buffer_t{
 	void alloc(size_t bytes);
 	void free();
 	void alloc(unsigned bytes_per_sample, unsigned channels, memory_sample_count_t length);
+	void move_copy(audio_buffer_t &);
 public:
 	audio_buffer_t(): data(0), true_pointer(0), ref_count(0), data_offset(0), sample_count(0), channel_count(0), bps(0){}
 	audio_buffer_t(unsigned bytes_per_sample, unsigned channels, memory_sample_count_t length);

@@ -13,6 +13,7 @@ class AudioFilterManager{
 	std::vector<AudioFilter *> filters;
 	AudioFormat dst_format;
 	bool dont_convert;
+	unsigned position_offset;
 
 	void allocate_filters();
 public:

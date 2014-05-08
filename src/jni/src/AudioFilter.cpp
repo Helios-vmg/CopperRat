@@ -26,33 +26,39 @@ void AudioFilterManager::allocate_filters(){
 		this->filters.push_back(ResamplingFilter::create(src_format, temp));
 	this->dont_convert = !this->filters.size();
 	this->filter_allocated = 1;
+	this->position_offset = 0;
 }
 
 AudioFilterManager::~AudioFilterManager(){
 	for (size_t i = 0; i < this->filters.size(); i++)
 		delete this->filters[i];
-	saved_buffer.free();
 }
 
 audio_buffer_t AudioFilterManager::read(audio_position_t position, memory_sample_count_t &samples_read_from_decoder){
 	audio_buffer_t buffers[2];
 	unsigned buffers_size = 0;
-	if (!this->need_two_buffers)
+	if (!this->need_two_buffers && this->saved_buffer)
 		buffers[buffers_size++] = this->saved_buffer;
 	this->need_two_buffers = 0;
 	while (buffers_size < 2){
-		audio_buffer_t buffer = this->decoder.read_more(position);
+		audio_buffer_t buffer = this->decoder.read_more(position + this->position_offset);
 		if (!buffer)
 			break;
 		buffers[buffers_size++] = buffer;
+		position += buffer.samples();
 	}
 	samples_read_from_decoder = !buffers_size ? 0 : buffers[0].samples();
 	if (!this->filter_allocated && this->decoder.lazy_filter_allocation())
 		this->allocate_filters();
 	if (!buffers[0] || this->dont_convert)
 		return buffers[0];
-	if (buffers_size > 1)
+	if (buffers_size > 1){
 		this->saved_buffer = buffers[1];
+		this->position_offset = this->saved_buffer.samples();
+	}else{
+		this->saved_buffer.unref();
+		this->position_offset = 0;
+	}
 	size_t bytes_required = buffers[0].byte_length(),
 		max_bytes = bytes_required;
 	for (size_t i = 0; i < this->filters.size(); i++){
@@ -61,11 +67,7 @@ audio_buffer_t AudioFilterManager::read(audio_position_t position, memory_sample
 		bytes_required = this->filters[i]->calculate_required_byte_size(bytes_required);
 		max_bytes = std::max(max_bytes, bytes_required);
 	}
-	{
-		audio_buffer_t temp = buffers[0].clone_with_minimum_byte_length(max_bytes, &this->dst_format);
-		buffers[0].free("AudioFilterManager::read()");
-		buffers[0] = temp;
-	}
+	buffers[0] = buffers[0].clone_with_minimum_byte_length(max_bytes, &this->dst_format);
 	for (size_t i = 0; i < this->filters.size(); i++)
 		this->filters[i]->read(buffers, buffers_size);
 	return buffers[0];

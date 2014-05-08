@@ -242,7 +242,7 @@ inline UpsamplingFilter *UpsamplingFilter_Creator_helper(const AudioFormat &src_
 	unsigned dst_rate = dst_format.freq;
 	unsigned div = gcd(src_rate, dst_rate);
 	unsigned dividend = dst_rate / div;
-	return new UpsamplingFilterFloat<Sint16, N>(src_format, dst_format);
+	//return new UpsamplingFilterFloat<Sint16, N>(src_format, dst_format);
 	if (div == src_rate && is_power_of_2(dividend)){
 		unsigned log = integer_log2(dividend);
 		return new UpsamplingFilterGeneric<Sint16, N, true>(src_format, dst_format, log);

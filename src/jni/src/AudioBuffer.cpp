@@ -40,7 +40,7 @@ audio_buffer_t::audio_buffer_t(const audio_buffer_t &buffer){
 
 audio_buffer_t::audio_buffer_t(audio_buffer_t &&buffer){
 	this->ref_count = 0;
-	*this = buffer;
+	this->move_copy(buffer);
 }
 
 const audio_buffer_t &audio_buffer_t::operator=(const audio_buffer_t &buffer){
@@ -57,6 +57,11 @@ const audio_buffer_t &audio_buffer_t::operator=(const audio_buffer_t &buffer){
 }
 
 const audio_buffer_t &audio_buffer_t::operator=(audio_buffer_t &&buffer){
+	this->move_copy(buffer);
+	return *this;
+}
+
+void audio_buffer_t::move_copy(audio_buffer_t &buffer){
 	this->unref();
 	this->data = buffer.data;
 	this->true_pointer = buffer.true_pointer;
@@ -66,7 +71,6 @@ const audio_buffer_t &audio_buffer_t::operator=(audio_buffer_t &&buffer){
 	this->channel_count = buffer.channel_count;
 	this->bps = buffer.bps;
 	buffer.ref_count = 0;
-	return *this;
 }
 
 audio_buffer_t::~audio_buffer_t(){
@@ -84,6 +88,11 @@ void audio_buffer_t::unref(){
 	--*this->ref_count;
 	if (!*this->ref_count)
 		this->free();
+	this->true_pointer = 0;
+	this->data = 0;
+	this->ref_count = 0;
+	this->data_offset = 0;
+	this->sample_count = 0;
 }
 
 void audio_buffer_t::free(){
@@ -101,12 +110,17 @@ void audio_buffer_t::switch_to_manual(){
 
 audio_buffer_t audio_buffer_t::clone_with_minimum_byte_length(size_t n, const AudioFormat *new_format) const{
 	size_t length = std::max(this->full_byte_length(), n);
-	audio_buffer_t ret = *this;
+	audio_buffer_t ret;
 	if (new_format){
 		ret.bps = new_format->bytes_per_sample();
 		ret.channel_count = new_format->channels;
+	}else{
+		ret.bps = this->bps;
+		ret.channel_count = this->channel_count;
 	}
 	ret.alloc(length);
+	ret.sample_count = this->sample_count;
+	ret.data_offset = this->data_offset;
 	memcpy(ret.data, this->data, this->full_byte_length());
 	return ret;
 }

@@ -4,7 +4,6 @@ AudioPlayer::AudioPlayer(){
 #ifdef WIN32
 	//Put your test tracks here when compiling for Windows.
 	//TODO: Other systems.
-	this->playlist.push("f:/Data/Music/Beethoven/9th_b/test8000.ogg");
 #else
 	//Put your test tracks here when compiling for Android.
 #endif
@@ -85,7 +84,6 @@ void AudioPlayer::thread(){
 		this->queue.push(buffer);
 #elif defined OUTPUT_TO_FILE
 		raw_file.write((char *)buffer.raw_pointer(0), buffer.byte_length());
-#endif
 #endif
 	}
 #ifdef PROFILING
