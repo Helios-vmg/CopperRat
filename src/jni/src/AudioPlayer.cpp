@@ -4,6 +4,7 @@ AudioPlayer::AudioPlayer(){
 #ifdef WIN32
 	//Put your test tracks here when compiling for Windows.
 	//TODO: Other systems.
+	this->playlist.push("f:/Data/Music/Beethoven/9th_b/test8000.ogg");
 #else
 	//Put your test tracks here when compiling for Android.
 #endif
@@ -22,8 +23,6 @@ AudioPlayer::~AudioPlayer(){
 #ifndef PROFILING
 	SDL_WaitThread(this->sdl_thread, 0);
 #endif
-	while (!this->queue.is_empty())
-		this->queue.pop().free();
 }
 
 int AudioPlayer::_thread(void *p){
@@ -45,11 +44,16 @@ int AudioPlayer::_thread(void *p){
 
 double playback_time = 0;
 
+#define OUTPUT_TO_FILE
+
 void AudioPlayer::thread(){
 	unsigned long long count = 0;
 #ifdef PROFILING
 	unsigned long long samples_decoded = 0;
 	Uint32 t0 = SDL_GetTicks();
+#ifdef OUTPUT_TO_FILE
+	std::ofstream raw_file("output.raw", std::ios::binary);
+#endif
 #endif
 	while (this->run){
 		if (!this->now_playing){
@@ -76,10 +80,11 @@ void AudioPlayer::thread(){
 			continue;
 		}
 		count++;
-#ifndef PROFILING
+#if !defined PROFILING
+		buffer.switch_to_manual();
 		this->queue.push(buffer);
-#else
-		buffer.free();
+#elif defined OUTPUT_TO_FILE
+		raw_file.write((char *)buffer.raw_pointer(0), buffer.byte_length());
 #endif
 	}
 #ifdef PROFILING
@@ -113,8 +118,7 @@ void AudioPlayer::test(){
 			delete this->now_playing;
 			this->now_playing = 0;
 			continue;
-		}else
-			buffer.free();
+		}
 		count++;
 	}
 }
