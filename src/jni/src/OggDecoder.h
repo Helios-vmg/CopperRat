@@ -17,12 +17,6 @@ class OggDecoder: public Decoder{
 public:
 	OggDecoder(const char *filename);
 	~OggDecoder();
-	unsigned get_sampling_rate(){
-		return this->frequency;
-	}
-	unsigned get_channel_count(){
-		return this->channels;
-	}
 	AudioFormat get_audio_format(){
 		return AudioFormat(true, 2, this->channels, this->frequency);
 	}

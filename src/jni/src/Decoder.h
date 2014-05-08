@@ -12,10 +12,14 @@ public:
 	Decoder(): current_position(0){}
 	virtual ~Decoder(){}
 	virtual AudioFormat get_audio_format() = 0;
-	virtual unsigned get_sampling_rate() = 0;
-	virtual unsigned get_channel_count() = 0;
+	virtual bool lazy_filter_allocation(){
+		return 0;
+	}
 	audio_buffer_t read_more(audio_position_t initial_position);
 	static Decoder *create(const char *);
 };
+
+class DecoderException{};
+class DecoderInitializationException : public DecoderException{};
 
 #endif
