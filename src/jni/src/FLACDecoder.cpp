@@ -3,7 +3,7 @@
 
 template <typename SampleT>
 audio_buffer_t copy_to_new_buffer(const FLAC__Frame *frame, const FLAC__int32 * const *buffer){
-	audio_buffer_t ret = audio_buffer_t::alloc(frame->header.bits_per_sample / 8, frame->header.channels, frame->header.blocksize);
+	audio_buffer_t ret(frame->header.bits_per_sample / 8, frame->header.channels, frame->header.blocksize);
 	SampleT *array = (SampleT *)ret.raw_pointer(0);
 	size_t array_size = ret.byte_length();
 	unsigned channels = ret.channels();
@@ -34,8 +34,6 @@ FlacDecoder::FlacDecoder(const char *filename){
 }
 
 void FlacDecoder::free_buffers(){
-	for (auto &ab : this->buffers)
-		ab.free();
 	this->buffers.clear();
 }
 

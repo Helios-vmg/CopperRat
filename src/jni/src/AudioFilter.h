@@ -6,11 +6,14 @@
 class AudioFilter;
 
 class AudioFilterManager{
+	bool need_two_buffers;
+	audio_buffer_t saved_buffer;
 	Decoder &decoder;
 	bool filter_allocated;
 	std::vector<AudioFilter *> filters;
 	AudioFormat dst_format;
 	bool dont_convert;
+	unsigned position_offset;
 
 	void allocate_filters();
 public:
