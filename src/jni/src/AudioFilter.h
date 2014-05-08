@@ -6,6 +6,8 @@
 class AudioFilter;
 
 class AudioFilterManager{
+	bool need_two_buffers;
+	audio_buffer_t saved_buffer;
 	Decoder &decoder;
 	bool filter_allocated;
 	std::vector<AudioFilter *> filters;

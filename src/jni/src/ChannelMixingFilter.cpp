@@ -3,7 +3,8 @@
 class ChannelMixingOneToTwo : public ChannelMixingFilter{
 public:
 	ChannelMixingOneToTwo(const AudioFormat &src_format, const AudioFormat &dst_format): ChannelMixingFilter(src_format, dst_format){}
-	void read(audio_buffer_t &buffer){
+	void read(audio_buffer_t *buffers, size_t size){
+		audio_buffer_t &buffer = buffers[0];
 		auto src = buffer.get_sample<Sint16, 1>(0);
 		auto dst = buffer.get_sample<Sint16, 2>(0);
 		const memory_sample_count_t samples = buffer.samples();
@@ -15,7 +16,8 @@ public:
 class ChannelMixingTwoToOne : public ChannelMixingFilter{
 public:
 	ChannelMixingTwoToOne(const AudioFormat &src_format, const AudioFormat &dst_format): ChannelMixingFilter(src_format, dst_format){}
-	void read(audio_buffer_t &buffer){
+	void read(audio_buffer_t *buffers, size_t size){
+		audio_buffer_t &buffer = buffers[0];
 		auto src = buffer.get_sample<Sint16, 2>(0);
 		auto dst = buffer.get_sample<Sint16, 1>(0);
 		const memory_sample_count_t samples = buffer.samples();
@@ -29,7 +31,8 @@ public:
 class ChannelMixingManyToOne : public ChannelMixingFilter{
 public:
 	ChannelMixingManyToOne(const AudioFormat &src_format, const AudioFormat &dst_format): ChannelMixingFilter(src_format, dst_format){}
-	void read(audio_buffer_t &buffer){
+	void read(audio_buffer_t *buffers, size_t size){
+		audio_buffer_t &buffer = buffers[0];
 		auto dst = buffer.get_sample<Sint16, 1>(0);
 		const memory_sample_count_t samples = buffer.samples();
 		for (memory_sample_count_t i = 0; i != samples; i++){
@@ -43,7 +46,8 @@ public:
 class ChannelMixingManyToTwo : public ChannelMixingFilter{
 public:
 	ChannelMixingManyToTwo(const AudioFormat &src_format, const AudioFormat &dst_format): ChannelMixingFilter(src_format, dst_format){}
-	void read(audio_buffer_t &buffer){
+	void read(audio_buffer_t *buffers, size_t size){
+		audio_buffer_t &buffer = buffers[0];
 		auto dst = buffer.get_sample<Sint16, 2>(0);
 		const memory_sample_count_t samples = buffer.samples();
 		for (memory_sample_count_t i = 0; i != samples; i++){

@@ -12,7 +12,8 @@ template <typename DstT, typename SrcT>
 class SignednessFilterGeneric : public SignednessFilter{
 public:
 	SignednessFilterGeneric(const AudioFormat &src_format, const AudioFormat &dst_format): SignednessFilter(src_format, dst_format){}
-	void read(audio_buffer_t &buffer){
+	void read(audio_buffer_t *buffers, size_t size){
+		audio_buffer_t &buffer = buffers[0];
 		const SrcT *src_array = (const SrcT *)buffer.raw_pointer(0);
 		const size_t array_size = buffer.byte_length() / sizeof(SrcT);
 		DstT *dst_array = (DstT *)src_array;
@@ -64,7 +65,7 @@ template <typename SrcT>
 class SignednessFilterGeneric<TypeNil, SrcT> : public SignednessFilter{
 public:
 	SignednessFilterGeneric(const AudioFormat &src_format, const AudioFormat &dst_format): SignednessFilter(src_format, dst_format){}
-	void read(audio_buffer_t &buffer){}
+	void read(audio_buffer_t *buffers, size_t size){}
 };
 
 template <typename DstT, typename SrcT>

@@ -86,6 +86,7 @@ void AudioPlayer::thread(){
 #elif defined OUTPUT_TO_FILE
 		raw_file.write((char *)buffer.raw_pointer(0), buffer.byte_length());
 #endif
+#endif
 	}
 #ifdef PROFILING
 	Uint32 t1 = SDL_GetTicks();
