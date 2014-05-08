@@ -7,7 +7,7 @@ protected:
 public:
 	AudioFilter(const AudioFormat &src_format, const AudioFormat &dst_format): src_format(src_format), dst_format(dst_format){}
 	virtual ~AudioFilter(){}
-	virtual void read(audio_buffer_t &buffer) = 0;
+	virtual void read(audio_buffer_t *buffers, size_t size) = 0;
 	virtual size_t calculate_required_byte_size(size_t) = 0;
 };
 

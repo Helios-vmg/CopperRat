@@ -22,29 +22,16 @@ public:
 	sample_t<NumberT, 1> *get_sample_use_channels(memory_audio_position_t i){
 		return (sample_t<NumberT, 1> *)this->data + (i + this->data_offset) * this->channel_count;
 	}
-	static audio_buffer_t alloc(unsigned bytes_per_sample, unsigned channels, memory_sample_count_t length){
-		audio_buffer_t ret;
-		ret.bps = bytes_per_sample * channels;
-		size_t n = length * ret.bps;
-		//TODO: Optimize this. Implement reusable buffers.
-		ret.data = malloc(n);
-		ret.sample_count = length;
-		ret.channel_count = channels;
-		ret.data_offset = 0;
-#ifdef _DEBUG
-		memset(ret.data, 0xCD, n);
-#endif
-		return ret;
-	}
+	static audio_buffer_t alloc(unsigned bytes_per_sample, unsigned channels, memory_sample_count_t length, const char *msg = 0);
 	template <typename NumberT>
-	static audio_buffer_t alloc(unsigned channels, memory_sample_count_t length){
-		return alloc(sizeof(NumberT) * channels, channels, length);
+	static audio_buffer_t alloc(unsigned channels, memory_sample_count_t length, const char *msg = 0){
+		return alloc(sizeof(NumberT) * channels, channels, length, msg);
 	}
 	template <typename NumberT, unsigned Channels>
-	static audio_buffer_t alloc(memory_sample_count_t length){
-		return alloc<NumberT>(Channels, length);
+	static audio_buffer_t alloc(memory_sample_count_t length, const char *msg = 0){
+		return alloc<NumberT>(Channels, length, msg);
 	}
-	void free();
+	void free(const char * = 0);
 	operator bool() const{
 		return this->data != 0;
 	}

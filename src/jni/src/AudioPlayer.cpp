@@ -4,6 +4,7 @@ AudioPlayer::AudioPlayer(){
 #ifdef WIN32
 	//Put your test tracks here when compiling for Windows.
 	//TODO: Other systems.
+	this->playlist.push("f:/Data/Music/Beethoven/CC-sharealike/test8000c.ogg");
 #else
 	//Put your test tracks here when compiling for Android.
 #endif
@@ -45,11 +46,16 @@ int AudioPlayer::_thread(void *p){
 
 double playback_time = 0;
 
+#define OUTPUT_TO_FILE
+
 void AudioPlayer::thread(){
 	unsigned long long count = 0;
 #ifdef PROFILING
 	unsigned long long samples_decoded = 0;
 	Uint32 t0 = SDL_GetTicks();
+#ifdef OUTPUT_TO_FILE
+	std::ofstream raw_file("output.raw", std::ios::binary);
+#endif
 #endif
 	while (this->run){
 		if (!this->now_playing){
@@ -79,7 +85,10 @@ void AudioPlayer::thread(){
 #ifndef PROFILING
 		this->queue.push(buffer);
 #else
+#ifdef OUTPUT_TO_FILE
+		raw_file.write((char *)buffer.raw_pointer(0), buffer.byte_length());
 		buffer.free();
+#endif
 #endif
 	}
 #ifdef PROFILING
