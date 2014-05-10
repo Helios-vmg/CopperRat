@@ -33,7 +33,7 @@ class FlacDecoder: public Decoder, public FLAC::Decoder::Stream{
 		throw FlacException(FLAC__StreamDecoderErrorStatusString[status]);
 	}
 	
-	audio_buffer_t read_more();
+	audio_buffer_t read_more_internal();
 
 	void free_buffers();
 

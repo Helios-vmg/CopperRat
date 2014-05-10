@@ -58,14 +58,20 @@ public:
 		};
 		this->queue = b.queue;
 	}
-#if 0
 	void lock(){
 		this->mutex.lock();
 	}
 	void unlock(){
 		this->mutex.unlock();
 	}
-#endif
+	void clear(){
+		AutoMutex am(this->mutex);
+		this->unlocked_clear();
+	}
+	void unlocked_clear(){
+		while (this->queue.size())
+			this->queue.pop();
+	}
 	void push(const T &e){
 		while (1){
 			{
@@ -83,6 +89,10 @@ public:
 	bool is_empty(){
 		AutoMutex am(this->mutex);
 		return this->queue.empty();
+	}
+	bool is_full(){
+		AutoMutex am(this->mutex);
+		return this->queue.size() >= this->max_size;
 	}
 	size_t size(){
 		AutoMutex am(this->mutex);
@@ -121,6 +131,9 @@ public:
 	}
 	bool try_pop(T &o){
 		AutoMutex am(this->mutex);
+		return this->unlocked_try_pop(o);
+	}
+	bool unlocked_try_pop(T &o){
 		if (!this->queue.size())
 			return 0;
 		o = this->queue.front();

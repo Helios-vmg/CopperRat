@@ -44,7 +44,7 @@ bool FlacDecoder::seek(audio_position_t p){
 	return ret;
 }
 
-audio_buffer_t FlacDecoder::read_more(){
+audio_buffer_t FlacDecoder::read_more_internal(){
 	bool ok = 1;
 	FLAC::Decoder::Stream::State state = this->get_state();
 	while (!this->buffers.size() && (ok = this->process_single()) && (state = this->get_state()) != FLAC__STREAM_DECODER_END_OF_STREAM);

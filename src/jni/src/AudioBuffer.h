@@ -4,7 +4,6 @@
 #include <algorithm>
 
 class audio_buffer_t{
-	friend void AudioCallback(void *udata, Uint8 *stream, int len);
 	void *data,
 		*true_pointer;
 	unsigned *ref_count;
@@ -15,10 +14,10 @@ class audio_buffer_t{
 
 	void ref();
 	void alloc(size_t bytes);
-	void free();
 	void alloc(unsigned bytes_per_sample, unsigned channels, memory_sample_count_t length);
-	void move_copy(audio_buffer_t &);
+	void copy(const audio_buffer_t &);
 public:
+	audio_position_t position;
 	audio_buffer_t(): data(0), true_pointer(0), ref_count(0), data_offset(0), sample_count(0), channel_count(0), bps(0){}
 	audio_buffer_t(unsigned bytes_per_sample, unsigned channels, memory_sample_count_t length);
 	audio_buffer_t(const audio_buffer_t &);
@@ -28,6 +27,7 @@ public:
 	~audio_buffer_t();
 	void unref();
 	void switch_to_manual();
+	void free();
 	void *raw_pointer(memory_audio_position_t i){
 		return (char *)this->data + (i + this->data_offset) * this->bps;
 	}

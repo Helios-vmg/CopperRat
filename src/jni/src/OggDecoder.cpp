@@ -50,7 +50,7 @@ const char *ogg_code_to_string(int e){
 	}
 }
 
-audio_buffer_t OggDecoder::read_more(){
+audio_buffer_t OggDecoder::read_more_internal(){
 	const size_t samples_to_read = 1024;
 	const size_t bytes_per_sample = this->channels*2;
 	const size_t bytes_to_read = samples_to_read*bytes_per_sample;
@@ -73,6 +73,10 @@ audio_buffer_t OggDecoder::read_more(){
 
 bool OggDecoder::seek(audio_position_t pos){
 	return !ov_pcm_seek(&this->ogg_file, pos);
+}
+
+bool OggDecoder::fast_seek(audio_position_t pos){
+	return !ov_pcm_seek_page(&this->ogg_file, pos);
 }
 
 size_t OggDecoder::read(void *buffer, size_t size, size_t nmemb, void *s){

@@ -11,17 +11,15 @@
 class AudioStream{
 	std::auto_ptr<Decoder> decoder;
 	std::auto_ptr<AudioFilterManager> filter;
-	unsigned frequency;
-	unsigned channels;
-	unsigned default_buffer_length;
 	audio_position_t position;
 #ifdef DUMP_OUTPUT
 	std::ofstream test_file;
 #endif
 public:
-	AudioStream(const char *filename, unsigned frequency, unsigned channels, unsigned default_buffer_length);
+	AudioStream(const char *filename, unsigned frequency, unsigned channels);
 	audio_buffer_t read_new();
 	void reset();
+	audio_position_t seek(audio_position_t current_position, float ms);
 };
 
 #endif

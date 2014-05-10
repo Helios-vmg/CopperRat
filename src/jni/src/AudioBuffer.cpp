@@ -40,28 +40,23 @@ audio_buffer_t::audio_buffer_t(const audio_buffer_t &buffer){
 
 audio_buffer_t::audio_buffer_t(audio_buffer_t &&buffer){
 	this->ref_count = 0;
-	this->move_copy(buffer);
+	this->copy(buffer);
+	buffer.ref_count = 0;
 }
 
 const audio_buffer_t &audio_buffer_t::operator=(const audio_buffer_t &buffer){
-	this->unref();
-	this->data = buffer.data;
-	this->true_pointer = buffer.true_pointer;
-	this->ref_count = buffer.ref_count;
-	this->data_offset = buffer.data_offset;
-	this->sample_count = buffer.sample_count;
-	this->channel_count = buffer.channel_count;
-	this->bps = buffer.bps;
+	this->copy(buffer);
 	this->ref();
 	return *this;
 }
 
 const audio_buffer_t &audio_buffer_t::operator=(audio_buffer_t &&buffer){
-	this->move_copy(buffer);
+	this->copy(buffer);
+	buffer.ref_count = 0;
 	return *this;
 }
 
-void audio_buffer_t::move_copy(audio_buffer_t &buffer){
+void audio_buffer_t::copy(const audio_buffer_t &buffer){
 	this->unref();
 	this->data = buffer.data;
 	this->true_pointer = buffer.true_pointer;
@@ -70,7 +65,7 @@ void audio_buffer_t::move_copy(audio_buffer_t &buffer){
 	this->sample_count = buffer.sample_count;
 	this->channel_count = buffer.channel_count;
 	this->bps = buffer.bps;
-	buffer.ref_count = 0;
+	this->position = buffer.position;
 }
 
 audio_buffer_t::~audio_buffer_t(){
@@ -105,7 +100,7 @@ void audio_buffer_t::free(){
 }
 
 void audio_buffer_t::switch_to_manual(){
-	*this->ref_count = 0;
+	this->ref_count = 0;
 }
 
 audio_buffer_t audio_buffer_t::clone_with_minimum_byte_length(size_t n, const AudioFormat *new_format) const{
