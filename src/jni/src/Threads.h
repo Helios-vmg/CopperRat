@@ -40,8 +40,15 @@ typedef AutoLocker<RecursiveMutex> AutoRecursiveMutex;
 
 template <typename T>
 class thread_safe_queue{
+	friend class AutoLocker<thread_safe_queue<T> >;
 	std::queue<T> queue;
 	Mutex mutex;
+	void lock(){
+		this->mutex.lock();
+	}
+	void unlock(){
+		this->mutex.unlock();
+	}
 public:
 	unsigned max_size;
 	thread_safe_queue(){
@@ -57,12 +64,6 @@ public:
 			this->mutex
 		};
 		this->queue = b.queue;
-	}
-	void lock(){
-		this->mutex.lock();
-	}
-	void unlock(){
-		this->mutex.unlock();
 	}
 	void clear(){
 		AutoMutex am(this->mutex);
@@ -86,8 +87,17 @@ public:
 		}
 		
 	}
+	void shove(const T &e){
+		AutoMutex am(this->mutex);
+		while (this->size() >= this->max_size)
+			this->queue.pop();
+		this->queue.push(e);
+	}
 	bool is_empty(){
 		AutoMutex am(this->mutex);
+		return this->queue.empty();
+	}
+	bool unlocked_is_empty(){
 		return this->queue.empty();
 	}
 	bool is_full(){
@@ -119,15 +129,16 @@ public:
 		while (1){
 			{
 				AutoMutex am(this->mutex);
-				size_t size = this->queue.size();
-				if (size>0){
-					T ret = this->queue.front();
-					this->queue.pop();
-					return ret;
-				}
+				if (this->queue.size() > 0)
+					return this->unlocked_simple_pop();
 			}
 			SDL_Delay(10);
 		}
+	}
+	T unlocked_simple_pop(){
+		T ret = this->queue.front();
+		this->queue.pop();
+		return ret;
 	}
 	bool try_pop(T &o){
 		AutoMutex am(this->mutex);
@@ -152,6 +163,33 @@ public:
 			}
 			SDL_Delay(10);
 		}
+	}
+};
+
+template <typename T>
+class Atomic{
+	Mutex m;
+	T value;
+public:
+	Atomic(){}
+	explicit Atomic(Atomic<T> &a): value(a.get()){}
+	explicit Atomic(const T &t): value(t){}
+	explicit Atomic(T &&t): value(t){}
+	T get(){
+		AutoMutex am(this->m);
+		return this->value;
+	}
+	void get(T &dst) const{
+		AutoMutex am(this->m);
+		dst = this->value;
+	}
+	void set(const T &t){
+		AutoMutex am(this->m);
+		this->value = t;
+	}
+	void set(T &&t){
+		AutoMutex am(this->m);
+		this->value = t;
 	}
 };
 

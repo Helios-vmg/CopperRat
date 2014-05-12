@@ -26,7 +26,7 @@ FlacDecoder::allocator_func FlacDecoder::allocator_functions[] = {
 	copy_to_new_buffer<Sint32>,
 };
 
-FlacDecoder::FlacDecoder(const char *filename){
+FlacDecoder::FlacDecoder(const char *filename): declared_af_set(0){
 	this->set_md5_checking(0);
 	this->file.open(filename, std::ios::binary);
 	if (!this->file || this->init() != FLAC__STREAM_DECODER_INIT_STATUS_OK)
@@ -55,12 +55,23 @@ audio_buffer_t FlacDecoder::read_more_internal(){
 	return ret;
 }
 
+sample_count_t FlacDecoder::get_pcm_length_internal(){
+	return this->get_total_samples();
+}
+
+double FlacDecoder::get_seconds_length_internal(){
+	if (!this->declared_af_set)
+		return -1;
+	return (double)this->get_pcm_length_internal() / this->declared_af.freq;
+}
+
 FLAC__StreamDecoderWriteStatus FlacDecoder::write_callback(const FLAC__Frame *frame, const FLAC__int32 * const *buffer){
 	this->buffers.push_back(allocator_functions[frame->header.bits_per_sample / 8](frame, buffer));
 	this->declared_af.bytes_per_channel = this->get_bits_per_sample() / 8;
 	this->declared_af.channels = this->get_channels();
 	this->declared_af.freq = this->get_sample_rate();
 	this->declared_af.is_signed = 1;
+	this->declared_af_set = 1;
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 

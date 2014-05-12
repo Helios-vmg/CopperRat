@@ -1,4 +1,5 @@
 #include "AudioStream.h"
+#include "AudioPlayer.h"
 #include <string>
 
 AudioStream::AudioStream(const char *filename, unsigned frequency, unsigned channels){
@@ -28,12 +29,14 @@ audio_buffer_t AudioStream::read_new(){
 	return ret;
 }
 
-#include <iostream>
-
-audio_position_t AudioStream::seek(audio_position_t current_position, float ms){
-	audio_position_t target = audio_position_t(current_position + double(ms) * (1.0 / 1000.0) * double(this->decoder->get_audio_format().freq));
-	std::cout <<"Current position: "<<current_position<<std::endl
-		<<"Seeking to position: "<<target<<std::endl;
-	audio_position_t ret = this->decoder->seek(target) ? target : current_position;
-	return this->position = ret;
+void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audio_position_t current_position, double seconds){
+	audio_position_t target = audio_position_t(current_position + seconds * double(this->decoder->get_audio_format().freq));
+	if (target >= this->decoder->get_pcm_length()){
+		if (seconds > 0)
+			player->execute_next();
+		else
+			player->execute_previous(1);
+		return;
+	}
+	this->position = new_position = this->decoder->seek(target) ? target : current_position;
 }

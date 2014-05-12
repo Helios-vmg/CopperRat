@@ -21,6 +21,7 @@ class FlacDecoder: public Decoder, public FLAC::Decoder::Stream{
 	std::deque<audio_buffer_t> buffers;
 	typedef audio_buffer_t (*allocator_func)(const FLAC__Frame *, const FLAC__int32 * const *);
 	static allocator_func allocator_functions[];
+	bool declared_af_set;
 	AudioFormat declared_af;
 
 	FLAC__StreamDecoderWriteStatus write_callback(const FLAC__Frame *frame,const FLAC__int32 * const *buffer);
@@ -34,6 +35,8 @@ class FlacDecoder: public Decoder, public FLAC::Decoder::Stream{
 	}
 	
 	audio_buffer_t read_more_internal();
+	sample_count_t get_pcm_length_internal();
+	double get_seconds_length_internal();
 
 	void free_buffers();
 

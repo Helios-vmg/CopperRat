@@ -71,6 +71,14 @@ audio_buffer_t OggDecoder::read_more_internal(){
 	return ret;
 }
 
+sample_count_t OggDecoder::get_pcm_length_internal(){
+	return ov_pcm_total(&this->ogg_file, this->bitstream);
+}
+
+double OggDecoder::get_seconds_length_internal(){
+	return ov_time_total(&this->ogg_file, this->bitstream);
+}
+
 bool OggDecoder::seek(audio_position_t pos){
 	return !ov_pcm_seek(&this->ogg_file, pos);
 }

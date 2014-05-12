@@ -13,6 +13,8 @@ class OggDecoder: public Decoder{
 	unsigned channels;
 	
 	audio_buffer_t read_more_internal();
+	sample_count_t get_pcm_length_internal();
+	double get_seconds_length_internal();
 
 public:
 	OggDecoder(const char *filename);

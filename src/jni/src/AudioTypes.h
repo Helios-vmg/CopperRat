@@ -8,6 +8,9 @@ typedef Uint64 sample_count_t;
 typedef Uint32 memory_audio_position_t;
 typedef Uint64 audio_position_t;
 
+const audio_position_t invalid_audio_position = 0xFFFFFFFFFFFFFFFF;
+const sample_count_t invalid_sample_count = 0xFFFFFFFFFFFFFFFF;
+
 #if defined _MSC_VER || defined __GNUC__
 #pragma pack(push, 1)
 #define PACKING_ATTRIBUTE

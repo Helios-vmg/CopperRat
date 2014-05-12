@@ -4,7 +4,6 @@
 
 AudioDevice::AudioDevice(AudioPlayer &player){
 #ifndef PROFILING
-	SDL_Init(SDL_INIT_AUDIO);
 	SDL_AudioSpec specs;
 	specs.freq = 44100;
 	specs.format = AUDIO_S16SYS;

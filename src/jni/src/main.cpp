@@ -1,21 +1,11 @@
 #include "AudioPlayer.h"
-#include <iostream>
-#include <string>
+#include "SUI/SUI.h"
 
 int main(int argc, char **argv){
+	SDL_Init(SDL_INIT_EVERYTHING);
 	AudioPlayer player;
-#ifdef WIN32
-	while (1){
-		std::string word;
-		float param;
-		std::cin >>word;
-		if (word == "seek" && (std::cin >>param)){
-			player.relative_seek(param);
-		}
-	}
-#else
-	while (1)
-		SDL_Delay(1000);
-#endif
+	SUI sui(player);
+	sui.loop();
+	SDL_Quit();
 	return 0;
 }

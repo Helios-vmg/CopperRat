@@ -8,6 +8,8 @@
 #include <fstream>
 #endif
 
+class AudioPlayer;
+
 class AudioStream{
 	std::auto_ptr<Decoder> decoder;
 	std::auto_ptr<AudioFilterManager> filter;
@@ -19,7 +21,10 @@ public:
 	AudioStream(const char *filename, unsigned frequency, unsigned channels);
 	audio_buffer_t read_new();
 	void reset();
-	audio_position_t seek(audio_position_t current_position, float ms);
+	void seek(AudioPlayer *player, audio_position_t &new_position, audio_position_t current_position, double seconds);
+	double get_total_time(){
+		return this->decoder->get_seconds_length();
+	}
 };
 
 #endif
