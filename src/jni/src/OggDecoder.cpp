@@ -1,6 +1,7 @@
 #include "OggDecoder.h"
+#include "AudioStream.h"
 
-OggDecoder::OggDecoder(const char *filename){
+OggDecoder::OggDecoder(AudioStream &parent, const char *filename): Decoder(parent){
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4996)
@@ -21,8 +22,16 @@ OggDecoder::OggDecoder(const char *filename){
 	if (error < 0)
 		throw DecoderInitializationException();
 	vorbis_info *i = ov_info(&this->ogg_file, this->bitstream);
+	if (!i)
+		throw DecoderInitializationException();
 	this->frequency = i->rate;
 	this->channels = i->channels;
+	vorbis_comment *comment = ov_comment(&this->ogg_file, this->bitstream);
+	if (!!comment){
+		for (auto i = comment->comments; --i;)
+			this->metadata.add_vorbis_comment(comment->user_comments[i], comment->comment_lengths[i]);
+		this->parent.metadata_update(this->metadata.clone());
+	}
 }
 
 OggDecoder::~OggDecoder(){

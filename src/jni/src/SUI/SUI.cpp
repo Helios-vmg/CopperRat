@@ -72,11 +72,36 @@ bool SUI::handle_in_events(){
 	return 1;
 }
 
+std::string wide_to_narrow(const std::wstring &s){
+	std::string ret;
+	ret.reserve(s.size());
+	for (auto wc : s)
+		ret.push_back(wc < 128 ? wc : '?');
+	return ret;
+}
+
 void SUI::handle_out_events(){
 	for (boost::shared_ptr<InternalQueueElement> eqe; player.external_queue_out.try_pop(eqe);){
 		auto ttu = dynamic_cast<TotalTimeUpdate *>(eqe.get());
-		if (ttu)
+		if (ttu){
 			current_total_time = ttu->get_seconds();
+			continue;
+		}
+		auto mdu = dynamic_cast<MetaDataUpdate *>(eqe.get());
+		if (mdu){
+			auto metadata = mdu->get_metadata();
+			this->metadata.clear();
+			metadata->iterate([this](const std::wstring &key, const std::wstring &value){
+				this->metadata += wide_to_narrow(key);
+				this->metadata += '=';
+				if (key == L"METADATA_BLOCK_PICTURE")
+					this->metadata += "<picture data>";
+				else
+					this->metadata += wide_to_narrow(value);
+
+				this->metadata += '\n';
+			});
+		}
 	}
 }
 
@@ -88,8 +113,7 @@ void SUI::loop(){
 		parse_into_hms(stream, player.get_current_time());
 		stream <<" / ";
 		parse_into_hms(stream, current_total_time);
-		if (now > current_total_time)
-			std::cout <<stream.str()<<std::endl;
+		stream <<std::endl<<this->metadata;
 		SDL_RenderClear(this->renderer.get());
 		draw_string(this->renderer.get(), this->font.get(), stream.str().c_str(), 0, 0);
 		SDL_RenderPresent(this->renderer.get());

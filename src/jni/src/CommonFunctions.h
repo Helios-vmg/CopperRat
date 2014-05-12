@@ -1,6 +1,7 @@
 #ifndef COMMONFUNCTIONS_H
 #define COMMONFUNCTIONS_H
 #include "BasicTypes.h"
+#include <ostream>
 
 inline double s16_to_double(Sint16 x){
 	return (x<0) ? (x/32768.0) : (x/32767.0);
@@ -46,5 +47,60 @@ struct Unpointify<T *>{
 	typedef T t;
 };
 #define UNPOINTER(x) typename Unpointify<x>::t
+
+void parse_into_hms(std::ostream &stream, double total_seconds);
+
+
+template <typename T>
+bool utf8_to_string(std::basic_string<T> &dst, unsigned char *buffer, size_t n){
+	static const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
+	if (n >= 3 && !memcmp(buffer, bom, 3)){
+		buffer += 3;
+		n -= 3;
+	}
+	size_t utf8_size = 0;
+	for (size_t i = 0; i < n; i++)
+		if (buffer[i] < 128 || (buffer[i] & 192) == 192)
+			utf8_size++;
+	std::basic_string<T> &ret = dst;
+	ret.reserve(utf8_size);
+	for (size_t i = 0; i != n;){
+		unsigned char byte = buffer[i++];
+		T wc = 0;
+		if (!(byte & 0x80))
+			wc = (T)byte;
+		else if ((byte & 0xC0) == 0x80)
+			return 0;
+		else if ((byte & 0xE0) == 0xC0){
+			if (n - i < 2)
+				return 0;
+			wc = (T)(byte & 0x1F);
+			wc <<= 6;
+			wc |= (T)(buffer[i++] & 0x3F);
+		}else if ((byte & 0xF0) == 0xE0){
+			if (n - i < 3)
+				return 0;
+			wc = (T)(byte & 0x0F);
+			wc <<= 6;
+			wc |= (T)(buffer[i++] & 0x3F);
+			wc <<= 6;
+			wc |= (T)(buffer[i++] & 0x3F);
+		}else if ((byte & 0xF8) == 0xF0){
+			if (n - i < 4)
+				return 0;
+			wc = (T)(byte & 0x07);
+			wc <<= 6;
+			wc |= (T)(buffer[i++] & 0x3F);
+			wc <<= 6;
+			wc |= (T)(buffer[i++] & 0x3F);
+			wc <<= 6;
+			wc |= (T)(buffer[i++] & 0x3F);
+		}else
+			return 0;
+		ret.push_back(wc);
+	}
+	return 1;
+}
+
 
 #endif

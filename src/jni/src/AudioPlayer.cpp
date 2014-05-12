@@ -60,27 +60,12 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 }
 
 AudioPlayer::AudioPlayer(): device(*this){
-#ifdef WIN32
-	//Put your test tracks here when compiling for Windows.
-	//TODO: Other systems.
-	//this->track_queue.push("f:/Data/Music/Beethoven/CC-sharealike/large_file.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/01 - Bloodlines.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/02 - The Gears.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/03 - Burn The Earth.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/04 - Laser Cannon Deth Sentence.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/05 - Black Fire Upon Us.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/06 - Dethsupport.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/07 - The Cyborg Slayers.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/08 - I Tamper With The Evidence At The Murder Site Of Odin.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/09 - Murmaider II- The Water God.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/10 - Comet Song.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/11 - Symmetry.ogg");
-	this->track_queue.push("f:/Data/Music/Dethklok/2009 - The Dethalbum II/12 - Volcano.ogg");
+#ifndef __ANDROID__
+	//Put your test tracks here when compiling for desktop OSs.
 #else
 	//Put your test tracks here when compiling for Android.
 #endif
 	this->internal_queue.max_size = 100;
-	this->run = 1;
 	this->last_position_seen.set(0);
 #ifndef PROFILING
 	this->sdl_thread = SDL_CreateThread(_thread, "AudioPlayerThread", this);
@@ -91,8 +76,8 @@ AudioPlayer::AudioPlayer(): device(*this){
 }
 
 AudioPlayer::~AudioPlayer(){
-	this->run = 0;
 #ifndef PROFILING
+	this->request_exit();
 	SDL_WaitThread(this->sdl_thread, 0);
 #endif
 }
@@ -114,8 +99,6 @@ int AudioPlayer::_thread(void *p){
 #endif
 #include <fstream>
 
-double playback_time = 0;
-
 //#define OUTPUT_TO_FILE
 
 bool AudioPlayer::initialize_stream(){
@@ -124,7 +107,7 @@ bool AudioPlayer::initialize_stream(){
 	if (!this->track_queue.size())
 		return 0;
 	const char *filename = this->track_queue.front();
-	this->now_playing.reset(new AudioStream(filename, 44100, 2));
+	this->now_playing.reset(new AudioStream(*this, filename, 44100, 2));
 	this->track_queue.pop();
 	this->current_total_time = -1;
 	this->try_update_total_time();
@@ -132,7 +115,6 @@ bool AudioPlayer::initialize_stream(){
 }
 
 void AudioPlayer::thread(){
-	unsigned long long count = 0;
 #ifdef PROFILING
 	unsigned long long samples_decoded = 0;
 	Uint32 t0 = SDL_GetTicks();
@@ -140,9 +122,8 @@ void AudioPlayer::thread(){
 	std::ofstream raw_file("output.raw", std::ios::binary);
 #endif
 #endif
-	while (this->run){
-		for (command_t command; this->external_queue_in.try_pop(command);)
-			command->execute();
+	this->jumped_this_loop = 0;
+	while (this->handle_requests()){
 #if PROFILING
 		if (!this->now_playing.get() && !this->track_queue.size())
 			break;
@@ -151,9 +132,8 @@ void AudioPlayer::thread(){
 			SDL_Delay(50);
 			continue;
 		}
-		audio_buffer_t buffer = this->now_playing->read_new();
+		audio_buffer_t buffer = this->now_playing->read();
 		this->try_update_total_time();
-		playback_time = double(buffer.samples()) / (44.1 * 2.0);
 #ifdef PROFILING
 		samples_decoded += buffer.samples();
 #endif
@@ -161,7 +141,7 @@ void AudioPlayer::thread(){
 			this->now_playing.reset();
 			continue;
 		}
-		count++;
+		this->jumped_this_loop = 0;
 #if !defined PROFILING
 		buffer.switch_to_manual();
 		this->push_to_internal_queue(new BufferQueueElement(buffer));
@@ -185,6 +165,13 @@ void AudioPlayer::thread(){
 #endif
 }
 
+bool AudioPlayer::handle_requests(){
+	bool ret = 1;
+	for (command_t command; this->external_queue_in.try_pop(command) && ret;)
+		ret = command->execute();
+	return ret;
+}
+
 void AudioPlayer::request_seek(double seconds){
 	this->push_to_command_queue(new AsyncCommandSeek(this, seconds));
 }
@@ -193,19 +180,23 @@ void AudioPlayer::request_next(){
 	this->push_to_command_queue(new AsyncCommandNext(this));
 }
 
+void AudioPlayer::request_exit(){
+	this->push_to_command_queue(new AsyncCommandExit(this));
+}
+
 void AudioPlayer::eliminate_buffers(audio_position_t &pos){
 	AutoLocker<internal_queue_t> am(this->internal_queue);
 	std::queue<iqe_t> temp;
 	bool set = 0;
 	while (!this->internal_queue.unlocked_is_empty()){
 		auto el = this->internal_queue.unlocked_simple_pop();
-		if (set)
-			continue;
 		auto bqe = dynamic_cast<BufferQueueElement *>(el.get());
 		if (!bqe){
 			temp.push(el);
 			continue;
 		}
+		if (set)
+			continue;
 		auto buffer = bqe->get_buffer();
 		buffer.free();
 		pos = buffer.position;
@@ -217,9 +208,9 @@ void AudioPlayer::eliminate_buffers(audio_position_t &pos){
 	}
 }
 
-void AudioPlayer::execute_seek(double seconds){
-	if (!this->now_playing.get())
-		return;
+bool AudioPlayer::execute_seek(double seconds){
+	if (!this->now_playing.get() || this->jumped_this_loop)
+		return 1;
 	this->device.pause_audio();
 	audio_position_t pos = invalid_audio_position;
 	this->eliminate_buffers(pos);
@@ -229,11 +220,18 @@ void AudioPlayer::execute_seek(double seconds){
 	this->now_playing->seek(this, new_pos, pos, seconds);
 	this->last_position_seen.set(new_pos);
 	this->device.start_audio();
+	return 1;
 }
 
-void AudioPlayer::execute_next(){
+bool AudioPlayer::execute_next(){
 	this->now_playing.reset();
 	this->initialize_stream();
+	return 1;
+}
+
+bool AudioPlayer::execute_metadata_update(boost::shared_ptr<Metadata> metadata){
+	this->push_to_internal_queue(new MetaDataUpdate(metadata));
+	return 1;
 }
 
 double AudioPlayer::get_current_time(){

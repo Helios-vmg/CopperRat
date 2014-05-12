@@ -1,10 +1,11 @@
 #ifndef AUDIOPLAYER_H
 #define AUDIOPLAYER_H
+#include <boost/shared_ptr.hpp>
 #include "Threads.h"
 #include "AudioDevice.h"
 #include "AudioStream.h"
 #include "AudioBuffer.h"
-#include <boost/shared_ptr.hpp>
+#include "auto_ptr.h"
 
 class AudioPlayerAsyncCommand{
 protected:
@@ -12,7 +13,7 @@ protected:
 public:
 	AudioPlayerAsyncCommand(AudioPlayer *player): player(player){}
 	virtual ~AudioPlayerAsyncCommand(){}
-	virtual void execute() = 0;
+	virtual bool execute() = 0;
 };
 
 class InternalQueueElement{
@@ -38,6 +39,18 @@ class ExternalQueueElement : public InternalQueueElement{
 public:
 	virtual ~ExternalQueueElement(){}
 	void push(AudioPlayer *player, boost::shared_ptr<InternalQueueElement> pointer);
+	virtual PostAction AudioCallback_switch(
+		AudioPlayer *player,
+		Uint8 *stream,
+		int len,
+		unsigned bytes_per_sample,
+		memory_sample_count_t &samples_written,
+		audio_position_t &last_position,
+		boost::shared_ptr<InternalQueueElement> pointer
+	){
+		this->push(player, pointer);
+		return PostAction::POP;
+	}
 };
 
 class BufferQueueElement : public ExternalQueueElement{
@@ -65,17 +78,14 @@ public:
 	double get_seconds(){
 		return this->seconds;
 	}
-	PostAction AudioCallback_switch(
-		AudioPlayer *player,
-		Uint8 *stream,
-		int len,
-		unsigned bytes_per_sample,
-		memory_sample_count_t &samples_written,
-		audio_position_t &last_position,
-		boost::shared_ptr<InternalQueueElement> pointer
-	){
-		this->push(player, pointer);
-		return PostAction::POP;
+};
+
+class MetaDataUpdate : public ExternalQueueElement{
+	boost::shared_ptr<Metadata> metadata;
+public:
+	MetaDataUpdate(boost::shared_ptr<Metadata> metadata): metadata(metadata){}
+	boost::shared_ptr<Metadata> get_metadata(){
+		return this->metadata;
 	}
 };
 
@@ -83,7 +93,6 @@ struct NotImplementedException{};
 
 class AudioPlayer{
 	friend class AudioDevice;
-	friend class ExternalQueueElement;
 	typedef boost::shared_ptr<InternalQueueElement> iqe_t;
 	typedef thread_safe_queue<iqe_t> internal_queue_t;
 	typedef boost::shared_ptr<AudioPlayerAsyncCommand> command_t;
@@ -94,13 +103,14 @@ class AudioPlayer{
 	internal_queue_t internal_queue;
 	external_queue_in_t external_queue_in;
 	SDL_Thread *sdl_thread;
-	std::auto_ptr<AudioStream> now_playing;
+	CR_UNIQUE_PTR(AudioStream) now_playing;
 	std::queue<const char *> track_queue;
-	volatile bool run;
 	static void AudioCallback(void *udata, Uint8 *stream, int len);
 	static int _thread(void *);
 	Atomic<audio_position_t> last_position_seen;
 	double current_total_time;
+	bool jumped_this_loop;
+
 	void thread();
 	void try_update_total_time();
 	bool initialize_stream();
@@ -113,6 +123,7 @@ class AudioPlayer{
 		this->internal_queue.push(sp);
 	}
 	void eliminate_buffers(audio_position_t &);
+	bool handle_requests();
 public:
 	external_queue_out_t external_queue_out;
 	AudioPlayer();
@@ -121,30 +132,44 @@ public:
 	//request_* functions run in the caller thread!
 	void request_seek(double seconds);
 	void request_next();
+	void request_exit();
 	double get_current_time();
 
 	//execute_* functions run in the internal thread!
-	void execute_seek(double seconds);
-	void execute_next();
-	void execute_previous(bool seek_near_the_end = 0){
+	bool execute_seek(double seconds);
+	bool execute_next();
+	bool execute_previous(bool seek_near_the_end = 0){
 		throw NotImplementedException();
+		return 1;
 	}
+	bool execute_exit(){
+		return 0;
+	}
+	bool execute_metadata_update(boost::shared_ptr<Metadata>);
 };
 
 class AsyncCommandSeek : public AudioPlayerAsyncCommand{
 	double seconds;
 public:
 	AsyncCommandSeek(AudioPlayer *player, double seconds): AudioPlayerAsyncCommand(player), seconds(seconds){}
-	void execute(){
-		player->execute_seek(this->seconds);
+	bool execute(){
+		return player->execute_seek(this->seconds);
 	}
 };
 
 class AsyncCommandNext : public AudioPlayerAsyncCommand{
 public:
 	AsyncCommandNext(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
-	void execute(){
-		player->execute_next();
+	bool execute(){
+		return player->execute_next();
+	}
+};
+
+class AsyncCommandExit : public AudioPlayerAsyncCommand{
+public:
+	AsyncCommandExit(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
+	bool execute(){
+		return player->execute_exit();
 	}
 };
 

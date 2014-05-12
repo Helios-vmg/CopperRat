@@ -17,7 +17,7 @@ class OggDecoder: public Decoder{
 	double get_seconds_length_internal();
 
 public:
-	OggDecoder(const char *filename);
+	OggDecoder(AudioStream &parent, const char *filename);
 	~OggDecoder();
 	AudioFormat get_audio_format(){
 		return AudioFormat(true, 2, this->channels, this->frequency);

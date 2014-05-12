@@ -1,5 +1,19 @@
 #include "FLACDecoder.h"
+#include "CommonFunctions.h"
+#include "AudioStream.h"
 #include <cassert>
+#include <utility>
+#include <vector>
+#include <boost/shared_ptr.hpp>
+
+FlacDecoder::FlacDecoder(AudioStream &parent, const char *filename): Decoder(parent), declared_af_set(0){
+	this->set_md5_checking(0);
+	this->file.open(filename, std::ios::binary);
+	this->set_metadata_respond_all();
+	if (!this->file || this->init() != FLAC__STREAM_DECODER_INIT_STATUS_OK)
+		throw DecoderInitializationException();
+	this->process_until_end_of_metadata();
+}
 
 template <typename SampleT>
 audio_buffer_t copy_to_new_buffer(const FLAC__Frame *frame, const FLAC__int32 * const *buffer){
@@ -25,13 +39,6 @@ FlacDecoder::allocator_func FlacDecoder::allocator_functions[] = {
 	copy_to_new_buffer<Sint32>,
 	copy_to_new_buffer<Sint32>,
 };
-
-FlacDecoder::FlacDecoder(const char *filename): declared_af_set(0){
-	this->set_md5_checking(0);
-	this->file.open(filename, std::ios::binary);
-	if (!this->file || this->init() != FLAC__STREAM_DECODER_INIT_STATUS_OK)
-		throw DecoderInitializationException();
-}
 
 void FlacDecoder::free_buffers(){
 	this->buffers.clear();
@@ -110,4 +117,18 @@ FLAC__StreamDecoderLengthStatus FlacDecoder::length_callback(FLAC__uint64 *strea
 	*stream_length = this->file.tellg();
 	this->file.seekg(saved);
 	return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
+}
+
+void FlacDecoder::metadata_callback(const FLAC__StreamMetadata *metadata){
+	switch (metadata->type){
+		case FLAC__METADATA_TYPE_VORBIS_COMMENT:
+			this->read_vorbis_comments(metadata->data.vorbis_comment);
+			break;
+	}
+}
+
+void FlacDecoder::read_vorbis_comments(const FLAC__StreamMetadata_VorbisComment &comments){
+	for (auto i = comments.num_comments; --i;)
+		this->metadata.add_vorbis_comment(comments.comments[i].entry, comments.comments[i].length);
+	this->parent.metadata_update(this->metadata.clone());
 }

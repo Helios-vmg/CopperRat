@@ -40,7 +40,7 @@ audio_buffer_t AudioFilterManager::read(memory_sample_count_t &samples_read_from
 		buffers[buffers_size++] = this->saved_buffer;
 	this->need_two_buffers = 0;
 	while (buffers_size < 2){
-		audio_buffer_t buffer = this->decoder.read_more();
+		audio_buffer_t buffer = this->decoder.read();
 		if (!buffer)
 			break;
 		buffers[buffers_size++] = buffer;
