@@ -13,13 +13,12 @@ class AudioFilterManager{
 	std::vector<AudioFilter *> filters;
 	AudioFormat dst_format;
 	bool dont_convert;
-	unsigned position_offset;
 
 	void allocate_filters();
 public:
 	AudioFilterManager(Decoder &decoder, const AudioFormat &dst_format);
 	~AudioFilterManager();
-	audio_buffer_t read(audio_position_t position, memory_sample_count_t &samples_read_from_decoder);
+	audio_buffer_t read(memory_sample_count_t &samples_read_from_decoder);
 };
 
 #endif

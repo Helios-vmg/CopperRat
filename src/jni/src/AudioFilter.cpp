@@ -26,7 +26,6 @@ void AudioFilterManager::allocate_filters(){
 		this->filters.push_back(ResamplingFilter::create(src_format, temp));
 	this->dont_convert = !this->filters.size();
 	this->filter_allocated = 1;
-	this->position_offset = 0;
 }
 
 AudioFilterManager::~AudioFilterManager(){
@@ -34,31 +33,27 @@ AudioFilterManager::~AudioFilterManager(){
 		delete this->filters[i];
 }
 
-audio_buffer_t AudioFilterManager::read(audio_position_t position, memory_sample_count_t &samples_read_from_decoder){
+audio_buffer_t AudioFilterManager::read(memory_sample_count_t &samples_read_from_decoder){
 	audio_buffer_t buffers[2];
 	unsigned buffers_size = 0;
 	if (!this->need_two_buffers && this->saved_buffer)
 		buffers[buffers_size++] = this->saved_buffer;
 	this->need_two_buffers = 0;
 	while (buffers_size < 2){
-		audio_buffer_t buffer = this->decoder.read_more(position + this->position_offset);
+		audio_buffer_t buffer = this->decoder.read();
 		if (!buffer)
 			break;
 		buffers[buffers_size++] = buffer;
-		position += buffer.samples();
 	}
 	samples_read_from_decoder = !buffers_size ? 0 : buffers[0].samples();
 	if (!this->filter_allocated && this->decoder.lazy_filter_allocation())
 		this->allocate_filters();
-	if (!buffers[0] || this->dont_convert)
-		return buffers[0];
-	if (buffers_size > 1){
+	if (buffers_size > 1)
 		this->saved_buffer = buffers[1];
-		this->position_offset = this->saved_buffer.samples();
-	}else{
+	else
 		this->saved_buffer.unref();
-		this->position_offset = 0;
-	}
+	if (buffers_size || !buffers[0] || this->dont_convert)
+		return buffers[0];
 	size_t bytes_required = buffers[0].byte_length(),
 		max_bytes = bytes_required;
 	for (size_t i = 0; i < this->filters.size(); i++){

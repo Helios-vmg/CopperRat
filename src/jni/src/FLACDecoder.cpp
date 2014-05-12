@@ -1,5 +1,19 @@
 #include "FLACDecoder.h"
+#include "CommonFunctions.h"
+#include "AudioStream.h"
 #include <cassert>
+#include <utility>
+#include <vector>
+#include <boost/shared_ptr.hpp>
+
+FlacDecoder::FlacDecoder(AudioStream &parent, const char *filename): Decoder(parent), declared_af_set(0){
+	this->set_md5_checking(0);
+	this->file.open(filename, std::ios::binary);
+	this->set_metadata_respond_all();
+	if (!this->file || this->init() != FLAC__STREAM_DECODER_INIT_STATUS_OK)
+		throw DecoderInitializationException();
+	this->process_until_end_of_metadata();
+}
 
 template <typename SampleT>
 audio_buffer_t copy_to_new_buffer(const FLAC__Frame *frame, const FLAC__int32 * const *buffer){
@@ -26,13 +40,6 @@ FlacDecoder::allocator_func FlacDecoder::allocator_functions[] = {
 	copy_to_new_buffer<Sint32>,
 };
 
-FlacDecoder::FlacDecoder(const char *filename){
-	this->set_md5_checking(0);
-	this->file.open(filename, std::ios::binary);
-	if (!this->file || this->init() != FLAC__STREAM_DECODER_INIT_STATUS_OK)
-		throw DecoderInitializationException();
-}
-
 void FlacDecoder::free_buffers(){
 	this->buffers.clear();
 }
@@ -44,7 +51,7 @@ bool FlacDecoder::seek(audio_position_t p){
 	return ret;
 }
 
-audio_buffer_t FlacDecoder::read_more(){
+audio_buffer_t FlacDecoder::read_more_internal(){
 	bool ok = 1;
 	FLAC::Decoder::Stream::State state = this->get_state();
 	while (!this->buffers.size() && (ok = this->process_single()) && (state = this->get_state()) != FLAC__STREAM_DECODER_END_OF_STREAM);
@@ -55,12 +62,23 @@ audio_buffer_t FlacDecoder::read_more(){
 	return ret;
 }
 
+sample_count_t FlacDecoder::get_pcm_length_internal(){
+	return this->get_total_samples();
+}
+
+double FlacDecoder::get_seconds_length_internal(){
+	if (!this->declared_af_set)
+		return -1;
+	return (double)this->get_pcm_length_internal() / this->declared_af.freq;
+}
+
 FLAC__StreamDecoderWriteStatus FlacDecoder::write_callback(const FLAC__Frame *frame, const FLAC__int32 * const *buffer){
 	this->buffers.push_back(allocator_functions[frame->header.bits_per_sample / 8](frame, buffer));
 	this->declared_af.bytes_per_channel = this->get_bits_per_sample() / 8;
 	this->declared_af.channels = this->get_channels();
 	this->declared_af.freq = this->get_sample_rate();
 	this->declared_af.is_signed = 1;
+	this->declared_af_set = 1;
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
@@ -99,4 +117,18 @@ FLAC__StreamDecoderLengthStatus FlacDecoder::length_callback(FLAC__uint64 *strea
 	*stream_length = this->file.tellg();
 	this->file.seekg(saved);
 	return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
+}
+
+void FlacDecoder::metadata_callback(const FLAC__StreamMetadata *metadata){
+	switch (metadata->type){
+		case FLAC__METADATA_TYPE_VORBIS_COMMENT:
+			this->read_vorbis_comments(metadata->data.vorbis_comment);
+			break;
+	}
+}
+
+void FlacDecoder::read_vorbis_comments(const FLAC__StreamMetadata_VorbisComment &comments){
+	for (auto i = comments.num_comments; --i;)
+		this->metadata.add_vorbis_comment(comments.comments[i].entry, comments.comments[i].length);
+	this->parent.metadata_update(this->metadata.clone());
 }

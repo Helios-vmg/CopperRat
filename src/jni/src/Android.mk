@@ -7,7 +7,7 @@ LOCAL_MODULE := main
 SDL_PATH := ../SDL
 
 LOCAL_CFLAGS   += -O3 #-DPROFILING
-LOCAL_CXXFLAGS += -O3 -std=c++0x -fexceptions #-DPROFILING
+LOCAL_CXXFLAGS += -O3 -std=gnu++11 -fexceptions "-DBOOST_NOINLINE=" #-DPROFILING
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../include
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libogg-1.3.1/include/
@@ -34,6 +34,8 @@ LOCAL_SRC_FILES += $(LOCAL_PATH)/Queue.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/ResamplingFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SignednessFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Threads.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/Metadata.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioDevice.cpp
 
 LOCAL_SHARED_LIBRARIES := SDL2
 
