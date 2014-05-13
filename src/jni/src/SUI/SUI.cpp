@@ -105,7 +105,31 @@ void SUI::handle_out_events(){
 	}
 }
 
+void format_memory(std::ostream &stream, size_t size){
+	double m = size;
+	static const char *units[]={
+		" B",
+		" KiB",
+		" MiB",
+		" GiB",
+		" TiB",
+		" PiB",
+		" EiB",
+		" ZiB",
+		" YiB"
+	};
+	auto unit = units;
+	while (m >= 1024.0){
+		m *= 1.0 / 1024.0;
+		unit++;
+	}
+	stream <<m<<*unit;
+}
+
+#include "../AudioBuffer.h"
+
 void SUI::loop(){
+	size_t max_memory = 0;
 	while (this->handle_in_events()){
 		this->handle_out_events();
 		std::stringstream stream;
@@ -113,7 +137,19 @@ void SUI::loop(){
 		parse_into_hms(stream, player.get_current_time());
 		stream <<" / ";
 		parse_into_hms(stream, current_total_time);
-		stream <<std::endl<<this->metadata;
+		stream <<std::endl<<this->metadata<<"\n\n";
+		{
+			unsigned instances;
+			size_t memory;
+			audio_buffer_t::abit.get_info(instances, memory);
+			max_memory = std::max(max_memory, memory);
+			stream <<"Audio buffers: "<<instances<<"\n"
+			         "Memory used:   ";
+			format_memory(stream, memory);
+			stream <<"\n"
+			         "Peak memory:   ";
+			format_memory(stream, max_memory);
+		}
 		SDL_RenderClear(this->renderer.get());
 		draw_string(this->renderer.get(), this->font.get(), stream.str().c_str(), 0, 0);
 		SDL_RenderPresent(this->renderer.get());
