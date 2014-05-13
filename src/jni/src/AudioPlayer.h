@@ -99,12 +99,28 @@ class AudioPlayer{
 	typedef thread_safe_queue<command_t> external_queue_in_t;
 	typedef internal_queue_t external_queue_out_t;
 
+	struct AudioLocker{
+		AudioPlayer &player;
+		AudioLocker(AudioPlayer &player): player(player){
+			player.device.pause_audio();
+		}
+		~AudioLocker(){
+			player.device.start_audio();
+		}
+	};
+
+	enum class PlayState{
+		STOPPED,
+		PLAYING,
+		PAUSED,
+	} state;
+
 	AudioDevice device;
 	internal_queue_t internal_queue;
 	external_queue_in_t external_queue_in;
 	SDL_Thread *sdl_thread;
 	CR_UNIQUE_PTR(AudioStream) now_playing;
-	std::queue<const char *> track_queue;
+	std::queue<std::string> track_queue;
 	static void AudioCallback(void *udata, Uint8 *stream, int len);
 	static int _thread(void *);
 	Atomic<audio_position_t> last_position_seen;
@@ -122,7 +138,7 @@ class AudioPlayer{
 		boost::shared_ptr<InternalQueueElement> sp(p);
 		this->internal_queue.push(sp);
 	}
-	void eliminate_buffers(audio_position_t &);
+	void eliminate_buffers(audio_position_t * = 0);
 	bool handle_requests();
 public:
 	external_queue_out_t external_queue_out;
@@ -130,12 +146,16 @@ public:
 	~AudioPlayer();
 
 	//request_* functions run in the caller thread!
+	void request_play();
+	void request_pause();
 	void request_seek(double seconds);
 	void request_next();
 	void request_exit();
 	double get_current_time();
 
 	//execute_* functions run in the internal thread!
+	bool execute_play();
+	bool execute_pause();
 	bool execute_seek(double seconds);
 	bool execute_next();
 	bool execute_previous(bool seek_near_the_end = 0){
@@ -148,12 +168,28 @@ public:
 	bool execute_metadata_update(boost::shared_ptr<Metadata>);
 };
 
+class AsyncCommandPlay : public AudioPlayerAsyncCommand{
+public:
+	AsyncCommandPlay(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
+	bool execute(){
+		return this->player->execute_play();
+	}
+};
+
+class AsyncCommandPause : public AudioPlayerAsyncCommand{
+public:
+	AsyncCommandPause(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
+	bool execute(){
+		return this->player->execute_pause();
+	}
+};
+
 class AsyncCommandSeek : public AudioPlayerAsyncCommand{
 	double seconds;
 public:
 	AsyncCommandSeek(AudioPlayer *player, double seconds): AudioPlayerAsyncCommand(player), seconds(seconds){}
 	bool execute(){
-		return player->execute_seek(this->seconds);
+		return this->player->execute_seek(this->seconds);
 	}
 };
 
@@ -161,7 +197,7 @@ class AsyncCommandNext : public AudioPlayerAsyncCommand{
 public:
 	AsyncCommandNext(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
 	bool execute(){
-		return player->execute_next();
+		return this->player->execute_next();
 	}
 };
 
@@ -169,7 +205,7 @@ class AsyncCommandExit : public AudioPlayerAsyncCommand{
 public:
 	AsyncCommandExit(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
 	bool execute(){
-		return player->execute_exit();
+		return this->player->execute_exit();
 	}
 };
 

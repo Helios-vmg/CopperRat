@@ -55,14 +55,29 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 	player->last_position_seen.set(last_position);
 }
 
+#include <fstream>
+
 AudioPlayer::AudioPlayer(): device(*this){
 #ifndef __ANDROID__
 	//Put your test tracks here when compiling for desktop OSs.
+	{
+		std::ifstream file("test_tracks.txt");
+		while (1){
+			std::string line;
+			std::getline(file, line);
+			if (!file)
+				break;
+			if (!line.size())
+				continue;
+			this->track_queue.push(line);
+		}
+	}
 #else
 	//Put your test tracks here when compiling for Android.
 #endif
 	this->internal_queue.max_size = 100;
 	this->last_position_seen.set(0);
+	this->state = PlayState::STOPPED;
 #ifndef PROFILING
 	this->sdl_thread = SDL_CreateThread(_thread, "AudioPlayerThread", this);
 #else
@@ -98,12 +113,12 @@ int AudioPlayer::_thread(void *p){
 //#define OUTPUT_TO_FILE
 
 bool AudioPlayer::initialize_stream(){
-	if (this->now_playing.get())
+	if (this->now_playing.get() || this->state == PlayState::STOPPED)
 		return 1;
 	if (!this->track_queue.size())
 		return 0;
-	const char *filename = this->track_queue.front();
-	this->now_playing.reset(new AudioStream(*this, filename, 44100, 2));
+	auto filename = this->track_queue.front();
+	this->now_playing.reset(new AudioStream(*this, filename.c_str(), 44100, 2));
 	this->track_queue.pop();
 	this->current_total_time = -1;
 	this->try_update_total_time();
@@ -124,7 +139,7 @@ void AudioPlayer::thread(){
 		if (!this->now_playing.get() && !this->track_queue.size())
 			break;
 #endif
-		if (!this->initialize_stream() || this->internal_queue.is_full()){
+		if (!this->initialize_stream() || this->internal_queue.is_full() || this->state == PlayState::STOPPED){
 			SDL_Delay(50);
 			continue;
 		}
@@ -167,6 +182,14 @@ bool AudioPlayer::handle_requests(){
 	return ret;
 }
 
+void AudioPlayer::request_play(){
+	this->push_to_command_queue(new AsyncCommandPlay(this));
+}
+
+void AudioPlayer::request_pause(){
+	this->push_to_command_queue(new AsyncCommandPause(this));
+}
+
 void AudioPlayer::request_seek(double seconds){
 	this->push_to_command_queue(new AsyncCommandSeek(this, seconds));
 }
@@ -179,7 +202,7 @@ void AudioPlayer::request_exit(){
 	this->push_to_command_queue(new AsyncCommandExit(this));
 }
 
-void AudioPlayer::eliminate_buffers(audio_position_t &pos){
+void AudioPlayer::eliminate_buffers(audio_position_t *pos){
 	AutoLocker<internal_queue_t> am(this->internal_queue);
 	std::queue<iqe_t> temp;
 	bool set = 0;
@@ -193,8 +216,8 @@ void AudioPlayer::eliminate_buffers(audio_position_t &pos){
 		if (set)
 			continue;
 		auto buffer = bqe->get_buffer();
-		//buffer.free();
-		pos = buffer.position;
+		if (pos)
+			*pos = buffer.position;
 		set = 1;
 	}
 	while (temp.size()){
@@ -203,22 +226,52 @@ void AudioPlayer::eliminate_buffers(audio_position_t &pos){
 	}
 }
 
+bool AudioPlayer::execute_play(){
+	switch (this->state){
+		case PlayState::STOPPED:
+		case PlayState::PAUSED:
+			SDL_PauseAudio(0);
+			this->state = PlayState::PLAYING;
+			break;
+		case PlayState::PLAYING:
+			break;
+	}
+	return 1;
+}
+
+bool AudioPlayer::execute_pause(){
+	switch (this->state){
+		case PlayState::STOPPED:
+			break;
+		case PlayState::PLAYING:
+			SDL_PauseAudio(1);
+			this->state = PlayState::PAUSED;
+			break;
+		case PlayState::PAUSED:
+			SDL_PauseAudio(0);
+			this->state = PlayState::PLAYING;
+			break;
+	}
+	return 1;
+}
+
 bool AudioPlayer::execute_seek(double seconds){
 	if (!this->now_playing.get() || this->jumped_this_loop)
 		return 1;
-	this->device.pause_audio();
+	AudioLocker al(*this);
 	audio_position_t pos = invalid_audio_position;
-	this->eliminate_buffers(pos);
+	this->eliminate_buffers(&pos);
 	if (pos == invalid_audio_position)
 		pos = this->last_position_seen.get();
 	audio_position_t new_pos;
 	this->now_playing->seek(this, new_pos, pos, seconds);
 	this->last_position_seen.set(new_pos);
-	this->device.start_audio();
 	return 1;
 }
 
 bool AudioPlayer::execute_next(){
+	AudioLocker al(*this);
+	this->eliminate_buffers();
 	this->now_playing.reset();
 	this->initialize_stream();
 	return 1;

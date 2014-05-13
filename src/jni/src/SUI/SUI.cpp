@@ -49,6 +49,8 @@ SUI::SUI(AudioPlayer &player):
 	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
 }
 
+bool p = 1;
+
 bool SUI::handle_in_events(){
 	SDL_Event e;
 	while (SDL_PollEvent(&e) ){
@@ -63,6 +65,17 @@ bool SUI::handle_in_events(){
 							break;
 						case SDLK_LEFT:
 							this->player.request_seek(-5);
+							break;
+						case SDLK_x:
+							this->player.request_play();
+							break;
+						case SDLK_c:
+							//SDL_PauseAudio(p);
+							//p = !p;
+							this->player.request_pause();
+							break;
+						case SDLK_b:
+							this->player.request_next();
 							break;
 					}
 				}
