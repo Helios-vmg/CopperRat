@@ -1,11 +1,38 @@
 #ifndef AUDIOBUFFER_H
 #define AUDIOBUFFER_H
 #include "BasicTypes.h"
+#include "Threads.h"
 #include <algorithm>
+
+class audio_buffer_instance_tracker{
+	friend class audio_buffer_t;
+	Mutex mutex;
+	unsigned instances;
+	size_t memory_used;
+	void alloc(size_t n){
+		AutoMutex am(this->mutex);
+		this->memory_used += n;
+		this->instances++;
+	}
+	void free(size_t n){
+		AutoMutex am(this->mutex);
+		this->memory_used -= n;
+		this->instances--;
+	}
+public:
+	audio_buffer_instance_tracker(): instances(0), memory_used(0){}
+	void get_info(unsigned &instances, size_t &memory){
+		AutoMutex am(this->mutex);
+		instances = this->instances;
+		memory = this->memory_used;
+	}
+};
+
 
 class audio_buffer_t{
 	void *data,
 		*true_pointer;
+	size_t true_byte_length;
 	unsigned *ref_count;
 	memory_audio_position_t data_offset;
 	memory_sample_count_t sample_count;
@@ -16,7 +43,9 @@ class audio_buffer_t{
 	void alloc(size_t bytes);
 	void alloc(unsigned bytes_per_sample, unsigned channels, memory_sample_count_t length);
 	void copy(const audio_buffer_t &);
+	void free();
 public:
+	static audio_buffer_instance_tracker abit;
 	audio_position_t position;
 	audio_buffer_t(): data(0), true_pointer(0), ref_count(0), data_offset(0), sample_count(0), channel_count(0), bps(0){}
 	audio_buffer_t(unsigned bytes_per_sample, unsigned channels, memory_sample_count_t length);
@@ -26,8 +55,6 @@ public:
 	const audio_buffer_t &operator=(audio_buffer_t &&);
 	~audio_buffer_t();
 	void unref();
-	void switch_to_manual();
-	void free();
 	void *raw_pointer(memory_audio_position_t i){
 		return (char *)this->data + (i + this->data_offset) * this->bps;
 	}

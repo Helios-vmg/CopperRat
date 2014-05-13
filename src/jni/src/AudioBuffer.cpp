@@ -2,14 +2,18 @@
 #include <cstring>
 #include <algorithm>
 
+audio_buffer_instance_tracker audio_buffer_t::abit;
+
 struct malloced_buffer{
 	unsigned ref_count;
 	char data[1];
 };
 
 void audio_buffer_t::alloc(size_t bytes){
-	//TODO: Optimize this. Implement reusable buffers.
-	malloced_buffer *buffer = (malloced_buffer *)malloc(sizeof(malloced_buffer) + bytes);
+	this->true_byte_length = sizeof(malloced_buffer) + bytes;
+	malloced_buffer *buffer = (malloced_buffer *)malloc(this->true_byte_length);
+	if (buffer)
+		abit.alloc(this->true_byte_length);
 	this->true_pointer = buffer;
 	this->ref_count = &buffer->ref_count;
 	this->data = &buffer->data;
@@ -64,6 +68,7 @@ void audio_buffer_t::copy(const audio_buffer_t &buffer){
 	this->data_offset = buffer.data_offset;
 	this->sample_count = buffer.sample_count;
 	this->channel_count = buffer.channel_count;
+	this->true_byte_length = buffer.true_byte_length;
 	this->bps = buffer.bps;
 	this->position = buffer.position;
 }
@@ -91,16 +96,14 @@ void audio_buffer_t::unref(){
 }
 
 void audio_buffer_t::free(){
+	if (this->true_pointer)
+		abit.free(this->true_byte_length);
 	::free(this->true_pointer);
 	this->true_pointer = 0;
 	this->data = 0;
 	this->ref_count = 0;
 	this->data_offset = 0;
 	this->sample_count = 0;
-}
-
-void audio_buffer_t::switch_to_manual(){
-	this->ref_count = 0;
 }
 
 audio_buffer_t audio_buffer_t::clone_with_minimum_byte_length(size_t n, const AudioFormat *new_format) const{

@@ -18,11 +18,7 @@ InternalQueueElement::PostAction BufferQueueElement::AudioCallback_switch(
 	last_position = buffer.position;
 	size_t ctb_res = buffer.copy_to_buffer<Sint16, 2>(stream + bytes_written, len - samples_written * bytes_per_sample);
 	samples_written += (memory_sample_count_t)(ctb_res / bytes_per_sample);
-	if (!buffer.samples()){
-		buffer.free();
-		return PostAction::POP_AND_DELETE;
-	}
-	return PostAction::NOTHING;
+	return !buffer.samples() ? PostAction::POP_AND_DELETE : PostAction::NOTHING;
 }
 
 void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
@@ -143,7 +139,6 @@ void AudioPlayer::thread(){
 		}
 		this->jumped_this_loop = 0;
 #if !defined PROFILING
-		buffer.switch_to_manual();
 		this->push_to_internal_queue(new BufferQueueElement(buffer));
 #elif defined OUTPUT_TO_FILE
 		raw_file.write((char *)buffer.raw_pointer(0), buffer.byte_length());
@@ -198,7 +193,7 @@ void AudioPlayer::eliminate_buffers(audio_position_t &pos){
 		if (set)
 			continue;
 		auto buffer = bqe->get_buffer();
-		buffer.free();
+		//buffer.free();
 		pos = buffer.position;
 		set = 1;
 	}
