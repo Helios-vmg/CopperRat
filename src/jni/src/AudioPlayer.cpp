@@ -4,7 +4,7 @@ void ExternalQueueElement::push(AudioPlayer *player, boost::shared_ptr<InternalQ
 	player->external_queue_out.push(pointer);
 }
 
-InternalQueueElement::PostAction BufferQueueElement::AudioCallback_switch(
+bool BufferQueueElement::AudioCallback_switch(
 	AudioPlayer *player,
 	Uint8 *stream,
 	int len,
@@ -18,7 +18,7 @@ InternalQueueElement::PostAction BufferQueueElement::AudioCallback_switch(
 	last_position = buffer.position;
 	size_t ctb_res = buffer.copy_to_buffer<Sint16, 2>(stream + bytes_written, len - samples_written * bytes_per_sample);
 	samples_written += (memory_sample_count_t)(ctb_res / bytes_per_sample);
-	return !buffer.samples() ? PostAction::POP_AND_DELETE : PostAction::NOTHING;
+	return !buffer.samples();
 }
 
 void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
@@ -27,6 +27,7 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 
 	memory_sample_count_t samples_written = 0;
 	audio_position_t last_position;
+	bool perform_final_pops = 0;
 	while ((unsigned)len > samples_written * bytes_per_sample){
 		const size_t bytes_written = samples_written * bytes_per_sample;
 		auto element = player->internal_queue.try_peek();
@@ -43,16 +44,23 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 			last_position,
 			*element
 		);
-		switch (action){
-			case InternalQueueElement::PostAction::NOTHING:
-				break;
-			case InternalQueueElement::PostAction::POP:
-			case InternalQueueElement::PostAction::POP_AND_DELETE:
-				player->internal_queue.pop();
-				break;
-		}
+		if (action)
+			player->internal_queue.pop();
+		perform_final_pops = action;
 	}
 	player->last_position_seen.set(last_position);
+	if (!perform_final_pops)
+		return;
+	while (1){
+		{
+			auto element = player->internal_queue.try_peek();
+			if ((*element)->is_buffer())
+				break;
+		}
+		auto element = player->internal_queue.pop();
+		auto eqe = static_cast<ExternalQueueElement *>(element.get());
+		eqe->push(player, element);
+	}
 }
 
 #include <fstream>

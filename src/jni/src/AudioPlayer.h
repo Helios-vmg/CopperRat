@@ -19,12 +19,7 @@ public:
 class InternalQueueElement{
 public:
 	virtual ~InternalQueueElement(){}
-	enum class PostAction{
-		NOTHING,
-		POP,
-		POP_AND_DELETE,
-	};
-	virtual PostAction AudioCallback_switch(
+	virtual bool AudioCallback_switch(
 		AudioPlayer *player,
 		Uint8 *stream,
 		int len,
@@ -33,13 +28,35 @@ public:
 		audio_position_t &last_position,
 		boost::shared_ptr<InternalQueueElement> pointer
 	) = 0;
+	virtual bool is_buffer() const = 0;
+};
+
+class BufferQueueElement : public InternalQueueElement{
+	audio_buffer_t buffer;
+public:
+	BufferQueueElement(audio_buffer_t buffer): buffer(buffer){}
+	audio_buffer_t get_buffer(){
+		return this->buffer;
+	}
+	bool AudioCallback_switch(
+		AudioPlayer *player,
+		Uint8 *stream,
+		int len,
+		unsigned bytes_per_sample,
+		memory_sample_count_t &samples_written,
+		audio_position_t &last_position,
+		boost::shared_ptr<InternalQueueElement> pointer
+	);
+	bool is_buffer() const{
+		return 1;
+	}
 };
 
 class ExternalQueueElement : public InternalQueueElement{
 public:
 	virtual ~ExternalQueueElement(){}
 	void push(AudioPlayer *player, boost::shared_ptr<InternalQueueElement> pointer);
-	virtual PostAction AudioCallback_switch(
+	virtual bool AudioCallback_switch(
 		AudioPlayer *player,
 		Uint8 *stream,
 		int len,
@@ -49,26 +66,11 @@ public:
 		boost::shared_ptr<InternalQueueElement> pointer
 	){
 		this->push(player, pointer);
-		return PostAction::POP;
+		return 1;
 	}
-};
-
-class BufferQueueElement : public ExternalQueueElement{
-	audio_buffer_t buffer;
-public:
-	BufferQueueElement(audio_buffer_t buffer): buffer(buffer){}
-	audio_buffer_t get_buffer(){
-		return this->buffer;
+	bool is_buffer() const{
+		return 0;
 	}
-	PostAction AudioCallback_switch(
-		AudioPlayer *player,
-		Uint8 *stream,
-		int len,
-		unsigned bytes_per_sample,
-		memory_sample_count_t &samples_written,
-		audio_position_t &last_position,
-		boost::shared_ptr<InternalQueueElement> pointer
-	);
 };
 
 class TotalTimeUpdate : public ExternalQueueElement{
