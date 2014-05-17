@@ -20,6 +20,7 @@ class AudioStream{
 #ifdef DUMP_OUTPUT
 	std::ofstream test_file;
 #endif
+	AudioFormat dst_format;
 public:
 	AudioStream(AudioPlayer &parent, const char *filename, unsigned frequency, unsigned channels);
 	audio_buffer_t read();
@@ -29,6 +30,9 @@ public:
 		return this->decoder->get_seconds_length();
 	}
 	void metadata_update(boost::shared_ptr<Metadata>);
+	AudioFormat get_preferred_format() const{
+		return this->dst_format;
+	}
 };
 
 #endif

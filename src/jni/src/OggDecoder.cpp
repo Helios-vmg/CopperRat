@@ -92,8 +92,11 @@ bool OggDecoder::seek(audio_position_t pos){
 	return !ov_pcm_seek(&this->ogg_file, pos);
 }
 
-bool OggDecoder::fast_seek(audio_position_t pos){
-	return !ov_pcm_seek_page(&this->ogg_file, pos);
+bool OggDecoder::fast_seek(audio_position_t pos, audio_position_t &new_position){
+	bool ret = !ov_pcm_seek_page(&this->ogg_file, pos);
+	if (ret)
+		new_position = ov_pcm_tell(&this->ogg_file);
+	return ret;
 }
 
 size_t OggDecoder::read(void *buffer, size_t size, size_t nmemb, void *s){

@@ -27,8 +27,14 @@ public:
 	audio_buffer_t read();
 	static Decoder *create(AudioStream &, const char *);
 	virtual bool seek(audio_position_t) = 0;
-	virtual bool fast_seek(audio_position_t p){
-		return this->seek(p);
+	virtual bool fast_seek(audio_position_t p, audio_position_t &new_position){
+		bool ret = this->seek(p);
+		if (ret)
+			new_position = p;
+		return ret;
+	}
+	virtual bool fast_seek_seconds(double p, audio_position_t &new_position){
+		return 0;
 	}
 	sample_count_t get_pcm_length(){
 		if (this->length != invalid_sample_count)
@@ -39,6 +45,9 @@ public:
 		if (this->seconds_length >= 0)
 			return this->seconds_length;
 		return this->seconds_length = this->get_seconds_length_internal();
+	}
+	virtual bool fast_seek_takes_seconds() const{
+		return 0;
 	}
 };
 

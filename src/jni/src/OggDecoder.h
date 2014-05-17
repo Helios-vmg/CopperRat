@@ -23,7 +23,7 @@ public:
 		return AudioFormat(true, 2, this->channels, this->frequency);
 	}
 	bool seek(audio_position_t);
-	bool fast_seek(audio_position_t p);
+	bool fast_seek(audio_position_t p, audio_position_t &new_position);
 
 	static size_t read(void *buffer, size_t size, size_t nmemb, void *s);
 	static int seek(void *s, ogg_int64_t offset, int whence);

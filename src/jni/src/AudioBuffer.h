@@ -41,7 +41,7 @@ class audio_buffer_t{
 
 	void ref();
 	void alloc(size_t bytes);
-	void alloc(unsigned bytes_per_sample, unsigned channels, memory_sample_count_t length);
+	void alloc(unsigned bytes_per_channel, unsigned channels, memory_sample_count_t length);
 	void copy(const audio_buffer_t &);
 	void free();
 public:

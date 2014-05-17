@@ -1,5 +1,6 @@
 #include "OggDecoder.h"
 #include "FlacDecoder.h"
+#include "Mp3Decoder.h"
 #include "CommonFunctions.h"
 #include <string>
 
@@ -12,6 +13,8 @@ Decoder *Decoder::create(AudioStream &stream, const char *filename){
 	std::transform(ext.begin(), ext.end(), ext.begin(), tolower);
 	if (ext == "ogg")
 		return new OggDecoder(stream, filename);
+	if (ext == "mp3")
+		return new Mp3Decoder(stream, filename);
 	if (ext == "flac")
 		return new FlacDecoder(stream, filename);
 	return 0;

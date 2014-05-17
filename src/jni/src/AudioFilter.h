@@ -19,6 +19,9 @@ public:
 	AudioFilterManager(Decoder &decoder, const AudioFormat &dst_format);
 	~AudioFilterManager();
 	audio_buffer_t read(memory_sample_count_t &samples_read_from_decoder);
+	AudioFormat get_dst_format() const{
+		return this->dst_format;
+	}
 };
 
 #endif

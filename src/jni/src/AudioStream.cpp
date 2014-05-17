@@ -2,11 +2,10 @@
 #include "AudioPlayer.h"
 #include <string>
 
-AudioStream::AudioStream(AudioPlayer &parent, const char *filename, unsigned frequency, unsigned channels): parent(parent){
+AudioStream::AudioStream(AudioPlayer &parent, const char *filename, unsigned frequency, unsigned channels): parent(parent), dst_format(true, 2, channels, frequency){
 	this->decoder.reset(Decoder::create(*this, filename));
 	if (!this->decoder.get())
 		return;
-	AudioFormat dst_format(true, 2, channels, frequency);
 	filter.reset(new AudioFilterManager(*this->decoder, dst_format));
 #ifdef DUMP_OUTPUT
 	std::string s = filename;
