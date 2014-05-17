@@ -16,6 +16,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../Tremolo008/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libvorbis-1.3.4/lib/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../flac-1.3.0/src/libFLAC/include/private/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../flac-1.3.0/include/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libmpg123/
 
 # Add your application source files here...
 LOCAL_SRC_FILES := $(SDL_PATH)/src/main/android/SDL_android_main.c
@@ -36,10 +37,11 @@ LOCAL_SRC_FILES += $(LOCAL_PATH)/SignednessFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Threads.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Metadata.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioDevice.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/Mp3Decoder.cpp
 
 LOCAL_SHARED_LIBRARIES := SDL2
 
-LOCAL_STATIC_LIBRARIES :=  libflacpp tremolo
+LOCAL_STATIC_LIBRARIES :=  libflacpp tremolo libmpg123
 
 LOCAL_LDLIBS := -lGLESv1_CM -lGLESv2 -llog
 
