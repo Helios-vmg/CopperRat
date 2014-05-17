@@ -81,6 +81,7 @@ AudioPlayer::AudioPlayer(): device(*this){
 		}
 	}
 #else
+	this->track_queue.push("/sdcard/external_sd/Music/Ghost Riders In The Sky.mp3");
 	//Put your test tracks here when compiling for Android.
 #endif
 	this->internal_queue.max_size = 100;

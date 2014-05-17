@@ -70,8 +70,6 @@ bool SUI::handle_in_events(){
 							this->player.request_play();
 							break;
 						case SDLK_c:
-							//SDL_PauseAudio(p);
-							//p = !p;
 							this->player.request_pause();
 							break;
 						case SDLK_b:

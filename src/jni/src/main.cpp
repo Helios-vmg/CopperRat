@@ -8,6 +8,10 @@ int main(int argc, char **argv){
 #ifndef __ANDROID__
 		SUI sui(player);
 		sui.loop();
+#else
+		player.request_play();
+		while (1)
+			SDL_Delay(1000);
 #endif
 	}
 	SDL_Quit();
