@@ -1,12 +1,15 @@
-#if !defined SUI_H && !defined __ANDROID__
+#ifndef SUI_H
 #define SUI_H
 
 #include "../AudioPlayer.h"
+#include "../UserInterface.h"
 #include <SDL.h>
 #include <string>
 #include <boost/shared_ptr.hpp>
 #include <memory>
+#include "Font.h"
 #include "../auto_ptr.h"
+#include "../Deleters.h"
 
 struct UIInitializationException{
 	std::string desc;
@@ -15,19 +18,28 @@ struct UIInitializationException{
 
 #define SDL_PTR_WRAPPER(T) CR_UNIQUE_PTR2(T, void(*)(T *))
 
-class SUI{
+class SUI : public UserInterface{
 	AudioPlayer &player;
 	SDL_PTR_WRAPPER(SDL_Window) window;
-	SDL_PTR_WRAPPER(SDL_Renderer) renderer;
-	SDL_PTR_WRAPPER(SDL_Texture) font;
+	boost::shared_ptr<SDL_Renderer> renderer;
+	boost::shared_ptr<Font> font;
 	double current_total_time;
 	std::string metadata;
 
-	bool handle_in_events();
-	void handle_out_events();
+	enum InputStatus{
+		NOTHING = 0,
+		QUIT = 1,
+		REDRAW = 2,
+	};
+
+	unsigned handle_in_events();
+	unsigned handle_out_events();
 public:
 	SUI(AudioPlayer &player);
 	void loop();
+
+	unsigned receive(TotalTimeUpdate &);
+	unsigned receive(MetaDataUpdate &);
 };
 
 #endif

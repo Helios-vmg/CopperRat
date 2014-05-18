@@ -5,6 +5,7 @@
 #include "AudioDevice.h"
 #include "AudioStream.h"
 #include "AudioBuffer.h"
+#include "UserInterface.h"
 #include "auto_ptr.h"
 
 class AudioPlayerAsyncCommand{
@@ -71,6 +72,7 @@ public:
 	bool is_buffer() const{
 		return 0;
 	}
+	virtual unsigned receive(UserInterface &) = 0;
 };
 
 class TotalTimeUpdate : public ExternalQueueElement{
@@ -79,6 +81,9 @@ public:
 	TotalTimeUpdate(double seconds): seconds(seconds){}
 	double get_seconds(){
 		return this->seconds;
+	}
+	unsigned receive(UserInterface &ui){
+		return ui.receive(*this);
 	}
 };
 
@@ -89,6 +94,9 @@ public:
 	boost::shared_ptr<Metadata> get_metadata(){
 		return this->metadata;
 	}
+	unsigned receive(UserInterface &ui){
+		return ui.receive(*this);
+	}
 };
 
 struct NotImplementedException{};
@@ -96,10 +104,11 @@ struct NotImplementedException{};
 class AudioPlayer{
 	friend class AudioDevice;
 	typedef boost::shared_ptr<InternalQueueElement> iqe_t;
+	typedef boost::shared_ptr<ExternalQueueElement> eqe_t;
 	typedef thread_safe_queue<iqe_t> internal_queue_t;
 	typedef boost::shared_ptr<AudioPlayerAsyncCommand> command_t;
 	typedef thread_safe_queue<command_t> external_queue_in_t;
-	typedef internal_queue_t external_queue_out_t;
+	typedef thread_safe_queue<eqe_t> external_queue_out_t;
 
 	struct AudioLocker{
 		AudioPlayer &player;
