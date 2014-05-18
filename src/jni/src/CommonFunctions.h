@@ -1,7 +1,7 @@
 #ifndef COMMONFUNCTIONS_H
 #define COMMONFUNCTIONS_H
 #include "BasicTypes.h"
-#include <ostream>
+#include <iostream>
 
 inline double s16_to_double(Sint16 x){
 	return (x<0) ? (x/32768.0) : (x/32767.0);
@@ -102,5 +102,17 @@ bool utf8_to_string(std::basic_string<T> &dst, unsigned char *buffer, size_t n){
 	return 1;
 }
 
+template <typename T1, typename T2>
+bool check_flag(T1 flag, T2 pattern){
+	return ((T2)flag & pattern) == pattern;
+}
+
+#ifdef __ANDROID__
+#include <android/log.h>
+#else
+#define __android_log_print(...)
+#endif
+
+bool read_32_bits(Uint32 &dst, std::istream &stream);
 
 #endif

@@ -15,3 +15,16 @@ void parse_into_hms(std::ostream &stream, double total_seconds){
 		stream <<std::setw(2)<<std::setfill('0')<<hours<<":";
 	stream <<std::setw(2)<<std::setfill('0')<<minutes<<":"<<std::setw(2)<<std::setfill('0')<<seconds;
 }
+
+bool read_32_bits(Uint32 &dst, std::istream &stream){
+	Uint8 temp[4];
+	stream.read((char *)temp, sizeof(temp));
+	if (stream.gcount() < sizeof(temp))
+		return 0;
+	dst = 0;
+	for (int i = 4; i--;){
+		dst <<= 8;
+		dst |= temp[i];
+	}
+	return 1;
+}

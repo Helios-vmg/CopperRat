@@ -1,7 +1,7 @@
 #include "AudioPlayer.h"
 
 void ExternalQueueElement::push(AudioPlayer *player, boost::shared_ptr<InternalQueueElement> pointer){
-	player->external_queue_out.push(pointer);
+	player->external_queue_out.push(boost::static_pointer_cast<ExternalQueueElement>(pointer));
 }
 
 bool BufferQueueElement::AudioCallback_switch(
@@ -97,6 +97,7 @@ AudioPlayer::AudioPlayer(): device(*this){
 
 AudioPlayer::~AudioPlayer(){
 #ifndef PROFILING
+	this->device.close();
 	this->request_exit();
 	SDL_WaitThread(this->sdl_thread, 0);
 #endif

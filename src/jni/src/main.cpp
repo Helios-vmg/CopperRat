@@ -1,18 +1,18 @@
 #include "AudioPlayer.h"
 #include "SUI/SUI.h"
+#include "CommonFunctions.h"
 
 int main(int argc, char **argv){
 	SDL_Init(SDL_INIT_EVERYTHING);
-	{
+	try{
 		AudioPlayer player;
-#ifndef __ANDROID__
 		SUI sui(player);
-		sui.loop();
-#else
 		player.request_play();
-		while (1)
-			SDL_Delay(1000);
-#endif
+		sui.loop();
+	}catch (const UIInitializationException &e){
+		__android_log_print(ANDROID_LOG_DEBUG, "C++Exception", "%s", e.desc.c_str());
+	}catch (const std::exception &e){
+		__android_log_print(ANDROID_LOG_DEBUG, "C++Exception", "%s", e.what());
 	}
 	SDL_Quit();
 	return 0;

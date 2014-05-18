@@ -1,13 +1,22 @@
 package org.copper.rat;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.jar.Pack200;
 
 import android.app.*;
 import android.content.*;
+import android.content.res.Resources;
 import android.view.*;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
@@ -15,6 +24,7 @@ import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AbsoluteLayout;
 import android.os.*;
+import android.provider.OpenableColumns;
 import android.util.Log;
 import android.graphics.*;
 import android.media.*;
@@ -70,33 +80,7 @@ public class CopperRat extends Activity {
         mIsSurfaceReady = false;
         mHasFocus = true;
     }
-
-    // Setup
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        Log.v("SDL", "onCreate():" + mSingleton);
-        super.onCreate(savedInstanceState);
-        
-        CopperRat.initialize();
-        // So we can call stuff from static callbacks
-        mSingleton = this;
-
-        // Set up the surface
-        mSurface = new SDLSurface(getApplication());
-        
-        if(Build.VERSION.SDK_INT >= 12) {
-            mJoystickHandler = new SDLJoystickHandler_API12();
-        }
-        else {
-            mJoystickHandler = new SDLJoystickHandler();
-        }
-
-        mLayout = new AbsoluteLayout(this);
-        mLayout.addView(mSurface);
-
-        setContentView(mLayout);
-    }
-
+    
     // Events
     @Override
     protected void onPause() {
@@ -487,7 +471,7 @@ public class CopperRat extends Activity {
             
     // Joystick glue code, just a series of stubs that redirect to the SDLJoystickHandler instance
     public static boolean handleJoystickMotionEvent(MotionEvent event) {
-        return mJoystickHandler.handleMotionEvent(event);
+    	return mJoystickHandler.handleMotionEvent(event);
     }
     
     public static void pollInputDevices() {
@@ -496,18 +480,104 @@ public class CopperRat extends Activity {
         }
     }
     
+    public static String PackageName;
+
+    // Setup
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        Log.v("SDL", "onCreate():" + mSingleton);
+        super.onCreate(savedInstanceState);
+        
+        CopperRat.initialize();
+        // So we can call stuff from static callbacks
+        mSingleton = this;
+
+        // Set up the surface
+        mSurface = new SDLSurface(getApplication());
+        
+        if(Build.VERSION.SDK_INT >= 12) {
+            mJoystickHandler = new SDLJoystickHandler_API12();
+        }
+        else {
+            mJoystickHandler = new SDLJoystickHandler();
+        }
+
+        mLayout = new AbsoluteLayout(this);
+        mLayout.addView(mSurface);
+
+        setContentView(mLayout);
+        
+        PackageName = getPackageName();
+    }
+
+    
+}
+
+class ResourceTuple{
+	public int id;
+	public String path;
+	ResourceTuple(int id, String path){
+		this.id = id;
+		this.path = path;
+	}
 }
 
 /**
     Simple nativeInit() runnable
 */
 class SDLMain implements Runnable {
-    @Override
+	private Application application;
+	public SDLMain(Application app){
+		super();
+		application = app;
+	}
+	@Override
     public void run() {
+    	initializeAppDirectory();
+    	
         // Runs SDL_main()
         CopperRat.nativeInit();
 
         //Log.v("SDL", "SDL thread terminated");
+    }
+    
+    private void initializeAppDirectory(){
+    	ArrayList<ResourceTuple> list = new ArrayList<ResourceTuple>();
+    	list.add(new ResourceTuple(R.raw.unifont, "unifont.dat"));
+    	list.add(new ResourceTuple(R.raw.font3, "font3.webp"));
+    	
+    	String base = application.getFilesDir().getPath() + "/";
+    	
+    	for (ResourceTuple resourceTuple : list) {
+    		String path = base + resourceTuple.path;
+			if (new File(path).exists()){
+				Log.i("Resources", "Skipping file " + path);
+				continue;
+			}
+			Log.i("Resources", "Copying file " + path);
+			copyResourceToFileSystem(resourceTuple.id, resourceTuple.path);
+		}
+    	
+    }
+    private void copyResourceToFileSystem(int id, String destinationPath){
+    	InputStream stream;
+    	FileOutputStream file;
+    	try{
+    		stream = application.getResources().openRawResource(id);
+	    	file = application.openFileOutput(destinationPath, Application.MODE_WORLD_READABLE);
+	    	byte[] buffer = new byte[1<<12];
+	    	int bytes = 0;
+	    	while (true){
+	    		int bytesRead = stream.read(buffer);
+	    		if (bytesRead <= 0)
+	    			break;
+	    		file.write(buffer, 0, bytesRead);
+	    		bytes += bytesRead;
+	    	}
+	    	Log.i("Resources", "Written " + bytes + "bytes.");
+    	}catch (Exception e){
+    		Log.e("Resources", "There was an exception! " + e.toString());
+    	}
     }
 }
 
@@ -528,9 +598,13 @@ class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
     // Keep track of the surface size to normalize touch events
     protected static float mWidth, mHeight;
 
+    private Application app;
+    
     // Startup    
-    public SDLSurface(Context context) {
-        super(context);
+    public SDLSurface(Application application) {
+        super(application);
+        app = application;
+        
         getHolder().addCallback(this); 
     
         setFocusable(true);
@@ -539,8 +613,8 @@ class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
         setOnKeyListener(this); 
         setOnTouchListener(this);   
 
-        mDisplay = ((WindowManager)context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
-        mSensorManager = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
+        mDisplay = ((WindowManager)application.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+        mSensorManager = (SensorManager)application.getSystemService(Context.SENSOR_SERVICE);
         
         if(Build.VERSION.SDK_INT >= 12) {
             setOnGenericMotionListener(new SDLGenericMotionListener_API12());
@@ -637,7 +711,7 @@ class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
             // This is the entry point to the C app.
             // Start up the C app thread and enable sensor input for the first time
 
-            CopperRat.mSDLThread = new Thread(new SDLMain(), "SDLThread");
+        	CopperRat.mSDLThread = new Thread(new SDLMain(app), "SDLThread");
             enableSensor(Sensor.TYPE_ACCELEROMETER, true);
             CopperRat.mSDLThread.start();
             

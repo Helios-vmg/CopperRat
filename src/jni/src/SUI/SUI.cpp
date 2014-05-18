@@ -1,62 +1,39 @@
 #include "SUI.h"
 #include "../CommonFunctions.h"
+#include <SDL.h>
+#include <SDL_image.h>
 #include <iostream>
 #include <string>
 #include <iomanip>
 #include <sstream>
 
-void draw_string(SDL_Renderer *target, SDL_Texture *font, const char *string, int x, int y){
-	SDL_Rect dst, src;
-	dst.x = x;
-	dst.y = y;
-	dst.w = (src.w = 8) * 1;
-	dst.h = (src.h = 8) * 1;
-	for (; *string; string++){
-		if (*string == '\n'){
-			dst.x = x;
-			dst.y += dst.h;
-			continue;
-		}
-		src.x = src.w * (*string % 16);
-		src.y = src.h * (*string / 16 - 2);
-		int result = SDL_RenderCopy(target, font, &src, &dst);
-		dst.x += dst.w;
-	}
-}
-
 SUI::SUI(AudioPlayer &player):
 		player(player),
 		window(nullptr, [](SDL_Window *w) { if (w) SDL_DestroyWindow(w); }),
-		renderer(nullptr, [](SDL_Renderer *r){ if (r) SDL_DestroyRenderer(r); }),
-		font(nullptr, [](SDL_Texture *t){ if (t) SDL_DestroyTexture(t); }),
+		renderer(nullptr, SDL_Renderer_deleter()),
 		current_total_time(-1){
-	this->window.reset(SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, 0));
+	this->window.reset(SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, 0));
 	if (!this->window)
 		throw UIInitializationException("Window creation failed.");
-	this->renderer.reset(SDL_CreateRenderer(window.get(), -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC));
+	this->renderer.reset(SDL_CreateRenderer(this->window.get(), -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC), SDL_Renderer_deleter());
 	if (!this->renderer)
 		throw UIInitializationException("Renderer creation failed.");
-	{
-		auto font = SDL_LoadBMP("font3.bmp");
-		if (!font)
-			throw UIInitializationException("Couldn't load font.");
-		this->font.reset(SDL_CreateTextureFromSurface(renderer.get(), font));
-		if (!this->font){
-			SDL_FreeSurface(font);
-			throw UIInitializationException("Font texture creation failed.");
-		}
-	}
-	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
+	this->font.reset(new Font(this->renderer));
+	SDL_SetRenderDrawColor(renderer.get(), 255, 0, 255, 255);
 }
 
 bool p = 1;
 
-bool SUI::handle_in_events(){
+unsigned SUI::handle_in_events(){
 	SDL_Event e;
-	while (SDL_PollEvent(&e) ){
+	unsigned ret = NOTHING;
+	while (SDL_PollEvent(&e)){
 		switch (e.type){
 			case SDL_QUIT:
-				return 0;
+				return QUIT;
+			case SDL_WINDOWEVENT:
+				ret |= REDRAW;
+				break;
 			case SDL_KEYDOWN:
 				{
 					switch (e.key.keysym.sym){
@@ -80,7 +57,7 @@ bool SUI::handle_in_events(){
 				break;
 		}
 	}
-	return 1;
+	return ret;
 }
 
 std::string wide_to_narrow(const std::wstring &s){
@@ -91,33 +68,38 @@ std::string wide_to_narrow(const std::wstring &s){
 	return ret;
 }
 
-void SUI::handle_out_events(){
-	for (boost::shared_ptr<InternalQueueElement> eqe; player.external_queue_out.try_pop(eqe);){
-		auto ttu = dynamic_cast<TotalTimeUpdate *>(eqe.get());
-		if (ttu){
-			current_total_time = ttu->get_seconds();
-			continue;
-		}
-		auto mdu = dynamic_cast<MetaDataUpdate *>(eqe.get());
-		if (mdu){
-			auto metadata = mdu->get_metadata();
-			this->metadata.clear();
-			metadata->iterate([this](const std::wstring &key, const std::wstring &value){
-				this->metadata += wide_to_narrow(key);
-				this->metadata += '=';
-				if (key == L"METADATA_BLOCK_PICTURE")
-					this->metadata += "<picture data>";
-				else
-					this->metadata += wide_to_narrow(value);
+unsigned SUI::receive(TotalTimeUpdate &ttu){
+	this->current_total_time = ttu.get_seconds();
+	return REDRAW;
+}
 
-				this->metadata += '\n';
-			});
-		}
-	}
+unsigned SUI::receive(MetaDataUpdate &mdu){
+	auto metadata = mdu.get_metadata();
+	this->metadata.clear();
+	auto f = [this](const std::wstring &key, const std::wstring &value){
+		this->metadata += wide_to_narrow(key);
+		this->metadata += '=';
+		if (key == L"METADATA_BLOCK_PICTURE")
+			this->metadata += "<picture data>";
+		else
+			this->metadata += wide_to_narrow(value);
+
+		this->metadata += '\n';
+	};
+	metadata->iterate(f);
+	return REDRAW;
+}
+
+unsigned SUI::handle_out_events(){
+	boost::shared_ptr<ExternalQueueElement> eqe;
+	unsigned ret = 0;
+	while (this->player.external_queue_out.try_pop(eqe))
+		ret |= eqe->receive(*this);
+	return ret;
 }
 
 void format_memory(std::ostream &stream, size_t size){
-	double m = size;
+	double m = (double)size;
 	static const char *units[]={
 		" B",
 		" KiB",
@@ -141,28 +123,34 @@ void format_memory(std::ostream &stream, size_t size){
 
 void SUI::loop(){
 	size_t max_memory = 0;
-	while (this->handle_in_events()){
-		this->handle_out_events();
-		std::stringstream stream;
-		double now = player.get_current_time();
-		parse_into_hms(stream, player.get_current_time());
-		stream <<" / ";
-		parse_into_hms(stream, current_total_time);
-		stream <<std::endl<<this->metadata<<"\n\n";
-		{
-			unsigned instances;
-			size_t memory;
-			audio_buffer_t::abit.get_info(instances, memory);
-			max_memory = std::max(max_memory, memory);
-			stream <<"Audio buffers: "<<instances<<"\n"
-			         "Memory used:   ";
-			format_memory(stream, memory);
-			stream <<"\n"
-			         "Peak memory:   ";
-			format_memory(stream, max_memory);
-		}
-		SDL_RenderClear(this->renderer.get());
-		draw_string(this->renderer.get(), this->font.get(), stream.str().c_str(), 0, 0);
-		SDL_RenderPresent(this->renderer.get());
+	Uint32 last = 0;
+	unsigned status;
+	while (!check_flag(status = this->handle_in_events(), QUIT)){
+		status |= this->handle_out_events();
+		Uint32 now_ticks = SDL_GetTicks();
+		if (now_ticks - last >= 500 || check_flag(status, REDRAW)){
+			last = now_ticks;
+			std::stringstream stream;
+			parse_into_hms(stream, player.get_current_time());
+			stream <<" / ";
+			parse_into_hms(stream, current_total_time);
+			stream <<std::endl<<this->metadata<<"\n\n";
+			{
+				unsigned instances;
+				size_t memory;
+				audio_buffer_t::abit.get_info(instances, memory);
+				max_memory = std::max(max_memory, memory);
+				stream <<"Audio buffers: "<<instances<<"\n"
+				         "Memory used:   ";
+				format_memory(stream, memory);
+				stream <<"\n"
+				         "Peak memory:   ";
+				format_memory(stream, max_memory);
+			}
+			SDL_RenderClear(this->renderer.get());
+			this->font->draw_text(stream.str(), 0, 0);
+			SDL_RenderPresent(this->renderer.get());
+		}else
+			SDL_Delay((Uint32)(1000.0/60.0));
 	}
 }

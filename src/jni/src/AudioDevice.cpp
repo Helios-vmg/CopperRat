@@ -14,7 +14,17 @@ AudioDevice::AudioDevice(AudioPlayer &player){
 	specs.userdata = &player;
 	if (SDL_OpenAudio(&specs, 0) < 0)
 		throw DeviceInitializationException();
+	this->audio_is_open = 1;
 #endif
+}
+
+AudioDevice::~AudioDevice(){
+	this->close();
+}
+
+void AudioDevice::close(){
+	if (this->audio_is_open)
+		SDL_CloseAudio();
 }
 
 void AudioDevice::start_audio(){
