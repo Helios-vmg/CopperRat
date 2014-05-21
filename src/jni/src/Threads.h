@@ -13,6 +13,17 @@ public:
 	void unlock();
 };
 
+class SynchronousEvent{
+	SDL_cond *c;
+	SDL_mutex *m;
+public:
+	SynchronousEvent();
+	~SynchronousEvent();
+	void set();
+	void wait();
+	void wait(unsigned timeout);
+};
+
 class RecursiveMutex{
 	Mutex mutex, metamutex;
 	unsigned lock_count;
@@ -43,6 +54,8 @@ class thread_safe_queue{
 	friend class AutoLocker<thread_safe_queue<T> >;
 	std::queue<T> queue;
 	Mutex mutex;
+	SynchronousEvent popped_event;
+	SynchronousEvent pushed_event;
 	void lock(){
 		this->mutex.lock();
 	}
@@ -80,12 +93,12 @@ public:
 				size_t size = this->queue.size();
 				if (size < this->max_size){
 					this->queue.push(e);
+					this->pushed_event.set();
 					return;
 				}
 			}
-			SDL_Delay(10);
+			this->popped_event.wait();
 		}
-		
 	}
 	void shove(const T &e){
 		AutoMutex am(this->mutex);
@@ -116,7 +129,7 @@ public:
 				if (size > 0)
 					return this->queue.front();
 			}
-			SDL_Delay(10);
+			this->pushed_event.wait();
 		}
 	}
 	T *try_peek(){
@@ -129,15 +142,17 @@ public:
 		while (1){
 			{
 				AutoMutex am(this->mutex);
-				if (this->queue.size() > 0)
+				if (this->queue.size() > 0){
 					return this->unlocked_simple_pop();
+				}
 			}
-			SDL_Delay(10);
+			this->pushed_event.wait();
 		}
 	}
 	T unlocked_simple_pop(){
 		T ret = this->queue.front();
 		this->queue.pop();
+		this->popped_event.set();
 		return ret;
 	}
 	bool try_pop(T &o){
@@ -147,8 +162,7 @@ public:
 	bool unlocked_try_pop(T &o){
 		if (!this->queue.size())
 			return 0;
-		o = this->queue.front();
-		this->queue.pop();
+		o = this->unlocked_simple_pop();
 		return 1;
 	}
 	void pop_without_copy(){
@@ -158,10 +172,11 @@ public:
 				size_t size = this->queue.size();
 				if (size > 0){
 					this->queue.pop();
+					this->popped_event.set();
 					return;
 				}
 			}
-			SDL_Delay(10);
+			this->pushed_event.wait();
 		}
 	}
 };
