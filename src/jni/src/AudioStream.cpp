@@ -2,8 +2,8 @@
 #include "AudioPlayer.h"
 #include <string>
 
-AudioStream::AudioStream(AudioPlayer &parent, const char *filename, unsigned frequency, unsigned channels): parent(parent), dst_format(true, 2, channels, frequency){
-	this->decoder.reset(Decoder::create(*this, filename));
+AudioStream::AudioStream(AudioPlayer &parent, const std::wstring &path, unsigned frequency, unsigned channels): parent(parent), dst_format(true, 2, channels, frequency){
+	this->decoder.reset(Decoder::create(*this, path));
 	if (!this->decoder.get())
 		return;
 	filter.reset(new AudioFilterManager(*this->decoder, dst_format));
@@ -45,6 +45,6 @@ void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audi
 	this->position = new_position = this->decoder->seek(target) ? target : current_position;
 }
 
-void AudioStream::metadata_update(boost::shared_ptr<Metadata> p){
+void AudioStream::metadata_update(boost::shared_ptr<GenericMetadata> p){
 	this->parent.execute_metadata_update(p);
 }

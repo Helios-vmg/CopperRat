@@ -1,8 +1,10 @@
 #ifndef THREADS_H
 #define THREADS_H
 #include <SDL.h>
+#include <SDL_atomic.h>
 #include <queue>
 #include <limits>
+#include <boost/shared_ptr.hpp>
 
 class Mutex{
 	SDL_mutex *mutex;
@@ -11,6 +13,17 @@ public:
 	~Mutex();
 	void lock();
 	void unlock();
+};
+
+class SynchronousEvent{
+	SDL_cond *c;
+	SDL_mutex *m;
+public:
+	SynchronousEvent();
+	~SynchronousEvent();
+	void set();
+	void wait();
+	void wait(unsigned timeout);
 };
 
 class RecursiveMutex{
@@ -43,6 +56,8 @@ class thread_safe_queue{
 	friend class AutoLocker<thread_safe_queue<T> >;
 	std::queue<T> queue;
 	Mutex mutex;
+	SynchronousEvent popped_event;
+	SynchronousEvent pushed_event;
 	void lock(){
 		this->mutex.lock();
 	}
@@ -80,12 +95,12 @@ public:
 				size_t size = this->queue.size();
 				if (size < this->max_size){
 					this->queue.push(e);
+					this->pushed_event.set();
 					return;
 				}
 			}
-			SDL_Delay(10);
+			this->popped_event.wait();
 		}
-		
 	}
 	void shove(const T &e){
 		AutoMutex am(this->mutex);
@@ -116,7 +131,7 @@ public:
 				if (size > 0)
 					return this->queue.front();
 			}
-			SDL_Delay(10);
+			this->pushed_event.wait();
 		}
 	}
 	T *try_peek(){
@@ -129,15 +144,17 @@ public:
 		while (1){
 			{
 				AutoMutex am(this->mutex);
-				if (this->queue.size() > 0)
+				if (this->queue.size() > 0){
 					return this->unlocked_simple_pop();
+				}
 			}
-			SDL_Delay(10);
+			this->pushed_event.wait();
 		}
 	}
 	T unlocked_simple_pop(){
 		T ret = this->queue.front();
 		this->queue.pop();
+		this->popped_event.set();
 		return ret;
 	}
 	bool try_pop(T &o){
@@ -147,8 +164,7 @@ public:
 	bool unlocked_try_pop(T &o){
 		if (!this->queue.size())
 			return 0;
-		o = this->queue.front();
-		this->queue.pop();
+		o = this->unlocked_simple_pop();
 		return 1;
 	}
 	void pop_without_copy(){
@@ -158,10 +174,11 @@ public:
 				size_t size = this->queue.size();
 				if (size > 0){
 					this->queue.pop();
+					this->popped_event.set();
 					return;
 				}
 			}
-			SDL_Delay(10);
+			this->pushed_event.wait();
 		}
 	}
 };
@@ -190,6 +207,89 @@ public:
 	void set(T &&t){
 		AutoMutex am(this->m);
 		this->value = t;
+	}
+};
+
+class WorkerThread;
+class WorkerThreadJobHandle;
+
+class WorkerThreadJob{
+protected:
+	WorkerThread *worker;
+	int id;
+	Atomic<bool> cancelled;
+public:
+	WorkerThreadJob(): id(0), cancelled(0), worker(0){}
+	virtual ~WorkerThreadJob(){}
+	void cancel(){
+		this->cancelled.set(1);
+	}
+	bool was_cancelled(){
+		return this->cancelled.get();
+	}
+	virtual void perform(WorkerThread &) = 0;
+	void set_id(int id){
+		this->id = id;
+	}
+	int get_id() const{
+		return this->id;
+	}
+};
+
+class SyncWorkerThreadJob : public WorkerThreadJob{
+protected:
+	SynchronousEvent finished;
+	virtual void sync_perform(WorkerThread &) = 0;
+public:
+	virtual ~SyncWorkerThreadJob(){}
+	void perform(WorkerThread &wt){
+		this->sync_perform(wt);
+		this->finished.set();
+	}
+	//Call from the non-worker thread.
+	void wait(){
+		this->finished.wait();
+	}
+};
+
+class WorkerThreadJobHandle{
+	boost::shared_ptr<WorkerThreadJob> job;
+public:
+	WorkerThreadJobHandle(boost::shared_ptr<WorkerThreadJob> job): job(job){}
+	~WorkerThreadJobHandle(){
+		job->cancel();
+	}
+	int get_id() const{
+		return this->job->get_id();
+	}
+};
+
+class WorkerThread{
+	SDL_Thread *sdl_thread;
+	bool low_priority;
+	thread_safe_queue<boost::shared_ptr<WorkerThreadJob> > queue;
+	bool execute;
+	SDL_atomic_t next_id;
+	static int _thread(void *_this){
+		((WorkerThread *)_this)->thread();
+		return 0;
+	}
+	void thread();
+	class TerminateJob : public SyncWorkerThreadJob{
+		void sync_perform(WorkerThread &wt){
+			wt.kill();
+		}
+	};
+	boost::shared_ptr<WorkerThreadJob> current_job;
+public:
+	WorkerThread(bool low_priority = 1);
+	~WorkerThread();
+	void kill(){
+		this->execute = 0;
+	}
+	boost::shared_ptr<WorkerThreadJobHandle> attach(boost::shared_ptr<WorkerThreadJob>);
+	boost::shared_ptr<WorkerThreadJob> get_current_job() const{
+		return this->current_job;
 	}
 };
 

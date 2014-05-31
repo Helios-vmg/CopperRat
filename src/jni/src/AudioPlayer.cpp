@@ -1,4 +1,5 @@
 #include "AudioPlayer.h"
+#include "CommonFunctions.h"
 
 void ExternalQueueElement::push(AudioPlayer *player, boost::shared_ptr<InternalQueueElement> pointer){
 	player->external_queue_out.push(boost::static_pointer_cast<ExternalQueueElement>(pointer));
@@ -77,11 +78,10 @@ AudioPlayer::AudioPlayer(): device(*this){
 				break;
 			if (!line.size())
 				continue;
-			this->track_queue.push(line);
+			this->track_queue.push(utf8_to_string(line));
 		}
 	}
 #else
-	this->track_queue.push("/sdcard/external_sd/Music/Ghost Riders In The Sky.mp3");
 	//Put your test tracks here when compiling for Android.
 #endif
 	this->internal_queue.max_size = 100;
@@ -128,7 +128,7 @@ bool AudioPlayer::initialize_stream(){
 	if (!this->track_queue.size())
 		return 0;
 	auto filename = this->track_queue.front();
-	this->now_playing.reset(new AudioStream(*this, filename.c_str(), 44100, 2));
+	this->now_playing.reset(new AudioStream(*this, filename, 44100, 2));
 	this->track_queue.pop();
 	this->current_total_time = -1;
 	this->try_update_total_time();
@@ -287,7 +287,7 @@ bool AudioPlayer::execute_next(){
 	return 1;
 }
 
-bool AudioPlayer::execute_metadata_update(boost::shared_ptr<Metadata> metadata){
+bool AudioPlayer::execute_metadata_update(boost::shared_ptr<GenericMetadata> metadata){
 	this->push_to_internal_queue(new MetaDataUpdate(metadata));
 	return 1;
 }

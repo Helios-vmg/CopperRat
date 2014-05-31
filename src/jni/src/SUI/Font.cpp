@@ -126,10 +126,6 @@ void Font::load_page(unsigned page){
 	if (!img)
 		throw CR_Exception("Font error: couldn't load font subpage. Corrupted font file?");
 	{
-		SDL_PixelFormat pf;
-		SDL_zero(pf);
-		pf.BitsPerPixel = 32;
-		pf.BytesPerPixel = 4;
 		auto temp = SDL_ConvertSurfaceFormat(img, SDL_PIXELFORMAT_RGBA8888, 0);
 		SDL_SetSurfaceBlendMode(temp, SDL_BLENDMODE_BLEND);
 		SDL_FreeSurface(img);
@@ -143,16 +139,17 @@ void Font::load_page(unsigned page){
 	this->textures[page].reset(texture, [](SDL_Texture *t){ SDL_DestroyTexture(t); });
 }
 
-void Font::draw_text(const std::string *text, const std::wstring *wtext, int x0, int y0){
+void Font::draw_text(const std::string *text, const std::wstring *wtext, int x0, int y0, double scale){
 	std::vector<rendering_pair> pairs;
 	int x = x0,
 		y = y0;
 	size_t n = text ? text->size() : wtext->size();
+	const int vertical_advance = 16 * scale;
 	for (size_t i = 0; i < n; i++){
 		wchar_t c = text ? (unsigned char)(*text)[i] : (*wtext)[i];
 		if (c == '\n'){
 			x = x0;
-			y += 16;
+			y += vertical_advance;
 			continue;
 		}
 		rendering_pair rp;
@@ -161,10 +158,11 @@ void Font::draw_text(const std::string *text, const std::wstring *wtext, int x0,
 		rp.src.y = c & 0xF0;
 		rp.src.w = 8 * ((int)this->width_bitmap[c] + 1);
 		rp.src.h = 16;
-		rp.dst = rp.src;
 		rp.dst.x = x;
 		rp.dst.y = y;
-		x += rp.src.w;
+		rp.dst.w = int(rp.src.w * scale);
+		rp.dst.h = int(rp.src.h * scale);
+		x += rp.dst.w;
 		pairs.push_back(rp);
 	}
 	std::sort(pairs.begin(), pairs.end(), [](const rendering_pair &a, const rendering_pair &b){ return a.page < b.page; });

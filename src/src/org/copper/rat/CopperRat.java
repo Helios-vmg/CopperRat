@@ -544,7 +544,6 @@ class SDLMain implements Runnable {
     private void initializeAppDirectory(){
     	ArrayList<ResourceTuple> list = new ArrayList<ResourceTuple>();
     	list.add(new ResourceTuple(R.raw.unifont, "unifont.dat"));
-    	list.add(new ResourceTuple(R.raw.font3, "font3.webp"));
     	
     	String base = application.getFilesDir().getPath() + "/";
     	

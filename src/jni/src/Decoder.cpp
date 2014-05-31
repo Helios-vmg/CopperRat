@@ -4,19 +4,19 @@
 #include "CommonFunctions.h"
 #include <string>
 
-Decoder *Decoder::create(AudioStream &stream, const char *filename){
-	std::string ext = filename;
+Decoder *Decoder::create(AudioStream &stream, const std::wstring &path){
+	std::wstring ext = path;
 	auto dot = ext.rfind('.');
 	if (dot == ext.npos)
 		return 0;
 	ext = ext.substr(dot + 1);
 	std::transform(ext.begin(), ext.end(), ext.begin(), tolower);
-	if (ext == "ogg")
-		return new OggDecoder(stream, filename);
-	if (ext == "mp3")
-		return new Mp3Decoder(stream, filename);
-	if (ext == "flac")
-		return new FlacDecoder(stream, filename);
+	if (ext == L"ogg")
+		return new OggDecoder(stream, path);
+	if (ext == L"mp3")
+		return new Mp3Decoder(stream, path);
+	if (ext == L"flac")
+		return new FlacDecoder(stream, path);
 	return 0;
 }
 

@@ -11,13 +11,14 @@ class OggDecoder: public Decoder{
 	OggVorbis_File ogg_file;
 	unsigned frequency;
 	unsigned channels;
+	OggMetadata metadata;
 	
 	audio_buffer_t read_more_internal();
 	sample_count_t get_pcm_length_internal();
 	double get_seconds_length_internal();
 
 public:
-	OggDecoder(AudioStream &parent, const char *filename);
+	OggDecoder(AudioStream &parent, const std::wstring &path);
 	~OggDecoder();
 	AudioFormat get_audio_format(){
 		return AudioFormat(true, 2, this->channels, this->frequency);

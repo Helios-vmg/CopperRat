@@ -6,9 +6,12 @@
 #include <vector>
 #include <boost/shared_ptr.hpp>
 
-FlacDecoder::FlacDecoder(AudioStream &parent, const char *filename): Decoder(parent), declared_af_set(0){
+FlacDecoder::FlacDecoder(AudioStream &parent, const std::wstring &path):
+		Decoder(parent, path),
+		metadata(path),
+		declared_af_set(0){
 	this->set_md5_checking(0);
-	this->file.open(filename, std::ios::binary);
+	this->file.open(string_to_utf8(path).c_str(), std::ios::binary);
 	this->set_metadata_respond_all();
 	if (!this->file || this->init() != FLAC__STREAM_DECODER_INIT_STATUS_OK)
 		throw DecoderInitializationException();
@@ -128,7 +131,7 @@ void FlacDecoder::metadata_callback(const FLAC__StreamMetadata *metadata){
 }
 
 void FlacDecoder::read_vorbis_comments(const FLAC__StreamMetadata_VorbisComment &comments){
-	for (auto i = comments.num_comments; --i;)
+	for (auto i = comments.num_comments; i--;)
 		this->metadata.add_vorbis_comment(comments.comments[i].entry, comments.comments[i].length);
 	this->parent.metadata_update(this->metadata.clone());
 }

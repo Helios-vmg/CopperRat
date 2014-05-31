@@ -18,6 +18,7 @@ public:
 
 class FlacDecoder: public Decoder, public FLAC::Decoder::Stream{
 	std::ifstream file;
+	OggMetadata metadata;
 	std::deque<audio_buffer_t> buffers;
 	typedef audio_buffer_t (*allocator_func)(const FLAC__Frame *, const FLAC__int32 * const *);
 	static allocator_func allocator_functions[];
@@ -43,7 +44,7 @@ class FlacDecoder: public Decoder, public FLAC::Decoder::Stream{
 	void read_vorbis_comments(const FLAC__StreamMetadata_VorbisComment &comments);
 
 public:
-	FlacDecoder(AudioStream &parent, const char *filename);
+	FlacDecoder(AudioStream &parent, const std::wstring &path);
 	~FlacDecoder(){
 		this->free_buffers();
 	}

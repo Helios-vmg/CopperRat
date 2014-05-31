@@ -2,10 +2,9 @@
 #include "AudioStream.h"
 #include <fstream>
 #include <boost/type_traits.hpp>
+#include "CommonFunctions.h"
 
-typedef boost::make_signed<size_t>::type my_ssize_t;
-#define ssize_t my_ssize_t
-#include <mpg123.h>
+#include "my_mpg123.h"
 
 mp3_static_data Mp3Decoder::static_data;
 
@@ -62,7 +61,7 @@ mp3_static_data::~mp3_static_data(){
 		mpg123_exit();
 }
 
-Mp3Decoder::Mp3Decoder(AudioStream &parent, const char *path): Decoder(parent){
+Mp3Decoder::Mp3Decoder(AudioStream &parent, const std::wstring &path): Decoder(parent, path){
 	this->has_played = 0;
 	this->handle = 0;
 	this->fd = -1;
@@ -79,7 +78,7 @@ Mp3Decoder::Mp3Decoder(AudioStream &parent, const char *path): Decoder(parent){
 	if (error != MPG123_OK)
 		throw DecoderInitializationException();
 
-	boost::shared_ptr<std::ifstream> stream(new std::ifstream(path, std::ios::binary));
+	boost::shared_ptr<std::ifstream> stream(new std::ifstream(string_to_utf8(path).c_str(), std::ios::binary));
 	error = mpg123_open_fd(this->handle, this->fd = tracker.add(stream));
 	if (error != MPG123_OK)
 		throw DecoderInitializationException();
@@ -105,12 +104,22 @@ Mp3Decoder::Mp3Decoder(AudioStream &parent, const char *path): Decoder(parent){
 	this->set_format();
 
 	this->length = invalid_sample_count;
+	
+	long long_param;
+	double double_param;
+	mpg123_getparam(this->handle, MPG123_FLAGS, &long_param, &double_param);
+	long_param |= MPG123_PICTURE;
+	mpg123_param(this->handle, MPG123_FLAGS, long_param, double_param);
 
 	error = mpg123_scan(this->handle);
 	if (error != MPG123_OK)
 		return;
 	this->length = mpg123_length(this->handle);
 	this->seconds_per_frame = mpg123_tpf(this->handle);
+
+	mpg123_id3(this->handle, (mpg123_id3v1 **)&this->id3v1, (mpg123_id3v2 **)&this->id3v2);
+	this->metadata_done = 0;
+	this->check_for_metadata();
 }
 
 Mp3Decoder::~Mp3Decoder(){
@@ -119,6 +128,36 @@ Mp3Decoder::~Mp3Decoder(){
 		mpg123_delete(this->handle);
 	}
 	tracker.remove(this->fd);
+}
+
+void Mp3Decoder::check_for_metadata(){
+	if (this->metadata_done)
+		return;
+	auto result = mpg123_meta_check(this->handle);
+	if (!(result & MPG123_ID3))
+		return;
+	auto p = (mpg123_id3v2 *)this->id3v2;
+	boost::shared_ptr<Mp3Metadata> meta(new Mp3Metadata(this->path));
+#define SET_ID3_DATA(x) if (p->x) utf8_to_string(meta->id3_##x, (const unsigned char *)p->x->p, strnlen(p->x->p, p->x->size))
+	SET_ID3_DATA(title);
+	SET_ID3_DATA(artist);
+	SET_ID3_DATA(album);
+	SET_ID3_DATA(year);
+	SET_ID3_DATA(genre);
+	SET_ID3_DATA(comment);
+	for (size_t i = 0; i < p->texts; i++)
+		meta->add_mp3_text(p->text + i);
+	for (size_t i = 0; i < p->extras; i++)
+		meta->add_mp3_text(p->extra + i);
+	for (size_t i = 0; i < p->pictures; i++){
+		if (p->picture[i].type != mpg123_id3_pic_front_cover)
+			continue;
+		meta->add_picture(p->picture[i].data, p->picture[i].size);
+		break;
+	}
+	this->parent.metadata_update(meta);
+	mpg123_meta_free(this->handle);
+	this->metadata_done = 1;
 }
 
 void Mp3Decoder::set_format(){
@@ -135,6 +174,7 @@ audio_buffer_t Mp3Decoder::read_more_internal(){
 	//this->set_format();
 
 	int error = mpg123_decode_frame(this->handle, &offset, &buffer, &size);
+	this->check_for_metadata();
 	if (error == MPG123_DONE)
 		return audio_buffer_t();
 	if (error != MPG123_OK && error != MPG123_NEW_FORMAT)
