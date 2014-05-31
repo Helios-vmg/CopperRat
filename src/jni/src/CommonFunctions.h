@@ -2,6 +2,7 @@
 #define COMMONFUNCTIONS_H
 #include "BasicTypes.h"
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <string>
 
@@ -50,7 +51,21 @@ struct Unpointify<T *>{
 };
 #define UNPOINTER(x) typename Unpointify<x>::t
 
-void parse_into_hms(std::ostream &stream, double total_seconds);
+template <typename T>
+void parse_into_hms(std::basic_ostream<T> &stream, double total_seconds){
+	if (total_seconds < 0){
+		stream <<"??:??";
+		return;
+	}
+	int seconds = (int)fmod(total_seconds, 60);
+	total_seconds = (total_seconds - seconds) / 60.0;
+	int minutes = (int)fmod(total_seconds, 60);
+	total_seconds = (total_seconds - minutes) / 60.0;
+	int hours = (int)total_seconds;
+	if (hours > 0)
+		stream <<std::setw(2)<<std::setfill((T)'0')<<hours<<":";
+	stream <<std::setw(2)<<std::setfill((T)'0')<<minutes<<":"<<std::setw(2)<<std::setfill((T)'0')<<seconds;
+}
 
 template <typename T>
 void utf8_to_string(std::basic_string<T> &dst, const unsigned char *buffer, size_t n){
@@ -153,6 +168,9 @@ void string_to_utf8(std::vector<unsigned char> &dst, const std::basic_string<T> 
 	}
 }
 
+std::wstring utf8_to_string(const std::string &src);
+std::string string_to_utf8(const std::wstring &src);
+
 template <typename T1, typename T2>
 bool check_flag(T1 flag, T2 pattern){
 	return ((T2)flag & pattern) == pattern;
@@ -165,5 +183,56 @@ bool check_flag(T1 flag, T2 pattern){
 #endif
 
 bool read_32_bits(Uint32 &dst, std::istream &stream);
+void read_32_big_bits(Uint32 &dst, const void *buf);
+bool read_32_big_bits(Uint32 &dst, const std::vector<unsigned char> &src, size_t offset);
 
+template <typename T, typename F>
+bool glob(const T *pattern, const T *string, F f = F()){
+glob_start:
+	if (!*pattern && !*string)
+		return 1;
+	switch (*pattern){
+		case '*':
+			while (1){
+				if (glob(pattern + 1, string, f))
+					return 1;
+				if (!*string)
+					return 0;
+				string++;
+			}
+		case '?':
+			pattern++;
+			string++;
+			goto glob_start;
+		default:
+			if (!f && *pattern == *string || f && f(*pattern) == f(*string)){
+				pattern++;
+				string++;
+				goto glob_start;
+			}
+			return 0;
+	}
+}
+
+template <typename T>
+std::basic_string<T> get_filename(const std::basic_string<T> &path){
+	static const char slashes[] = { '/', '\\' };
+	for (T c : slashes){
+		auto slash = path.rfind(c);
+		if (slash != path.npos)
+			return path.substr(slash + 1);
+	}
+	return path;
+}
+
+template <typename T>
+std::basic_string<T> get_contaning_directory(const std::basic_string<T> &path){
+	static const char slashes[] = { '/', '\\' };
+	for (T c : slashes){
+		auto slash = path.rfind(c);
+		if (slash != path.npos)
+			return path.substr(0, slash);
+	}
+	return std::basic_string<T>();
+}
 #endif

@@ -33,14 +33,14 @@ class Font{
 			this->load_page(page);
 		return this->textures[page];
 	}
-	void draw_text(const std::string *, const std::wstring *, int, int);
+	void draw_text(const std::string *, const std::wstring *, int, int, double);
 public:
 	Font(boost::shared_ptr<SDL_Renderer> renderer);
-	void draw_text(const std::string &text, int x0, int y0){
-		this->draw_text(&text, nullptr, x0, y0);
+	void draw_text(const std::string &text, int x0, int y0, double scale = 1.0){
+		this->draw_text(&text, nullptr, x0, y0, scale);
 	}
-	void draw_text(const std::wstring &text, int x0, int y0){
-		this->draw_text(nullptr, &text, x0, y0);
+	void draw_text(const std::wstring &text, int x0, int y0, double scale = 1.0){
+		this->draw_text(nullptr, &text, x0, y0, scale);
 	}
 };
 

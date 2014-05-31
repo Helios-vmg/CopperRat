@@ -1,8 +1,10 @@
 #ifndef THREADS_H
 #define THREADS_H
 #include <SDL.h>
+#include <SDL_atomic.h>
 #include <queue>
 #include <limits>
+#include <boost/shared_ptr.hpp>
 
 class Mutex{
 	SDL_mutex *mutex;
@@ -205,6 +207,89 @@ public:
 	void set(T &&t){
 		AutoMutex am(this->m);
 		this->value = t;
+	}
+};
+
+class WorkerThread;
+class WorkerThreadJobHandle;
+
+class WorkerThreadJob{
+protected:
+	WorkerThread *worker;
+	int id;
+	Atomic<bool> cancelled;
+public:
+	WorkerThreadJob(): id(0), cancelled(0), worker(0){}
+	virtual ~WorkerThreadJob(){}
+	void cancel(){
+		this->cancelled.set(1);
+	}
+	bool was_cancelled(){
+		return this->cancelled.get();
+	}
+	virtual void perform(WorkerThread &) = 0;
+	void set_id(int id){
+		this->id = id;
+	}
+	int get_id() const{
+		return this->id;
+	}
+};
+
+class SyncWorkerThreadJob : public WorkerThreadJob{
+protected:
+	SynchronousEvent finished;
+	virtual void sync_perform(WorkerThread &) = 0;
+public:
+	virtual ~SyncWorkerThreadJob(){}
+	void perform(WorkerThread &wt){
+		this->sync_perform(wt);
+		this->finished.set();
+	}
+	//Call from the non-worker thread.
+	void wait(){
+		this->finished.wait();
+	}
+};
+
+class WorkerThreadJobHandle{
+	boost::shared_ptr<WorkerThreadJob> job;
+public:
+	WorkerThreadJobHandle(boost::shared_ptr<WorkerThreadJob> job): job(job){}
+	~WorkerThreadJobHandle(){
+		job->cancel();
+	}
+	int get_id() const{
+		return this->job->get_id();
+	}
+};
+
+class WorkerThread{
+	SDL_Thread *sdl_thread;
+	bool low_priority;
+	thread_safe_queue<boost::shared_ptr<WorkerThreadJob> > queue;
+	bool execute;
+	SDL_atomic_t next_id;
+	static int _thread(void *_this){
+		((WorkerThread *)_this)->thread();
+		return 0;
+	}
+	void thread();
+	class TerminateJob : public SyncWorkerThreadJob{
+		void sync_perform(WorkerThread &wt){
+			wt.kill();
+		}
+	};
+	boost::shared_ptr<WorkerThreadJob> current_job;
+public:
+	WorkerThread(bool low_priority = 1);
+	~WorkerThread();
+	void kill(){
+		this->execute = 0;
+	}
+	boost::shared_ptr<WorkerThreadJobHandle> attach(boost::shared_ptr<WorkerThreadJob>);
+	boost::shared_ptr<WorkerThreadJob> get_current_job() const{
+		return this->current_job;
 	}
 };
 

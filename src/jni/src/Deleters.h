@@ -6,9 +6,18 @@ struct SDL_Window_deleter{
 	}
 };
 
+inline void SDL_Renderer_deleter_func(SDL_Renderer *r){
+	if (r)
+		SDL_DestroyRenderer(r);
+}
+
 struct SDL_Renderer_deleter{
 	void operator()(SDL_Renderer *r) const{
-		if (r)
-			SDL_DestroyRenderer(r);
+		SDL_Renderer_deleter_func(r);
 	}
 };
+
+inline void SDL_Surface_deleter_func(SDL_Surface *s){
+	if (s)
+		SDL_FreeSurface(s);
+}

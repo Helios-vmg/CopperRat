@@ -88,10 +88,10 @@ public:
 };
 
 class MetaDataUpdate : public ExternalQueueElement{
-	boost::shared_ptr<Metadata> metadata;
+	boost::shared_ptr<GenericMetadata> metadata;
 public:
-	MetaDataUpdate(boost::shared_ptr<Metadata> metadata): metadata(metadata){}
-	boost::shared_ptr<Metadata> get_metadata(){
+	MetaDataUpdate(boost::shared_ptr<GenericMetadata> metadata): metadata(metadata){}
+	boost::shared_ptr<GenericMetadata> get_metadata(){
 		return this->metadata;
 	}
 	unsigned receive(UserInterface &ui){
@@ -131,7 +131,7 @@ class AudioPlayer{
 	external_queue_in_t external_queue_in;
 	SDL_Thread *sdl_thread;
 	CR_UNIQUE_PTR(AudioStream) now_playing;
-	std::queue<std::string> track_queue;
+	std::queue<std::wstring> track_queue;
 	static void AudioCallback(void *udata, Uint8 *stream, int len);
 	static int _thread(void *);
 	Atomic<audio_position_t> last_position_seen;
@@ -176,7 +176,7 @@ public:
 	bool execute_exit(){
 		return 0;
 	}
-	bool execute_metadata_update(boost::shared_ptr<Metadata>);
+	bool execute_metadata_update(boost::shared_ptr<GenericMetadata>);
 };
 
 class AsyncCommandPlay : public AudioPlayerAsyncCommand{

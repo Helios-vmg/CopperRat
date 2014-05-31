@@ -1,4 +1,11 @@
 #include "Threads.h"
+#if defined WIN32
+#include <Windows.h>
+#elif defined __ANDROID__
+#include <unistd.h>
+#else
+#error Platform not supported!
+#endif
 
 Mutex::Mutex(){
 	this->mutex = SDL_CreateMutex();
@@ -60,4 +67,49 @@ void RecursiveMutex::unlock(){
 			return;
 	}
 	this->mutex.unlock();
+}
+
+WorkerThread::WorkerThread(bool low_priority): execute(1), low_priority(low_priority){
+	this->next_id.value = 0;
+	this->sdl_thread = SDL_CreateThread(_thread, "WorkerThread", this);
+}
+
+WorkerThread::~WorkerThread(){
+	{
+		boost::shared_ptr<TerminateJob> tj(new TerminateJob);
+		auto handle = this->attach(tj);
+		tj->wait();
+	}
+	SDL_WaitThread(this->sdl_thread, 0);
+}
+
+void lower_priority(){
+#if defined WIN32
+	auto handle = GetCurrentThread();
+	SetThreadPriority(handle, THREAD_PRIORITY_IDLE);
+	CloseHandle(handle);
+#elif defined __ANDROID__
+	nice(-20);
+#else
+#error Platform not supported!
+#endif
+}
+
+void WorkerThread::thread(){
+	if (this->low_priority)
+		lower_priority();
+	while (this->execute){
+		auto job = this->queue.pop();
+		if (job->was_cancelled())
+			continue;
+		this->current_job = job;
+		job->perform(*this);
+	}
+}
+
+boost::shared_ptr<WorkerThreadJobHandle> WorkerThread::attach(boost::shared_ptr<WorkerThreadJob> job){
+	job->set_id(SDL_AtomicAdd(&this->next_id, 1));
+	boost::shared_ptr<WorkerThreadJobHandle> ret(new WorkerThreadJobHandle(job));
+	this->queue.push(job);
+	return ret;
 }

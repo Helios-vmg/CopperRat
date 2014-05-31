@@ -22,6 +22,9 @@ class Mp3Decoder : public Decoder{
 	AudioFormat format;
 	sample_count_t length;
 	double seconds_per_frame;
+	void *id3v1;
+	void *id3v2;
+	bool metadata_done;
 	
 	audio_buffer_t read_more_internal();
 	sample_count_t get_pcm_length_internal(){
@@ -34,9 +37,10 @@ class Mp3Decoder : public Decoder{
 	int encoding_enum;
 
 	void set_format();
+	void check_for_metadata();
 
 public:
-	Mp3Decoder(AudioStream &parent, const char *filename);
+	Mp3Decoder(AudioStream &parent, const std::wstring &path);
 	~Mp3Decoder();
 	AudioFormat get_audio_format(){
 		return this->format;

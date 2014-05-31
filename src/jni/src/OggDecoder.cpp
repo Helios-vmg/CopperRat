@@ -1,12 +1,13 @@
 #include "OggDecoder.h"
 #include "AudioStream.h"
+#include "CommonFunctions.h"
 
-OggDecoder::OggDecoder(AudioStream &parent, const char *filename): Decoder(parent){
+OggDecoder::OggDecoder(AudioStream &parent, const std::wstring &path): Decoder(parent, path), metadata(path){
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4996)
 #endif
-	this->file = fopen(filename, "rb");
+	this->file = fopen(string_to_utf8(path).c_str(), "rb");
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
@@ -28,7 +29,7 @@ OggDecoder::OggDecoder(AudioStream &parent, const char *filename): Decoder(paren
 	this->channels = i->channels;
 	vorbis_comment *comment = ov_comment(&this->ogg_file, this->bitstream);
 	if (!!comment){
-		for (auto i = comment->comments; --i;)
+		for (auto i = comment->comments; i--;)
 			this->metadata.add_vorbis_comment(comment->user_comments[i], comment->comment_lengths[i]);
 		this->parent.metadata_update(this->metadata.clone());
 	}
