@@ -42,6 +42,13 @@ LOCAL_SRC_FILES += $(LOCAL_PATH)/Playlist.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/ResamplingFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SignednessFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Threads.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/context/jump_arm_aapcs_elf_gas.S
+LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/context/make_arm_aapcs_elf_gas.S
+LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/coroutine/exceptions.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/coroutine/detail/coroutine_context.cpp
+#LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/coroutine/detail/segmented_stack_allocator.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/coroutine/detail/standard_stack_allocator_posix.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/system/error_code.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/SUI.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/Font.cpp
 
