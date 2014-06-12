@@ -2,7 +2,6 @@
 #include "SUI/SUI.h"
 #include "CommonFunctions.h"
 #include "File.h"
-#include <fstream>
 
 int main(int argc, char **argv){
 	SDL_Init(SDL_INIT_EVERYTHING);
