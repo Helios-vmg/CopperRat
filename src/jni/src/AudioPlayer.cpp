@@ -71,6 +71,7 @@ AudioPlayer::AudioPlayer(): device(*this){
 	//Put your test tracks here when compiling for desktop OSs.
 	{
 		std::ifstream file("test_tracks.txt");
+		std::vector<std::wstring> temp;
 		while (1){
 			std::string line;
 			std::getline(file, line);
@@ -78,8 +79,9 @@ AudioPlayer::AudioPlayer(): device(*this){
 				break;
 			if (!line.size())
 				continue;
-			this->track_queue.push(utf8_to_string(line));
+			temp.push_back(utf8_to_string(line));
 		}
+		this->playlist.set(temp);
 	}
 #else
 	//Put your test tracks here when compiling for Android.
@@ -125,11 +127,11 @@ int AudioPlayer::_thread(void *p){
 bool AudioPlayer::initialize_stream(){
 	if (this->now_playing.get() || this->state == PlayState::STOPPED)
 		return 1;
-	if (!this->track_queue.size())
+	std::wstring next;
+	if (!this->playlist.pop(next))
 		return 0;
-	auto filename = this->track_queue.front();
+	auto &filename = next;
 	this->now_playing.reset(new AudioStream(*this, filename, 44100, 2));
-	this->track_queue.pop();
 	this->current_total_time = -1;
 	this->try_update_total_time();
 	return 1;

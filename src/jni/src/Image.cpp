@@ -1,5 +1,6 @@
 #include "Image.h"
 #include "CommonFunctions.h"
+#include "Deleters.h"
 #include <SDL_image.h>
 #include <webp/encode.h>
 #include <fstream>
@@ -123,7 +124,8 @@ void linear_interpolation2(
 	}
 }
 
-void do_transform(bool y_axis, double scale, SDL_Surface *src, SDL_Surface *dst){
+void do_transform(bool y_axis, double scale, surface_t src, surface_t dst){
+
 	auto f = linear_interpolation1;
 	if (scale < 1)
 		f = linear_interpolation2;
@@ -158,73 +160,123 @@ void do_transform(bool y_axis, double scale, SDL_Surface *src, SDL_Surface *dst)
 		src_w, src_h, src_advance, src_pitch,
 		dst_offsets,
 		src_offsets,
-		unit / scale
+		(unsigned)(unit / scale)
 	);
 }
 
-SDL_Surface *scale_surface(SDL_Surface *src, unsigned dst_w, unsigned dst_h){
+surface_t normalize_surface(surface_t s){
+	return !s ? s : to_surface_t(SDL_ConvertSurfaceFormat(s.get(), SDL_PIXELFORMAT_RGB24, 0));
+}
+
+surface_t scale_surface(surface_t src, unsigned dst_w, unsigned dst_h){
 	unsigned w = src->w;
 	unsigned h = src->h;
 	double xscale = (double)dst_w / (double)w;
 	double yscale = (double)dst_h / (double)h;
 
-	auto width_transformed = SDL_CreateRGBSurface(0, dst_w, h, 24, 0xFF, 0xFF00, 0xFF0000, 0xFF000000);
-	SDL_LockSurface(width_transformed);
-		auto temp = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_RGB24, 0);
-		SDL_LockSurface(temp);
-			do_transform(0, xscale, temp, width_transformed);
-		SDL_UnlockSurface(temp);
-		SDL_FreeSurface(temp);
+	auto width_transformed = create_rgb_surface(dst_w, h);
+	SurfaceLocker sl0(width_transformed);
 
 
+	{
+		auto temp = normalize_surface(src);
+		SurfaceLocker sl1(temp);
+		do_transform(0, xscale, temp, width_transformed);
+	}
 
-		auto ret = SDL_CreateRGBSurface(0, dst_w, dst_h, 24, 0xFF, 0xFF00, 0xFF0000, 0xFF000000);
-		SDL_LockSurface(ret);
+
+	auto ret = create_rgb_surface(dst_w, dst_h);
+	{
+		SurfaceLocker sl1(ret);
 		do_transform(1, yscale, width_transformed, ret);
-		SDL_UnlockSurface(ret);
-
-	SDL_UnlockSurface(width_transformed);
-	SDL_FreeSurface(width_transformed);
+	}
 	return ret;
 }
 
-SDL_Surface *bind_surface_to_square(SDL_Surface *src, unsigned size){
+surface_t bind_surface_to_square(surface_t src, unsigned size){
 	if (src->w > src->h)
 		return scale_surface(src, size, src->h * size / src->w);
 	return scale_surface(src, src->w * size / src->h, size);
 }
 
-SDL_Surface *normalize_surface(SDL_Surface *s){
-	if (!s)
-		return s;
-	auto ret = SDL_ConvertSurfaceFormat(s, SDL_PIXELFORMAT_RGB24, 0);
-	SDL_FreeSurface(s);
-	return ret;
+surface_t load_image_from_file(const char *path){
+	return normalize_surface(to_surface_t(IMG_Load(path)));
 }
 
-SDL_Surface *load_image_from_file(const char *path){
-	return normalize_surface(IMG_Load(path));
-}
-
-SDL_Surface *load_image_from_file(const std::wstring &path){
+surface_t load_image_from_file(const std::wstring &path){
 	return load_image_from_file(string_to_utf8(path).c_str());
 }
 
-SDL_Surface *load_image_from_memory(const void *buffer, size_t length){
-	return normalize_surface(IMG_Load_RW(SDL_RWFromConstMem(buffer, length), 1));
+surface_t load_image_from_memory(const void *buffer, size_t length){
+	return normalize_surface(to_surface_t(IMG_Load_RW(SDL_RWFromConstMem(buffer, (int)length), 1)));
 }
 
-void save_surface_compressed(const char *path, SDL_Surface *src){
+void save_surface_compressed(const char *path, surface_t src){
 	uint8_t *buffer;
 	size_t buffer_size;
 	{
-		SDL_LockSurface(src);
+		SurfaceLocker sl(src);
 		buffer_size = WebPEncodeRGB((const uint8_t *)src->pixels, src->w, src->h, src->pitch, 75, &buffer);
-		SDL_UnlockSurface(src);
 	}
 	{
 		std::ofstream file(path, std::ios::binary);
 		file.write((const char *)buffer, buffer_size);
 	}
 	free(buffer);
+}
+
+surface_t create_rgb_surface(unsigned w, unsigned h){
+	return to_surface_t(SDL_CreateRGBSurface(0, w, h, 24, 0xFF, 0xFF00, 0xFF0000, 0xFF000000));
+}
+
+surface_t create_rgba_surface(unsigned w, unsigned h){
+	return to_surface_t(SDL_CreateRGBSurface(0, w, h, 32, 0xFF, 0xFF00, 0xFF0000, 0xFF000000));
+}
+
+Texture::Texture(boost::shared_ptr<SDL_Renderer> renderer, const std::wstring &path):
+		renderer(renderer),
+		tex(nullptr, SDL_Texture_deleter()),
+		loaded(0),
+		rect(){
+	this->load(path);
+}
+
+Texture::Texture(boost::shared_ptr<SDL_Renderer> renderer, surface_t src):
+		renderer(renderer),
+		tex(nullptr, SDL_Texture_deleter()),
+		loaded(0),
+		rect(){
+	this->load(src);
+}
+
+void Texture::from_surface(surface_t src){
+	if (!src)
+		return;
+	this->loaded = 0;
+	this->tex.reset();
+	this->rect.x = 0;
+	this->rect.y = 0;
+	this->rect.w = src->w;
+	this->rect.h = src->h;
+	this->tex.reset(SDL_CreateTextureFromSurface(this->renderer.get(), src.get()), SDL_Texture_deleter());
+	this->loaded = !!tex.get();
+}
+
+void Texture::draw(const SDL_Rect &_dst, const SDL_Rect *_src){
+	if (!*this)
+		return;
+	SDL_Rect src = !_src ? this->rect : *_src;
+	SDL_Rect dst = _dst;
+	dst.w = src.w;
+	dst.h = src.h;
+	SDL_RenderCopy(this->renderer.get(), this->tex.get(), &src, &dst);
+}
+
+void Subtexture::draw(const SDL_Rect &_dst){
+	if (!this->texture)
+		return;
+	SDL_Rect dst = _dst;
+	dst.w = int(this->region.w * this->scale);
+	dst.h = int(this->region.h * this->scale);
+	this->texture.draw(dst, &this->region);
 }

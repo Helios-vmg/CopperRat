@@ -25,9 +25,16 @@ private:
 	std::vector<size_t> shuffle_vector;
 public:
 	Playlist(): current_track(0), mode(PlaybackMode::REPEAT_LIST), shuffle(0), current_track_is_repeated(0){}
-	void insert(const std::vector<std::wstring> &, size_t);
+	void clear();
+	void set(const std::vector<std::wstring> &v){
+		this->clear();
+		this->insert(v, 0);
+	}
+	void insert(const std::vector<std::wstring> &, size_t position);
 	void toggle_shuffle();
 	bool pop(std::wstring &);
+	bool back(std::wstring &);
+	bool is_back_possible() const;
 	PlaybackMode cycle_mode();
 };
 

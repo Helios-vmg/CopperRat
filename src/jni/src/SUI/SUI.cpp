@@ -2,30 +2,63 @@
 #include "../CommonFunctions.h"
 #include "../Image.h"
 #include "../File.h"
+#include "MainScreen.h"
 #include <SDL_image.h>
 #include <iostream>
 #include <string>
 #include <iomanip>
 #include <sstream>
 
+unsigned GUIElement::handle_event(const SDL_Event &e){
+	unsigned ret = SUI::NOTHING;
+	for (auto &child : this->children)
+		ret |= child->handle_event(e);
+	return ret;
+}
+
+unsigned GUIElement::receive(TotalTimeUpdate &x){
+	unsigned ret = SUI::NOTHING;
+	for (auto &child : this->children)
+		ret |= child->receive(x);
+	return ret;
+}
+
+unsigned GUIElement::receive(MetaDataUpdate &x){
+	unsigned ret = SUI::NOTHING;
+	for (auto &child : this->children)
+		ret |= child->receive(x);
+	return ret;
+}
+
+void GUIElement::update(){
+	for (auto &child : this->children)
+		child->update();
+}
+
 SUI::SUI(AudioPlayer &player):
+		GUIElement(this, nullptr),
 		player(player),
 		window(nullptr, [](SDL_Window *w) { if (w) SDL_DestroyWindow(w); }),
 		renderer(nullptr, SDL_Renderer_deleter()),
-		tex_picture(nullptr, [](SDL_Texture *t){ if (t) SDL_DestroyTexture(t); }),
 		current_total_time(-1),
 		bounding_square(-1){
+
 	this->window.reset(SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1080/2, 1920/2, 0));
 	if (!this->window)
 		throw UIInitializationException("Window creation failed.");
+
 	this->renderer.reset(SDL_CreateRenderer(this->window.get(), -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC), SDL_Renderer_deleter());
 	if (!this->renderer)
 		throw UIInitializationException("Renderer creation failed.");
+
+	this->tex_picture.set_renderer(this->renderer);
+
 	this->font.reset(new Font(this->renderer));
+
+	this->children.push_back(boost::shared_ptr<GUIElement>(new MainScreen(this, this, this->player)));
+
 	SDL_SetRenderDrawColor(renderer.get(), 255, 0, 255, 255);
 }
-
-bool p = 1;
 
 unsigned SUI::handle_in_events(){
 	SDL_Event e;
@@ -59,6 +92,7 @@ unsigned SUI::handle_in_events(){
 				}
 				break;
 		}
+		ret |= GUIElement::handle_event(e);
 	}
 	return ret;
 }
@@ -80,11 +114,11 @@ void PictureDecodingJob::sui_perform(WorkerThread &wt){
 	unsigned char *buffer;
 	size_t length;
 	if (this->metadata->picture(buffer, length))
-		this->picture.reset(load_image_from_memory(buffer, length));
+		this->picture = load_image_from_memory(buffer, length);
 	else
 		this->load_picture_from_filesystem();
 	if (this->picture.get())
-		this->picture.reset(bind_surface_to_square(this->picture.get(), this->target_square));
+		this->picture = bind_surface_to_square(this->picture, this->target_square);
 }
 
 void PictureDecodingJob::load_picture_from_filesystem(){
@@ -117,7 +151,7 @@ void PictureDecodingJob::load_picture_from_filesystem(){
 	for (auto &pattern : patterns){
 		for (auto &filename : files){
 			if (glob(pattern.c_str(), filename.c_str(), [](wchar_t c){ return tolower(c == '\\' ? '/' : c); })){
-				this->picture.reset(load_image_from_file(filename));
+				this->picture = load_image_from_file(filename);
 				if (this->picture.get())
 					return;
 			}
@@ -146,9 +180,12 @@ unsigned SUI::receive(MetaDataUpdate &mdu){
 
 unsigned SUI::handle_out_events(){
 	boost::shared_ptr<ExternalQueueElement> eqe;
-	unsigned ret = 0;
-	while (this->player.external_queue_out.try_pop(eqe))
+	unsigned ret = NOTHING;
+	while (this->player.external_queue_out.try_pop(eqe)){
 		ret |= eqe->receive(*this);
+		for (auto &p : this->children)
+			ret |= eqe->receive(*p);
+	}
 	return ret;
 }
 
@@ -157,10 +194,10 @@ unsigned SUI::finish(PictureDecodingJob &job){
 	if (job.get_id() != this->picture_job->get_id())
 		return ret;
 	auto picture = job.get_picture();
-	if (!picture)
-		this->tex_picture.reset();
+	if (!picture.get())
+		this->tex_picture.unload();
 	else{
-		this->tex_picture.reset(SDL_CreateTextureFromSurface(this->renderer.get(), picture));
+		this->tex_picture.load(picture);
 		ret = REDRAW;
 	}
 	this->picture_job.reset();
@@ -175,6 +212,7 @@ unsigned SUI::handle_finished_jobs(){
 	return ret;
 }
 
+#if 0
 template <typename T>
 void format_memory(std::basic_ostream<T> &stream, size_t size){
 	double m = (double)size;
@@ -196,14 +234,11 @@ void format_memory(std::basic_ostream<T> &stream, size_t size){
 	}
 	stream <<m<<*unit;
 }
+#endif
 
 void SUI::draw_picture(){
-	if (!this->tex_picture.get())
-		return;
-	int x = this->get_bounding_square();
-	SDL_Rect src = { 0, 0, x, x };
-	SDL_Rect dst = { 0, 0, x, x };
-	SDL_RenderCopy(this->renderer.get(), this->tex_picture.get(), &src, &dst);
+	SDL_Rect dst = { 0, 0, 0, 0 };
+	this->tex_picture.draw(dst);
 }
 
 int SUI::get_bounding_square(){
@@ -217,37 +252,24 @@ int SUI::get_bounding_square(){
 #include "../AudioBuffer.h"
 
 void SUI::loop(){
-	size_t max_memory = 0;
 	Uint32 last = 0;
 	unsigned status;
 	while (!check_flag(status = this->handle_in_events(), QUIT)){
 		status |= this->handle_out_events();
 		status |= this->handle_finished_jobs();
 		Uint32 now_ticks = SDL_GetTicks();
-		if (now_ticks - last >= 500 || check_flag(status, REDRAW)){
-			last = now_ticks;
-			std::wstringstream stream;
-			parse_into_hms(stream, player.get_current_time());
-			stream <<" / ";
-			parse_into_hms(stream, current_total_time);
-			stream <<std::endl<<this->metadata<<"\n\n";
-			{
-				unsigned instances;
-				size_t memory;
-				audio_buffer_t::abit.get_info(instances, memory);
-				max_memory = std::max(max_memory, memory);
-				stream <<"Audio buffers: "<<instances<<"\n"
-				         "Memory used:   ";
-				format_memory(stream, memory);
-				stream <<"\n"
-				         "Peak memory:   ";
-				format_memory(stream, max_memory);
-			}
-			SDL_RenderClear(this->renderer.get());
-			this->draw_picture();
-			this->font->draw_text(stream.str(), 0, 0, 2);
-			SDL_RenderPresent(this->renderer.get());
-		}else
+
+		bool do_redraw = now_ticks - last >= 500 || check_flag(status, REDRAW);
+		if (!do_redraw){
 			SDL_Delay((Uint32)(1000.0/60.0));
+			continue;
+		}
+
+		last = now_ticks;
+		SDL_RenderClear(this->renderer.get());
+		for (auto &p : this->children){
+			p->update();
+		}
+		SDL_RenderPresent(this->renderer.get());
 	}
 }

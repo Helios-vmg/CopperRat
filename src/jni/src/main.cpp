@@ -8,7 +8,6 @@ int main(int argc, char **argv){
 	try{
 		AudioPlayer player;
 		SUI sui(player);
-		player.request_play();
 		sui.loop();
 	}catch (const UIInitializationException &e){
 		e; //Shut MSVC up about unreferenced local variables.

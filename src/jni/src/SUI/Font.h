@@ -33,15 +33,17 @@ class Font{
 			this->load_page(page);
 		return this->textures[page];
 	}
-	void draw_text(const std::string *, const std::wstring *, int, int, double);
+	void draw_text(const std::string *, const std::wstring *, int, int, int, double);
+	void compute_rendering_pairs(void (*)(void *, const rendering_pair &), void *, const std::string *, const std::wstring *, int, int, int, double);
 public:
 	Font(boost::shared_ptr<SDL_Renderer> renderer);
-	void draw_text(const std::string &text, int x0, int y0, double scale = 1.0){
-		this->draw_text(&text, nullptr, x0, y0, scale);
+	void draw_text(const std::string &text, int x0, int y0, int wrap_at = INT_MAX, double scale = 1.0){
+		this->draw_text(&text, nullptr, x0, y0, wrap_at, scale);
 	}
-	void draw_text(const std::wstring &text, int x0, int y0, double scale = 1.0){
-		this->draw_text(nullptr, &text, x0, y0, scale);
+	void draw_text(const std::wstring &text, int x0, int y0, int wrap_at = INT_MAX, double scale = 1.0){
+		this->draw_text(nullptr, &text, x0, y0, wrap_at, scale);
 	}
+	SDL_Rect calculate_bounding_box(const std::wstring &text, int wrap_at = INT_MAX, double scale = 1.0);
 };
 
 #endif

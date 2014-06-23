@@ -49,7 +49,7 @@ void OggMetadata::add_vorbis_comment(const void *buffer, size_t length){
 	equals++;
 	if (field_name == METADATA_BLOCK_PICTURE){
 		std::vector<unsigned char> decoded_buffer;
-		b64_decode(decoded_buffer, (const char *)buffer + equals, length - equals);
+		b64_decode(decoded_buffer, (const char *)buffer + equals, int(length - equals));
 		Uint32 picture_type,
 			mime_length,
 			description_length,
@@ -97,7 +97,6 @@ void OggMetadata::add_vorbis_comment(const void *buffer, size_t length){
 
 		this->ogg_picture.assign(decoded_buffer.begin() + offset, decoded_buffer.begin() + (offset + picture_size));
 	}
-continue_parsing:
 	auto field_value = comment.substr(equals);
 	this->add(field_name, field_value);
 }

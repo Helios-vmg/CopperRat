@@ -51,6 +51,8 @@ LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/coroutine/detail/standard_stack_allocator
 LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/system/error_code.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/SUI.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/Font.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/Button.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/MainScreen.cpp
 
 LOCAL_SHARED_LIBRARIES := SDL2
 

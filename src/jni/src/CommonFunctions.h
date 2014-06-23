@@ -235,4 +235,10 @@ std::basic_string<T> get_contaning_directory(const std::basic_string<T> &path){
 	}
 	return std::basic_string<T>();
 }
+
+template <typename T>
+inline T max_possible_value(T x){
+	return std::numeric_limits<T>::max();
+}
+
 #endif
