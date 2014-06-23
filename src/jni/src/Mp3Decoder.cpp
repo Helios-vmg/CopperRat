@@ -180,7 +180,8 @@ audio_buffer_t Mp3Decoder::read_more_internal(){
 	if (error != MPG123_OK && error != MPG123_NEW_FORMAT)
 		throw DecoderException();
 
-	audio_buffer_t ret(this->format.bytes_per_channel, this->format.channels, size / (this->format.bytes_per_sample()));
+	const auto samples = memory_sample_count_t(size / (this->format.bytes_per_sample()));
+	audio_buffer_t ret(this->format.bytes_per_channel, this->format.channels, samples);
 	memcpy(ret.raw_pointer(0), buffer, size);
 	return ret;
 }
@@ -190,7 +191,7 @@ double Mp3Decoder::get_seconds_length_internal(){
 }
 
 bool Mp3Decoder::seek(audio_position_t pos){
-	return mpg123_seek(this->handle, pos, SEEK_SET) >= 0;
+	return mpg123_seek(this->handle, (off_t)pos, SEEK_SET) >= 0;
 }
 
 bool Mp3Decoder::fast_seek_seconds(double seconds, audio_position_t &new_position){

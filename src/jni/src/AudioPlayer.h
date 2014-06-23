@@ -5,6 +5,7 @@
 #include "AudioDevice.h"
 #include "AudioStream.h"
 #include "AudioBuffer.h"
+#include "Playlist.h"
 #include "UserInterface.h"
 #include "auto_ptr.h"
 
@@ -131,7 +132,7 @@ class AudioPlayer{
 	external_queue_in_t external_queue_in;
 	SDL_Thread *sdl_thread;
 	CR_UNIQUE_PTR(AudioStream) now_playing;
-	std::queue<std::wstring> track_queue;
+	Playlist playlist;
 	static void AudioCallback(void *udata, Uint8 *stream, int len);
 	static int _thread(void *);
 	Atomic<audio_position_t> last_position_seen;

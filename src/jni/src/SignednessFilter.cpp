@@ -27,14 +27,22 @@ public:
 				const DstT min = std::numeric_limits<DstT>::min();
 				const DstT max = std::numeric_limits<DstT>::max();
 				const SrcT bigmax = std::numeric_limits<SrcT>::max();
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4146)
+#endif
+				const DstT neg_max = -max;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 				//This if should be eliminated at compile time.
-				if (min == -max){
+				if (min == neg_max){
 					//The easy case first:
 					if (x <= (SrcT)max)
 						dst_array[i] = (DstT)x + min;
 					else
 						dst_array[i] = (DstT)(x - (SrcT)min);
-				}else if (min + 1 == -max){
+				}else if (min + 1 == neg_max){
 					//two's complement case:
 					//min + 1 == -max <=> max == -min - 1
 					

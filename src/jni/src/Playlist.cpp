@@ -1,5 +1,12 @@
 #include "Playlist.h"
 
+void Playlist::clear(){
+	this->tracks.clear();
+	this->shuffle_vector.clear();
+	this->current_track = 0;
+	this->current_track_is_repeated = 0;
+}
+
 void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
 	p %= (this->tracks.size() + 1);
 	auto n = v.size();
@@ -12,10 +19,8 @@ void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
 		for (size_t i = 0; i < n; i++)
 			this->shuffle_vector[previous_size + i] = i + p;
 		std::random_shuffle(this->shuffle_vector.begin() + previous_size, this->shuffle_vector.end());
-	}else{
-		if (this->current_track >= p)
-			this->current_track += n;
-	}
+	}else if ((this->current_track || this->tracks.size()) && this->current_track >= p)
+		this->current_track += n;
 	this->tracks.insert(this->tracks.begin() + p, v.begin(), v.end());
 }
 
@@ -48,11 +53,27 @@ bool Playlist::pop(std::wstring &dst){
 			break;
 		case PlaybackMode::REPEAT_LIST:
 			this->current_track = (this->current_track + 1) % this->tracks.size();
+			if (!this->current_track && this->shuffle)
+				std::random_shuffle(this->shuffle_vector.begin(), this->shuffle_vector.end());
 			break;
 		case PlaybackMode::REPEAT_TRACK:
 			this->current_track_is_repeated = 1;
 			break;
 	}
+	dst = this->tracks[index];
+	return 1;
+}
+
+bool Playlist::is_back_possible() const{
+	return !(this->shuffle && !this->current_track || this->mode == PlaybackMode::SINGLE);
+}
+
+bool Playlist::back(std::wstring &dst){
+	if (!this->is_back_possible())
+		return 0;
+	auto n = this->tracks.size();
+	this->current_track = (this->current_track + (n - 1)) % n;
+	size_t index = !this->shuffle ? this->current_track : this->shuffle_vector[this->current_track];
 	dst = this->tracks[index];
 	return 1;
 }
