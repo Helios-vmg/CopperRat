@@ -544,6 +544,14 @@ class SDLMain implements Runnable {
     private void initializeAppDirectory(){
     	ArrayList<ResourceTuple> list = new ArrayList<ResourceTuple>();
     	list.add(new ResourceTuple(R.raw.unifont, "unifont.dat"));
+    	list.add(new ResourceTuple(R.raw.button_load, "button_load.png"));
+    	list.add(new ResourceTuple(R.raw.button_next, "button_next.png"));
+    	list.add(new ResourceTuple(R.raw.button_pause, "button_pause.png"));
+    	list.add(new ResourceTuple(R.raw.button_play, "button_play.png"));
+    	list.add(new ResourceTuple(R.raw.button_previous, "button_previous.png"));
+    	list.add(new ResourceTuple(R.raw.button_seekback, "button_seekback.png"));
+    	list.add(new ResourceTuple(R.raw.button_seekforth, "button_seekforth.png"));
+    	list.add(new ResourceTuple(R.raw.button_stop, "button_stop.png"));
     	
     	String base = application.getFilesDir().getPath() + "/";
     	

@@ -20,5 +20,5 @@ void TextButton::calculate_bounding_box(){
 }
 
 void TextButton::update(){
-	this->sui->get_font()->draw_text(this->text, this->bounding_box.x, this->bounding_box.y, this->scale);
+	this->sui->get_font()->draw_text(this->text, this->bounding_box.x, this->bounding_box.y, this->wrapping_limit, this->scale);
 }
