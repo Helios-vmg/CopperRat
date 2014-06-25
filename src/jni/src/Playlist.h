@@ -17,14 +17,17 @@ public:
 		COUNT = 3,
 	};
 private:
-	size_t current_track;
-	bool current_track_is_repeated;
+	int current_track;
 	PlaybackMode mode;
 	bool shuffle;
 	std::vector<std::wstring> tracks;
-	std::vector<size_t> shuffle_vector;
+	std::vector<int> shuffle_vector;
+
+	bool at_null_position() const{
+		return this->current_track < 0 || (size_t)this->current_track >= this->tracks.size();
+	}
 public:
-	Playlist(): current_track(0), mode(PlaybackMode::REPEAT_LIST), shuffle(0), current_track_is_repeated(0){}
+	Playlist(): current_track(-1), mode(PlaybackMode::REPEAT_LIST), shuffle(0){}
 	void clear();
 	void set(const std::vector<std::wstring> &v){
 		this->clear();
@@ -32,8 +35,9 @@ public:
 	}
 	void insert(const std::vector<std::wstring> &, size_t position);
 	void toggle_shuffle();
-	bool pop(std::wstring &);
-	bool back(std::wstring &);
+	bool get_current_track(std::wstring &dst);
+	bool next();
+	bool back();
 	bool is_back_possible() const;
 	PlaybackMode cycle_mode();
 };

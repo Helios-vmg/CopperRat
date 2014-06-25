@@ -2,6 +2,17 @@
 #include "../CommonFunctions.h"
 #include "Button.h"
 
+enum class ButtonSignal{
+	PLAY = 0,
+	PAUSE,
+	STOP,
+	LOAD,
+	PREVIOUS,
+	SEEKBACK,
+	SEEKFORTH,
+	NEXT,
+};
+
 MainScreen::MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player):
 		GUIElement(sui, parent),
 		player(player){
@@ -18,6 +29,34 @@ void MainScreen::update(){
 	this->sui->draw_picture();
 	this->sui->get_font()->draw_text(stream.str(), 0, 0, this->sui->get_bounding_square(), 2);
 	GUIElement::update();
+}
+
+void MainScreen::gui_signal(unsigned signal){
+	switch ((ButtonSignal)signal){
+		case ButtonSignal::PLAY:
+			this->player.request_play();
+			break;
+		case ButtonSignal::PAUSE:
+			this->player.request_pause();
+			break;
+		case ButtonSignal::STOP:
+			this->player.request_stop();
+			break;
+		case ButtonSignal::LOAD:
+			break;
+		case ButtonSignal::PREVIOUS:
+			this->player.request_previous();
+			break;
+		case ButtonSignal::SEEKBACK:
+			this->player.request_seek(-5);
+			break;
+		case ButtonSignal::SEEKFORTH:
+			this->player.request_seek(5);
+			break;
+		case ButtonSignal::NEXT:
+			this->player.request_next();
+			break;
+	}
 }
 
 void MainScreen::prepare_buttons(){
@@ -62,6 +101,7 @@ void MainScreen::prepare_buttons(){
 		boost::shared_ptr<GraphicButton> button(new GraphicButton(this->sui, this));
 		button->set_graphic(st);
 		button->set_position(rects[i].x, rects[i].y + square);
+		button->set_signal_value(i);
 		this->children.push_back(button);
 	}
 }

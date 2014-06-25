@@ -39,7 +39,7 @@ void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audi
 		if (seconds > 0)
 			player->execute_next();
 		else
-			player->execute_previous(1);
+			player->execute_previous(/*1*/);
 		return;
 	}
 	this->position = new_position = this->decoder->seek(target) ? target : current_position;

@@ -10,6 +10,7 @@ class MainScreen : public GUIElement{
 	Texture tex_buttons;
 
 	void prepare_buttons();
+	void gui_signal(unsigned);
 public:
 	MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player);
 	void update();
