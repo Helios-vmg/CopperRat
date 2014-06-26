@@ -17,7 +17,15 @@ public final class R {
         public static final int main=0x7f030000;
     }
     public static final class raw {
-        public static final int unifont=0x7f040000;
+        public static final int button_load=0x7f040000;
+        public static final int button_next=0x7f040001;
+        public static final int button_pause=0x7f040002;
+        public static final int button_play=0x7f040003;
+        public static final int button_previous=0x7f040004;
+        public static final int button_seekback=0x7f040005;
+        public static final int button_seekforth=0x7f040006;
+        public static final int button_stop=0x7f040007;
+        public static final int unifont=0x7f040008;
     }
     public static final class string {
         public static final int app_name=0x7f050000;

@@ -24,6 +24,7 @@ struct SurfaceLocker{
 	}
 };
 
+surface_t create_rgbq_surface(unsigned bits, unsigned w, unsigned h);
 surface_t create_rgb_surface(unsigned w, unsigned h);
 surface_t create_rgba_surface(unsigned w, unsigned h);
 

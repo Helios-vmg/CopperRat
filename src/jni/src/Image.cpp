@@ -43,7 +43,8 @@ void linear_interpolation1(
 		unsigned src_pitch,
 		const byte_t *dst_offsets,
 		const byte_t *src_offsets,
-		unsigned fractional_advance){
+		unsigned fractional_advance,
+		unsigned bytes_per_pixel){
 	unsigned X = 0;
 	const byte_t black[] = { 0, 0, 0 };
 	for (unsigned x = 0; x < w; x++){
@@ -65,7 +66,7 @@ void linear_interpolation1(
 		weight[1] = get_fractional_part(X);
 		weight[0] = unit - weight[1];
 		for (unsigned y = 0; y < h; y++){
-			for (unsigned i = 3 ; i--; )
+			for (unsigned i = bytes_per_pixel; i--; )
 				dst[dst_offsets[i]] = (byte_t)to_integer(pixel[0][src_offsets[i]] * weight[0] + pixel[1][src_offsets[i]] * weight[1]);
 			pixel[0] += src_pitch;
 			pixel[1] += conditional_pitch;
@@ -92,7 +93,8 @@ void linear_interpolation2(
 		unsigned src_pitch,
 		const byte_t *dst_offsets,
 		const byte_t *src_offsets,
-		unsigned fractional_advance){
+		unsigned fractional_advance,
+		unsigned bytes_per_pixel){
 	for (unsigned y = 0; y < h; y++){
 		byte_t *dst0 = dst;
 		unsigned X0 = 0,
@@ -105,15 +107,15 @@ void linear_interpolation2(
 				if (X1 - x0 < unit)
 					multiplier = X1 - x0;
 				else if (x0 == X0)
-					multiplier = fixed_floor(X0)+unit-X0;
+					multiplier = fixed_floor(X0) + unit - X0;
 				else
 					multiplier = unit;
-				for (unsigned i = 3; i--; )
+				for (unsigned i = bytes_per_pixel; i--; )
 					color[i] += pixel[src_offsets[i]] * multiplier;
 				pixel += src_advance;
 				x0 = fixed_floor(x0) + unit;
 			}
-			for (unsigned i = 3; i--; )
+			for (unsigned i = bytes_per_pixel; i--; )
 				dst[dst_offsets[i]] = byte_t(color[i]/fractional_advance);
 			dst += dst_advance;
 			X0 = X1;
@@ -133,11 +135,13 @@ void do_transform(bool y_axis, double scale, surface_t src, surface_t dst){
 		src->format->Rshift / 8,
 		src->format->Gshift / 8,
 		src->format->Bshift / 8,
+		src->format->Ashift / 8,
 	};
 	byte_t dst_offsets[] = {
 		dst->format->Rshift / 8,
 		dst->format->Gshift / 8,
 		dst->format->Bshift / 8,
+		dst->format->Ashift / 8,
 	};
 	unsigned src_w = src->w;
 	unsigned src_h = src->h;
@@ -160,12 +164,16 @@ void do_transform(bool y_axis, double scale, surface_t src, surface_t dst){
 		src_w, src_h, src_advance, src_pitch,
 		dst_offsets,
 		src_offsets,
-		(unsigned)(unit / scale)
+		(unsigned)(unit / scale),
+		src->format->BytesPerPixel
 	);
 }
 
 surface_t normalize_surface(surface_t s){
-	return !s ? s : to_surface_t(SDL_ConvertSurfaceFormat(s.get(), SDL_PIXELFORMAT_RGB24, 0));
+	const auto format_24 = SDL_PIXELFORMAT_RGB24;
+	const auto format_32 = SDL_PIXELFORMAT_RGBA8888;
+	const auto format = s->format->BitsPerPixel == 24 ? format_24 : format_32;
+	return !s ? s : to_surface_t(SDL_ConvertSurfaceFormat(s.get(), format, 0));
 }
 
 surface_t scale_surface(surface_t src, unsigned dst_w, unsigned dst_h){
@@ -174,7 +182,7 @@ surface_t scale_surface(surface_t src, unsigned dst_w, unsigned dst_h){
 	double xscale = (double)dst_w / (double)w;
 	double yscale = (double)dst_h / (double)h;
 
-	auto width_transformed = create_rgb_surface(dst_w, h);
+	auto width_transformed = create_rgbq_surface(src->format->BitsPerPixel, dst_w, h);
 	SurfaceLocker sl0(width_transformed);
 
 
@@ -185,7 +193,7 @@ surface_t scale_surface(surface_t src, unsigned dst_w, unsigned dst_h){
 	}
 
 
-	auto ret = create_rgb_surface(dst_w, dst_h);
+	auto ret = create_rgbq_surface(src->format->BitsPerPixel, dst_w, dst_h);
 	{
 		SurfaceLocker sl1(ret);
 		do_transform(1, yscale, width_transformed, ret);
@@ -225,12 +233,16 @@ void save_surface_compressed(const char *path, surface_t src){
 	free(buffer);
 }
 
+surface_t create_rgbq_surface(unsigned bits, unsigned w, unsigned h){
+	return to_surface_t(SDL_CreateRGBSurface(0, w, h, bits, 0xFF, 0xFF00, 0xFF0000, 0xFF000000));
+}
+
 surface_t create_rgb_surface(unsigned w, unsigned h){
-	return to_surface_t(SDL_CreateRGBSurface(0, w, h, 24, 0xFF, 0xFF00, 0xFF0000, 0xFF000000));
+	return create_rgbq_surface(24, w, h);
 }
 
 surface_t create_rgba_surface(unsigned w, unsigned h){
-	return to_surface_t(SDL_CreateRGBSurface(0, w, h, 32, 0xFF, 0xFF00, 0xFF0000, 0xFF000000));
+	return create_rgbq_surface(32, w, h);
 }
 
 Texture::Texture(boost::shared_ptr<SDL_Renderer> renderer, const std::wstring &path):

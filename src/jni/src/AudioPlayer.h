@@ -141,7 +141,7 @@ class AudioPlayer{
 
 	void thread();
 	void try_update_total_time();
-	bool initialize_stream();
+	bool initialize_stream(bool dont_move = 0);
 	void push_to_command_queue(AudioPlayerAsyncCommand *p){
 		boost::shared_ptr<AudioPlayerAsyncCommand> sp(p);
 		this->external_queue_in.push(sp);
@@ -160,7 +160,9 @@ public:
 	//request_* functions run in the caller thread!
 	void request_play();
 	void request_pause();
+	void request_stop();
 	void request_seek(double seconds);
+	void request_previous();
 	void request_next();
 	void request_exit();
 	double get_current_time();
@@ -168,12 +170,16 @@ public:
 	//execute_* functions run in the internal thread!
 	bool execute_play();
 	bool execute_pause();
+	bool execute_stop();
 	bool execute_seek(double seconds);
+	bool execute_previous();
 	bool execute_next();
+	/*
 	bool execute_previous(bool seek_near_the_end = 0){
 		throw NotImplementedException();
 		return 1;
 	}
+	*/
 	bool execute_exit(){
 		return 0;
 	}
@@ -196,12 +202,28 @@ public:
 	}
 };
 
+class AsyncCommandStop : public AudioPlayerAsyncCommand{
+public:
+	AsyncCommandStop(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
+	bool execute(){
+		return this->player->execute_stop();
+	}
+};
+
 class AsyncCommandSeek : public AudioPlayerAsyncCommand{
 	double seconds;
 public:
 	AsyncCommandSeek(AudioPlayer *player, double seconds): AudioPlayerAsyncCommand(player), seconds(seconds){}
 	bool execute(){
 		return this->player->execute_seek(this->seconds);
+	}
+};
+
+class AsyncCommandPrevious : public AudioPlayerAsyncCommand{
+public:
+	AsyncCommandPrevious(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
+	bool execute(){
+		return this->player->execute_previous();
 	}
 };
 

@@ -124,11 +124,11 @@ int AudioPlayer::_thread(void *p){
 
 //#define OUTPUT_TO_FILE
 
-bool AudioPlayer::initialize_stream(){
-	if (this->now_playing.get() || this->state == PlayState::STOPPED)
+bool AudioPlayer::initialize_stream(bool dont_move){
+	if (!this->now_playing || this->state == PlayState::STOPPED)
 		return 1;
 	std::wstring next;
-	if (!this->playlist.pop(next))
+	if (!this->playlist.get_current_track(next))
 		return 0;
 	auto &filename = next;
 	this->now_playing.reset(new AudioStream(*this, filename, 44100, 2));
@@ -148,7 +148,7 @@ void AudioPlayer::thread(){
 	this->jumped_this_loop = 0;
 	while (this->handle_requests()){
 #if PROFILING
-		if (!this->now_playing.get() && !this->track_queue.size())
+		if (!this->now_playing && !this->track_queue.size())
 			break;
 #endif
 		if (!this->initialize_stream() || this->internal_queue.is_full() || this->state == PlayState::STOPPED){
@@ -162,6 +162,7 @@ void AudioPlayer::thread(){
 #endif
 		if (!buffer){
 			this->now_playing.reset();
+			this->playlist.next();
 			continue;
 		}
 		this->jumped_this_loop = 0;
@@ -202,8 +203,16 @@ void AudioPlayer::request_pause(){
 	this->push_to_command_queue(new AsyncCommandPause(this));
 }
 
+void AudioPlayer::request_stop(){
+	this->push_to_command_queue(new AsyncCommandStop(this));
+}
+
 void AudioPlayer::request_seek(double seconds){
 	this->push_to_command_queue(new AsyncCommandSeek(this, seconds));
+}
+
+void AudioPlayer::request_previous(){
+	this->push_to_command_queue(new AsyncCommandPrevious(this));
 }
 
 void AudioPlayer::request_next(){
@@ -267,8 +276,23 @@ bool AudioPlayer::execute_pause(){
 	return 1;
 }
 
+bool AudioPlayer::execute_stop(){
+	switch (this->state){
+		case PlayState::STOPPED:
+			break;
+		case PlayState::PLAYING:
+		case PlayState::PAUSED:
+			SDL_PauseAudio(1);
+			this->eliminate_buffers();
+			this->now_playing.reset();
+			break;
+	}
+	this->state = PlayState::STOPPED;
+	return 1;
+}
+
 bool AudioPlayer::execute_seek(double seconds){
-	if (!this->now_playing.get() || this->jumped_this_loop)
+	if (!this->now_playing || this->jumped_this_loop)
 		return 1;
 	AudioLocker al(*this);
 	audio_position_t pos = invalid_audio_position;
@@ -281,11 +305,21 @@ bool AudioPlayer::execute_seek(double seconds){
 	return 1;
 }
 
+bool AudioPlayer::execute_previous(){
+	AudioLocker al(*this);
+	this->eliminate_buffers();
+	this->now_playing.reset();
+	this->playlist.back();
+	this->initialize_stream(1);
+	return 1;
+}
+
 bool AudioPlayer::execute_next(){
 	AudioLocker al(*this);
 	this->eliminate_buffers();
 	this->now_playing.reset();
-	this->initialize_stream();
+	this->playlist.next();
+	this->initialize_stream(1);
 	return 1;
 }
 

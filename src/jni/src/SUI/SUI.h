@@ -93,6 +93,7 @@ private:
 	int bounding_square;
 	WorkerThread worker;
 	boost::shared_ptr<WorkerThreadJobHandle> picture_job;
+	int full_update_count;
 
 	unsigned handle_in_events();
 	unsigned handle_out_events();
@@ -118,6 +119,13 @@ public:
 		return this->renderer;
 	}
 	int get_bounding_square();
+	SDL_Rect get_visible_region();
+	void start_full_updating(){
+		this->full_update_count++;
+	}
+	void end_full_updating(){
+		this->full_update_count--;
+	}
 };
 
 #endif

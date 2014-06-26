@@ -4,7 +4,7 @@
 
 AudioStream::AudioStream(AudioPlayer &parent, const std::wstring &path, unsigned frequency, unsigned channels): parent(parent), dst_format(true, 2, channels, frequency){
 	this->decoder.reset(Decoder::create(*this, path));
-	if (!this->decoder.get())
+	if (!this->decoder)
 		return;
 	filter.reset(new AudioFilterManager(*this->decoder, dst_format));
 #ifdef DUMP_OUTPUT
@@ -39,7 +39,7 @@ void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audi
 		if (seconds > 0)
 			player->execute_next();
 		else
-			player->execute_previous(1);
+			player->execute_previous(/*1*/);
 		return;
 	}
 	this->position = new_position = this->decoder->seek(target) ? target : current_position;

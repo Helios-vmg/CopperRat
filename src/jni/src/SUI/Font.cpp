@@ -198,8 +198,8 @@ SDL_Rect Font::calculate_bounding_box(const std::wstring &text, int wrap_at, dou
 	SDL_Rect ret = {0, 0, 0, 0};
 	auto f = [](void *p, const rendering_pair &rp){
 		auto &ret = *(SDL_Rect *)p;
-		ret.w = std::max(ret.w, rp.dst.w);
-		ret.h = std::max(ret.h, rp.dst.h);
+		ret.w = std::max(ret.w, rp.dst.x + rp.dst.w);
+		ret.h = std::max(ret.h, rp.dst.y + rp.dst.h);
 	};
 	this->compute_rendering_pairs(f, &ret, nullptr, &text, 0, 0, wrap_at, scale);
 	return ret;
