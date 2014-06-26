@@ -29,7 +29,7 @@ class Font{
 	void initialize_offsets_table(Uint32 bitmap_offset, Uint32 offsets_table_offset);
 	void load_page(unsigned page);
 	boost::shared_ptr<SDL_Texture> get_page(Uint8 page){
-		if (!this->textures[page].get())
+		if (!this->textures[page])
 			this->load_page(page);
 		return this->textures[page];
 	}

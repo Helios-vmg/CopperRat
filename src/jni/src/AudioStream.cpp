@@ -4,7 +4,7 @@
 
 AudioStream::AudioStream(AudioPlayer &parent, const std::wstring &path, unsigned frequency, unsigned channels): parent(parent), dst_format(true, 2, channels, frequency){
 	this->decoder.reset(Decoder::create(*this, path));
-	if (!this->decoder.get())
+	if (!this->decoder)
 		return;
 	filter.reset(new AudioFilterManager(*this->decoder, dst_format));
 #ifdef DUMP_OUTPUT

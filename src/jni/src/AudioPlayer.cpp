@@ -125,7 +125,7 @@ int AudioPlayer::_thread(void *p){
 //#define OUTPUT_TO_FILE
 
 bool AudioPlayer::initialize_stream(bool dont_move){
-	if (this->now_playing.get() || this->state == PlayState::STOPPED)
+	if (!this->now_playing || this->state == PlayState::STOPPED)
 		return 1;
 	std::wstring next;
 	if (!this->playlist.get_current_track(next))
@@ -148,7 +148,7 @@ void AudioPlayer::thread(){
 	this->jumped_this_loop = 0;
 	while (this->handle_requests()){
 #if PROFILING
-		if (!this->now_playing.get() && !this->track_queue.size())
+		if (!this->now_playing && !this->track_queue.size())
 			break;
 #endif
 		if (!this->initialize_stream() || this->internal_queue.is_full() || this->state == PlayState::STOPPED){
@@ -292,7 +292,7 @@ bool AudioPlayer::execute_stop(){
 }
 
 bool AudioPlayer::execute_seek(double seconds){
-	if (!this->now_playing.get() || this->jumped_this_loop)
+	if (!this->now_playing || this->jumped_this_loop)
 		return 1;
 	AudioLocker al(*this);
 	audio_position_t pos = invalid_audio_position;

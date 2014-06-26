@@ -241,4 +241,6 @@ inline T max_possible_value(T x){
 	return std::numeric_limits<T>::max();
 }
 
+double get_dots_per_millimeter();
+
 #endif

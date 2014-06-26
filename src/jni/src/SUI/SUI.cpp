@@ -41,7 +41,9 @@ SUI::SUI(AudioPlayer &player):
 		window(nullptr, [](SDL_Window *w) { if (w) SDL_DestroyWindow(w); }),
 		renderer(nullptr, SDL_Renderer_deleter()),
 		current_total_time(-1),
-		bounding_square(-1){
+		bounding_square(-1),
+		full_update_count(0){
+	get_dots_per_millimeter();
 
 	this->window.reset(SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1080/2, 1920/2, 0));
 	if (!this->window)
@@ -57,7 +59,7 @@ SUI::SUI(AudioPlayer &player):
 
 	this->children.push_back(boost::shared_ptr<GUIElement>(new MainScreen(this, this, this->player)));
 
-	SDL_SetRenderDrawColor(renderer.get(), 255, 0, 255, 255);
+	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
 }
 
 unsigned SUI::handle_in_events(){
@@ -69,27 +71,6 @@ unsigned SUI::handle_in_events(){
 				return QUIT;
 			case SDL_WINDOWEVENT:
 				ret |= REDRAW;
-				break;
-			case SDL_KEYDOWN:
-				{
-					switch (e.key.keysym.sym){
-						case SDLK_RIGHT:
-							this->player.request_seek(5);
-							break;
-						case SDLK_LEFT:
-							this->player.request_seek(-5);
-							break;
-						case SDLK_x:
-							this->player.request_play();
-							break;
-						case SDLK_c:
-							this->player.request_pause();
-							break;
-						case SDLK_b:
-							this->player.request_next();
-							break;
-					}
-				}
 				break;
 		}
 		ret |= GUIElement::handle_event(e);
@@ -117,7 +98,7 @@ void PictureDecodingJob::sui_perform(WorkerThread &wt){
 		this->picture = load_image_from_memory(buffer, length);
 	else
 		this->load_picture_from_filesystem();
-	if (this->picture.get())
+	if (!!this->picture)
 		this->picture = bind_surface_to_square(this->picture, this->target_square);
 }
 
@@ -152,7 +133,7 @@ void PictureDecodingJob::load_picture_from_filesystem(){
 		for (auto &filename : files){
 			if (glob(pattern.c_str(), filename.c_str(), [](wchar_t c){ return tolower(c == '\\' ? '/' : c); })){
 				this->picture = load_image_from_file(filename);
-				if (this->picture.get())
+				if (!!this->picture)
 					return;
 			}
 		}
@@ -194,7 +175,7 @@ unsigned SUI::finish(PictureDecodingJob &job){
 	if (job.get_id() != this->picture_job->get_id())
 		return ret;
 	auto picture = job.get_picture();
-	if (!picture.get())
+	if (!picture)
 		this->tex_picture.unload();
 	else{
 		this->tex_picture.load(picture);
@@ -249,6 +230,13 @@ int SUI::get_bounding_square(){
 	return this->bounding_square = std::min(w, h);
 }
 
+SDL_Rect SUI::get_visible_region(){
+	int w, h;
+	SDL_GetWindowSize(this->window.get(), &w, &h);
+	SDL_Rect ret = { 0, 0, w, h, };
+	return ret;
+}
+
 #include "../AudioBuffer.h"
 
 void SUI::loop(){
@@ -259,7 +247,7 @@ void SUI::loop(){
 		status |= this->handle_finished_jobs();
 		Uint32 now_ticks = SDL_GetTicks();
 
-		bool do_redraw = now_ticks - last >= 500 || check_flag(status, REDRAW);
+		bool do_redraw = now_ticks - last >= 500 || check_flag(status, REDRAW) || this->full_update_count > 0;
 		if (!do_redraw){
 			SDL_Delay((Uint32)(1000.0/60.0));
 			continue;
