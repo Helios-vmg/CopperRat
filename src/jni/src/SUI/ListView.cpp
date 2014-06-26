@@ -53,7 +53,7 @@ unsigned ListView::handle_event(const SDL_Event &event){
 					else if (this->offset + d < this->min_offset)
 						d = this->min_offset - this->offset;
 					this->offset += d;
-					this->movement_speed = d;
+					this->movement_speed = d * 1.5;
 					ret |= SUI::REDRAW;
 				}
 			}
@@ -98,7 +98,7 @@ update_restart:
 			this->sui->start_full_updating();
 			this->moving = 1;
 		}
-		const double k = 1;
+		const double k = 0.5;
 		this->movement_speed += this->movement_speed > 0 ? -k : k;
 	}else if (this->moving){
 		this->sui->end_full_updating();
@@ -114,6 +114,16 @@ update_restart:
 		auto r = b->get_bounding_box();
 		auto h = r.y + r.h + int_offset;
 		SDL_RenderDrawLine(renderer.get(), r.x, h, r.x + r.w, h);
+	}
+	if (this->total_length > this->visible_region.h){
+		SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0xFF, 0xFF, 0x80);
+		SDL_Rect rect = {
+			this->visible_region.w - 10,
+			-this->offset / this->total_length * this->visible_region.h,
+			10,
+			this->visible_region.h * this->visible_region.h / this->total_length,
+		};
+		SDL_RenderDrawRect(renderer.get(), &rect);
 	}
 	SDL_SetRenderDrawColor(renderer.get(), red, green, blue, alpha);
 }
