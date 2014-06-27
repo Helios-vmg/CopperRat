@@ -8,6 +8,7 @@ ListView::ListView(SUI *sui, GUIElement *parent, const std::vector<std::wstring>
 	for (auto &s : list){
 		boost::shared_ptr<TextButton> button(new TextButton(sui, this));
 		button->set_text(s, square, 1);
+		button->set_text_size_mm(2.5);
 		auto bb = button->get_bounding_box();
 		bb.w = square;
 		bb.y = accum;
@@ -49,10 +50,11 @@ unsigned ListView::handle_event(const SDL_Event &event){
 				if (this->drag_started){
 					d = event.motion.yrel;
 					if (this->offset + d > 0)
-						d = -this->offset;
+						this->offset = 0;
 					else if (this->offset + d < this->min_offset)
-						d = this->min_offset - this->offset;
-					this->offset += d;
+						this->offset = this->min_offset;
+					else
+						this->offset += d;
 					this->movement_speed = d * 1.5;
 					ret |= SUI::REDRAW;
 				}

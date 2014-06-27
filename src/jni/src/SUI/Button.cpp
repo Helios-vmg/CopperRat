@@ -32,6 +32,15 @@ void TextButton::set_minimum_height(double millimeters){
 	this->bounding_box.h = height;
 }
 
+void TextButton::set_text_size_mm(double millimeters){
+	auto font = this->sui->get_font();
+	auto font_size = font->get_font_height() / get_dots_per_millimeter();
+	this->scale = millimeters / font_size;
+	if (this->scale < 1)
+		this->scale = 1;
+	this->calculate_bounding_box();
+}
+
 void TextButton::update(){
 	this->sui->get_font()->draw_text(
 		this->text,

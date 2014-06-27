@@ -71,6 +71,7 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 			break;
 #endif
 		case SDL_SCANCODE_AUDIOPLAY:
+			this->player.request_play();
 		case SDL_SCANCODE_AUDIOSTOP:
 			break;
 	}

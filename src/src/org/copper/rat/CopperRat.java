@@ -25,6 +25,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.AbsoluteLayout;
 import android.os.*;
 import android.provider.OpenableColumns;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.graphics.*;
 import android.media.*;
@@ -532,6 +533,11 @@ public class CopperRat extends Activity {
         PackageName = getPackageName();
     }
 
+    public double getScreenDensity(){
+    	DisplayMetrics metric = getResources().getDisplayMetrics();
+    	double ret = metric.densityDpi / 25.4;
+    	return ret;
+    }
     
 }
 

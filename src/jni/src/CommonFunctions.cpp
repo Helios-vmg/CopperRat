@@ -45,16 +45,26 @@ std::string string_to_utf8(const std::wstring &src){
 	return ret;
 }
 
+
+#ifdef __ANDROID__
+#include "SDL_system.h"
+#include <jni.h>
+#endif
+
 double get_dots_per_millimeter(){
 #ifndef __ANDROID__
 	return 4;
 #else
-	return 9.2753623188405797101449275362319;
-#if 0
-	static double dpm = -1;
-	if (dpm >= 0)
-		return dpm;
-	dpm = /*TODO*/;
-#endif
+	static double ret = -1;
+	if (ret >= 0)
+		return ret;
+	JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
+	jobject activity = (jobject)SDL_AndroidGetActivity();
+	jclass clazz = env->FindClass("org/copper/rat/CopperRat");
+	jmethodID getScreenDensity = env->GetMethodID(clazz, "getScreenDensity", "()D");
+	ret = env->CallDoubleMethod(activity, getScreenDensity);
+	env->DeleteLocalRef(activity);
+	env->DeleteLocalRef(clazz);
+	return ret;
 #endif
 }

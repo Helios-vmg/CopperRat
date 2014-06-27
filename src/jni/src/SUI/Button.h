@@ -85,6 +85,7 @@ public:
 		this->scale = scale;
 		this->calculate_bounding_box();
 	}
+	void set_text_size_mm(double millimeters = 1.0);
 	void update();
 	const std::wstring &get_text() const{
 		return this->text;

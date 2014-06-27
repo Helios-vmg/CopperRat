@@ -44,6 +44,9 @@ public:
 		this->draw_text(nullptr, &text, x0, y0, wrap_at, scale);
 	}
 	SDL_Rect calculate_bounding_box(const std::wstring &text, int wrap_at = INT_MAX, double scale = 1.0);
+	unsigned get_font_height() const{
+		return 16;
+	}
 };
 
 #endif
