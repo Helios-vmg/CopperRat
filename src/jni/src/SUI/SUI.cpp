@@ -52,6 +52,7 @@ SUI::SUI(AudioPlayer &player):
 	this->renderer.reset(SDL_CreateRenderer(this->window.get(), -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC), SDL_Renderer_deleter());
 	if (!this->renderer)
 		throw UIInitializationException("Renderer creation failed.");
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
 	this->tex_picture.set_renderer(this->renderer);
 
