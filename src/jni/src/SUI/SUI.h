@@ -95,6 +95,7 @@ private:
 	boost::shared_ptr<WorkerThreadJobHandle> picture_job;
 	int full_update_count;
 
+	unsigned handle_keys(const SDL_Event &e);
 	unsigned handle_in_events();
 	unsigned handle_out_events();
 	unsigned handle_finished_jobs();

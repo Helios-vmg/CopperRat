@@ -495,6 +495,28 @@ public class CopperRat extends Activity {
         // Set up the surface
         mSurface = new SDLSurface(getApplication());
         
+        {
+	        AudioManager mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+	        ComponentName rec = new ComponentName(getPackageName(),
+	                MediaButtonIntentReceiver.class.getName());
+	        mAudioManager.registerMediaButtonEventReceiver(rec);
+	
+	        Intent i = new Intent(Intent.ACTION_MEDIA_BUTTON);
+	        i.setComponent(rec);
+	        PendingIntent pi = PendingIntent.getBroadcast(this /*context*/,
+	                0 /*requestCode, ignored*/, i /*intent*/, 0 /*flags*/);
+	        RemoteControlClient mRemoteControlClient = new RemoteControlClient(pi);
+	        mAudioManager.registerRemoteControlClient(mRemoteControlClient);
+	
+	        int flags = RemoteControlClient.FLAG_KEY_MEDIA_PREVIOUS
+	                | RemoteControlClient.FLAG_KEY_MEDIA_NEXT
+	                | RemoteControlClient.FLAG_KEY_MEDIA_PLAY
+	                | RemoteControlClient.FLAG_KEY_MEDIA_PAUSE
+	                | RemoteControlClient.FLAG_KEY_MEDIA_PLAY_PAUSE
+	                | RemoteControlClient.FLAG_KEY_MEDIA_STOP;
+	        mRemoteControlClient.setTransportControlFlags(flags);
+        }
+        
         if(Build.VERSION.SDK_INT >= 12) {
             mJoystickHandler = new SDLJoystickHandler_API12();
         }
