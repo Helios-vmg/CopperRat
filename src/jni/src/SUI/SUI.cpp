@@ -62,6 +62,21 @@ SUI::SUI(AudioPlayer &player):
 	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
 }
 
+unsigned SUI::handle_keys(const SDL_Event &e){
+	switch (e.key.keysym.scancode){
+#ifdef __ANDROID__
+		case SDL_SCANCODE_ANDROID_AUDIOPLAYPAUSE:
+		case SDL_SCANCODE_ANDROID_AUDIOPLAY:
+		case SDL_SCANCODE_ANDROID_AUDIOPAUSE:
+			break;
+#endif
+		case SDL_SCANCODE_AUDIOPLAY:
+		case SDL_SCANCODE_AUDIOSTOP:
+			break;
+	}
+	return NOTHING;
+}
+
 unsigned SUI::handle_in_events(){
 	SDL_Event e;
 	unsigned ret = NOTHING;
@@ -71,6 +86,9 @@ unsigned SUI::handle_in_events(){
 				return QUIT;
 			case SDL_WINDOWEVENT:
 				ret |= REDRAW;
+				break;
+			case SDL_KEYDOWN:
+				ret |= this->handle_keys(e);
 				break;
 		}
 		ret |= GUIElement::handle_event(e);

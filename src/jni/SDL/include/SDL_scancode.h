@@ -392,6 +392,10 @@ typedef enum
 
     /* Add any other keys here. */
 
+    SDL_SCANCODE_ANDROID_AUDIOPLAYPAUSE = 285,
+	SDL_SCANCODE_ANDROID_AUDIOPLAY = 286,
+	SDL_SCANCODE_ANDROID_AUDIOPAUSE = 287,
+	
     SDL_NUM_SCANCODES = 512 /**< not a key, just marks the number of scancodes
                                  for array bounds */
 } SDL_Scancode;
