@@ -100,6 +100,13 @@ public:
 	}
 };
 
+class PlaybackStop : public ExternalQueueElement{
+public:
+	unsigned receive(UserInterface &ui){
+		return ui.receive(*this);
+	}
+};
+
 struct NotImplementedException{};
 
 class AudioPlayer{
@@ -141,7 +148,7 @@ class AudioPlayer{
 
 	void thread();
 	void try_update_total_time();
-	bool initialize_stream(bool dont_move = 0);
+	bool initialize_stream();
 	void push_to_command_queue(AudioPlayerAsyncCommand *p){
 		boost::shared_ptr<AudioPlayerAsyncCommand> sp(p);
 		this->external_queue_in.push(sp);
@@ -152,12 +159,15 @@ class AudioPlayer{
 	}
 	void eliminate_buffers(audio_position_t * = 0);
 	bool handle_requests();
+	void on_stop();
 public:
 	external_queue_out_t external_queue_out;
 	AudioPlayer();
 	~AudioPlayer();
 
 	//request_* functions run in the caller thread!
+	void request_hardplay();
+	void request_playpause();
 	void request_play();
 	void request_pause();
 	void request_stop();
@@ -168,6 +178,8 @@ public:
 	double get_current_time();
 
 	//execute_* functions run in the internal thread!
+	bool execute_hardplay();
+	bool execute_playpause();
 	bool execute_play();
 	bool execute_pause();
 	bool execute_stop();
@@ -184,6 +196,22 @@ public:
 		return 0;
 	}
 	bool execute_metadata_update(boost::shared_ptr<GenericMetadata>);
+};
+
+class AsyncCommandHardPlay : public AudioPlayerAsyncCommand{
+public:
+	AsyncCommandHardPlay(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
+	bool execute(){
+		return this->player->execute_hardplay();
+	}
+};
+
+class AsyncCommandPlayPause : public AudioPlayerAsyncCommand{
+public:
+	AsyncCommandPlayPause(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
+	bool execute(){
+		return this->player->execute_playpause();
+	}
 };
 
 class AsyncCommandPlay : public AudioPlayerAsyncCommand{

@@ -124,17 +124,25 @@ int AudioPlayer::_thread(void *p){
 
 //#define OUTPUT_TO_FILE
 
-bool AudioPlayer::initialize_stream(bool dont_move){
-	if (!this->now_playing || this->state == PlayState::STOPPED)
+bool AudioPlayer::initialize_stream(){
+	if (this->now_playing || this->state == PlayState::STOPPED)
 		return 1;
 	std::wstring next;
-	if (!this->playlist.get_current_track(next))
+	if (!this->playlist.get_current_track(next)){
+		this->on_stop();
 		return 0;
+	}
 	auto &filename = next;
 	this->now_playing.reset(new AudioStream(*this, filename, 44100, 2));
 	this->current_total_time = -1;
 	this->try_update_total_time();
 	return 1;
+}
+
+void AudioPlayer::on_stop(){
+	this->current_total_time = 0;
+	this->last_position_seen.set(0);
+	this->external_queue_out.push(eqe_t(new PlaybackStop));
 }
 
 void AudioPlayer::thread(){
@@ -195,6 +203,14 @@ bool AudioPlayer::handle_requests(){
 	return ret;
 }
 
+void AudioPlayer::request_hardplay(){
+	this->push_to_command_queue(new AsyncCommandHardPlay(this));
+}
+
+void AudioPlayer::request_playpause(){
+	this->push_to_command_queue(new AsyncCommandPlayPause(this));
+}
+
 void AudioPlayer::request_play(){
 	this->push_to_command_queue(new AsyncCommandPlay(this));
 }
@@ -247,6 +263,36 @@ void AudioPlayer::eliminate_buffers(audio_position_t *pos){
 	}
 }
 
+bool AudioPlayer::execute_hardplay(){
+	SDL_PauseAudio(0);
+	switch (this->state){
+		case PlayState::STOPPED:
+		case PlayState::PAUSED:
+			break;
+		case PlayState::PLAYING:
+			if (this->now_playing->reset())
+				this->eliminate_buffers();
+			break;
+	}
+	this->state = PlayState::PLAYING;
+	return 1;
+}
+
+bool AudioPlayer::execute_playpause(){
+	switch (this->state){
+		case PlayState::STOPPED:
+		case PlayState::PAUSED:
+			SDL_PauseAudio(0);
+			this->state = PlayState::PLAYING;
+			break;
+		case PlayState::PLAYING:
+			SDL_PauseAudio(1);
+			this->state = PlayState::PAUSED;
+			break;
+	}
+	return 1;
+}
+
 bool AudioPlayer::execute_play(){
 	switch (this->state){
 		case PlayState::STOPPED:
@@ -285,6 +331,7 @@ bool AudioPlayer::execute_stop(){
 			SDL_PauseAudio(1);
 			this->eliminate_buffers();
 			this->now_playing.reset();
+			this->on_stop();
 			break;
 	}
 	this->state = PlayState::STOPPED;
@@ -309,8 +356,8 @@ bool AudioPlayer::execute_previous(){
 	AudioLocker al(*this);
 	this->eliminate_buffers();
 	this->now_playing.reset();
-	this->playlist.back();
-	this->initialize_stream(1);
+	if (this->playlist.back())
+		this->initialize_stream();
 	return 1;
 }
 
@@ -318,8 +365,8 @@ bool AudioPlayer::execute_next(){
 	AudioLocker al(*this);
 	this->eliminate_buffers();
 	this->now_playing.reset();
-	this->playlist.next();
-	this->initialize_stream(1);
+	if (this->playlist.next())
+		this->initialize_stream();
 	return 1;
 }
 

@@ -48,3 +48,10 @@ void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audi
 void AudioStream::metadata_update(boost::shared_ptr<GenericMetadata> p){
 	this->parent.execute_metadata_update(p);
 }
+
+bool AudioStream::reset(){
+	bool ret;
+	if (ret = this->decoder->seek(0))
+		this->position = 0;
+	return ret;
+}

@@ -11,8 +11,10 @@
 
 unsigned GUIElement::handle_event(const SDL_Event &e){
 	unsigned ret = SUI::NOTHING;
-	for (auto &child : this->children)
-		ret |= child->handle_event(e);
+	auto it = this->children.begin();
+	auto end = this->children.end();
+	for (; it != end; ++it)
+		ret |= (*it)->handle_event(e);
 	return ret;
 }
 
@@ -24,6 +26,13 @@ unsigned GUIElement::receive(TotalTimeUpdate &x){
 }
 
 unsigned GUIElement::receive(MetaDataUpdate &x){
+	unsigned ret = SUI::NOTHING;
+	for (auto &child : this->children)
+		ret |= child->receive(x);
+	return ret;
+}
+
+unsigned GUIElement::receive(PlaybackStop &x){
 	unsigned ret = SUI::NOTHING;
 	for (auto &child : this->children)
 		ret |= child->receive(x);
@@ -58,25 +67,45 @@ SUI::SUI(AudioPlayer &player):
 
 	this->font.reset(new Font(this->renderer));
 
-	this->children.push_back(boost::shared_ptr<GUIElement>(new MainScreen(this, this, this->player)));
+	boost::shared_ptr<GUIElement> ms(new MainScreen(this, this, this->player));
+	this->children.push_back(ms);
+	this->current_element.push_back(ms);
 
 	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
 }
 
 unsigned SUI::handle_keys(const SDL_Event &e){
+	unsigned ret = NOTHING;
 	switch (e.key.keysym.scancode){
-#ifdef __ANDROID__
 		case SDL_SCANCODE_ANDROID_AUDIOPLAYPAUSE:
-		case SDL_SCANCODE_ANDROID_AUDIOPLAY:
-		case SDL_SCANCODE_ANDROID_AUDIOPAUSE:
+			this->player.request_playpause();
 			break;
-#endif
+		case SDL_SCANCODE_ANDROID_AUDIOPLAY:
+			this->player.request_play();
+			break;
+		case SDL_SCANCODE_ANDROID_AUDIOPAUSE:
+			this->player.request_pause();
+			break;
 		case SDL_SCANCODE_AUDIOPLAY:
 			this->player.request_play();
+			break;
 		case SDL_SCANCODE_AUDIOSTOP:
+			this->player.request_stop();
+			break;
+		case SDL_SCANCODE_AUDIONEXT:
+			this->player.request_next();
+			break;
+		case SDL_SCANCODE_AUDIOPREV:
+			this->player.request_previous();
+			break;
+		case SDL_SCANCODE_AC_BACK:
+			if (this->current_element.size() > 1){
+				this->current_element.pop_back();
+				ret |= REDRAW;
+			}
 			break;
 	}
-	return NOTHING;
+	return ret;
 }
 
 unsigned SUI::handle_in_events(){
@@ -93,7 +122,7 @@ unsigned SUI::handle_in_events(){
 				ret |= this->handle_keys(e);
 				break;
 		}
-		ret |= GUIElement::handle_event(e);
+		ret |= this->handle_event(e);
 	}
 	return ret;
 }
@@ -176,6 +205,13 @@ unsigned SUI::receive(MetaDataUpdate &mdu){
 	boost::shared_ptr<PictureDecodingJob> job(new PictureDecodingJob(this->finished_jobs_queue, metadata, this->get_bounding_square()));
 	this->picture_job = this->worker.attach(job);
 
+	return REDRAW;
+}
+
+unsigned SUI::receive(PlaybackStop &x){
+	this->tex_picture.unload();
+	this->metadata.clear();
+	this->current_total_time = -1;
 	return REDRAW;
 }
 

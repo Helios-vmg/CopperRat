@@ -25,7 +25,7 @@ class AudioStream{
 public:
 	AudioStream(AudioPlayer &parent, const std::wstring &path, unsigned frequency, unsigned channels);
 	audio_buffer_t read();
-	void reset();
+	bool reset();
 	void seek(AudioPlayer *player, audio_position_t &new_position, audio_position_t current_position, double seconds);
 	double get_total_time(){
 		return this->decoder->get_seconds_length();

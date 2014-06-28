@@ -3,8 +3,6 @@
 #include "Button.h"
 #include "../File.h"
 
-unsigned total_events = 0;
-
 enum class ButtonSignal{
 	PLAY = 0,
 	PAUSE,
@@ -167,7 +165,6 @@ const wchar_t *test_list[] = {
 };
 
 unsigned MainScreen::handle_event(const SDL_Event &event){
-	total_events++;
 	if (!!this->listview)
 		return this->listview->handle_event(event);
 	return GUIElement::handle_event(event);
@@ -183,8 +180,7 @@ void MainScreen::update(){
 	stream <<" / ";
 	parse_into_hms(stream, this->sui->get_current_total_time());
 	stream <<std::endl
-		<<this->sui->get_metadata()<<"\n\n"
-		<<"Total input events: "<<total_events;
+		<<this->sui->get_metadata();
 	this->sui->draw_picture();
 	this->sui->get_font()->draw_text(stream.str(), 0, 0, this->sui->get_bounding_square(), 2);
 	GUIElement::update();
@@ -193,7 +189,7 @@ void MainScreen::update(){
 void MainScreen::gui_signal(unsigned signal){
 	switch ((ButtonSignal)signal){
 		case ButtonSignal::PLAY:
-			this->player.request_play();
+			this->player.request_hardplay();
 			break;
 		case ButtonSignal::PAUSE:
 			this->player.request_pause();

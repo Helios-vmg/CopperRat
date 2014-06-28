@@ -71,6 +71,7 @@ public:
 	virtual unsigned handle_event(const SDL_Event &);
 	virtual unsigned receive(TotalTimeUpdate &);
 	virtual unsigned receive(MetaDataUpdate &);
+	virtual unsigned receive(PlaybackStop &);
 	virtual void gui_signal(unsigned){}
 };
 
@@ -94,7 +95,11 @@ private:
 	WorkerThread worker;
 	boost::shared_ptr<WorkerThreadJobHandle> picture_job;
 	int full_update_count;
+	std::vector<boost::shared_ptr<GUIElement> > current_element;
 
+	unsigned handle_event(const SDL_Event &e){
+		return this->current_element.back()->handle_event(e);
+	}
 	unsigned handle_keys(const SDL_Event &e);
 	unsigned handle_in_events();
 	unsigned handle_out_events();
@@ -105,6 +110,7 @@ public:
 
 	unsigned receive(TotalTimeUpdate &);
 	unsigned receive(MetaDataUpdate &);
+	unsigned receive(PlaybackStop &x);
 	unsigned finish(PictureDecodingJob &);
 	void draw_picture();
 	double get_current_total_time() const{
