@@ -13,7 +13,7 @@ class MainScreen : public GUIElement{
 	boost::shared_ptr<ListView> listview;
 
 	void prepare_buttons();
-	void gui_signal(unsigned);
+	void gui_signal(const GuiSignal &);
 public:
 	MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player);
 	unsigned handle_event(const SDL_Event &);

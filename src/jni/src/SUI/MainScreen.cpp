@@ -186,8 +186,10 @@ void MainScreen::update(){
 	GUIElement::update();
 }
 
-void MainScreen::gui_signal(unsigned signal){
-	switch ((ButtonSignal)signal){
+void MainScreen::gui_signal(const GuiSignal &signal){
+	if (signal.type != SignalType::BUTTON_SIGNAL)
+		return;
+	switch ((ButtonSignal)signal.data.button_signal){
 		case ButtonSignal::PLAY:
 			this->player.request_hardplay();
 			break;
@@ -202,7 +204,7 @@ void MainScreen::gui_signal(unsigned signal){
 				std::vector<std::wstring> files;
 				for (auto p : test_list)
 					files.push_back(p);
-				this->listview.reset(new ListView(this->sui, this, files));
+				this->listview.reset(new ListView(this->sui, this, files, 0));
 				this->children.push_back(this->listview);
 			}
 			break;

@@ -3,11 +3,97 @@
 #include "../Image.h"
 #include "../File.h"
 #include "MainScreen.h"
+#include "FileBrowser.h"
 #include <SDL_image.h>
 #include <iostream>
 #include <string>
 #include <iomanip>
 #include <sstream>
+
+SUIControlCoroutine::SUIControlCoroutine(SUI &sui):
+		sui(&sui),
+		co([this](co_t::pull_type &pt){ this->antico = &pt; this->entry_point(); }){
+}
+
+void SUIControlCoroutine::start(){
+	this->co(GuiSignal());
+}
+
+void SUIControlCoroutine::relay(const GuiSignal &s){
+	this->co(s);
+}
+
+GuiSignal SUIControlCoroutine::display(boost::shared_ptr<GUIElement> el){
+	this->sui->current_element = el;
+	(*this->antico)();
+	return this->antico->get();
+}
+
+bool SUIControlCoroutine::load_file(std::wstring &dst, bool only_directories){
+	boost::shared_ptr<FileBrowser> browser(new FileBrowser(this->sui, this->sui));
+	while (1){
+		auto signal = this->display(browser);
+		switch (signal.type){
+			case SignalType::BACK_PRESSED:
+				return 0;
+			case SignalType::FILE_BROWSER_DONE:
+				break;
+			default:
+				continue;
+		}
+		break;
+	}
+	dst = browser->get_selection();
+	return 1;
+}
+
+void SUIControlCoroutine::load_file_menu(){
+	static const wchar_t *options[] = {
+		L"Load file...",
+		L"Load directory...",
+		L"Add file...",
+		L"Add directory...",
+	};
+	std::vector<std::wstring> strings(options, options + sizeof(options) / sizeof(*options));
+	boost::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
+	while (1){
+		auto signal = this->display(lv);
+		switch (signal.type){
+			case SignalType::BACK_PRESSED:
+				return;
+			case SignalType::LISTVIEW_SIGNAL:
+				break;
+			default:
+				continue;
+		}
+		if (signal.data.listview_signal.listview_name != 0)
+			continue;
+		signal = *signal.data.listview_signal.signal;
+		if (signal.type != SignalType::BUTTON_SIGNAL)
+			continue;
+		bool load = signal.data.button_signal / 2 == 0;
+		bool file = signal.data.button_signal % 2 == 0;
+		std::wstring path;
+		if (!this->load_file(path, !file))
+			return;
+		this->sui->load(load, file, path);
+		break;
+	}
+}
+
+void SUIControlCoroutine::entry_point(){
+	boost::shared_ptr<MainScreen> main_screen(new MainScreen(this->sui, this->sui, this->sui->player));
+	while (1){
+		auto signal = this->display(main_screen);
+		switch (signal.type){
+			case SignalType::MAINSCREEN_LOAD:
+				this->load_file_menu();
+				continue;
+			default:
+				continue;
+		}
+	}
+}
 
 unsigned GUIElement::handle_event(const SDL_Event &e){
 	unsigned ret = SUI::NOTHING;
@@ -51,7 +137,8 @@ SUI::SUI(AudioPlayer &player):
 		renderer(nullptr, SDL_Renderer_deleter()),
 		current_total_time(-1),
 		bounding_square(-1),
-		full_update_count(0){
+		full_update_count(0),
+		scc(*this){
 	get_dots_per_millimeter();
 
 	this->window.reset(SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1080/2, 1920/2, 0));
@@ -67,9 +154,7 @@ SUI::SUI(AudioPlayer &player):
 
 	this->font.reset(new Font(this->renderer));
 
-	boost::shared_ptr<GUIElement> ms(new MainScreen(this, this, this->player));
-	this->children.push_back(ms);
-	this->current_element.push_back(ms);
+	this->scc.start();
 
 	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
 }
@@ -98,15 +183,15 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 		case SDL_SCANCODE_AUDIOPREV:
 			this->player.request_previous();
 			break;
-		case SDL_SCANCODE_AC_BACK:
-			if (this->current_element.size() > 1){
-				this->current_element.pop_back();
-				ret |= REDRAW;
-			}
-			break;
 	}
 	return ret;
 }
+
+unsigned SUI::handle_event(const SDL_Event &e){
+	auto temp = this->current_element;
+	return temp->handle_event(e);
+}
+	
 
 unsigned SUI::handle_in_events(){
 	SDL_Event e;
@@ -175,13 +260,14 @@ void PictureDecodingJob::load_picture_from_filesystem(){
 		patterns[4] = L"folder.*";
 	}
 
-	std::vector<std::wstring> files;
-	list_files(files, directory);
+	std::vector<DirectoryElement> files;
+	list_files(files, directory, FilteringType::RETURN_FILES);
 
 	for (auto &pattern : patterns){
-		for (auto &filename : files){
+		for (auto &element : files){
+			const auto &filename = element.name;
 			if (glob(pattern.c_str(), filename.c_str(), [](wchar_t c){ return tolower(c == '\\' ? '/' : c); })){
-				this->picture = load_image_from_file(filename);
+				this->picture = load_image_from_file(directory + L"/" + filename);
 				if (!!this->picture)
 					return;
 			}

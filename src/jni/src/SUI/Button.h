@@ -30,19 +30,21 @@ public:
 
 class IntegerSignalButton : public Button{
 protected:
-	unsigned signal_value;
+	GuiSignal signal;
 	bool global_button;
 public:
-	IntegerSignalButton(SUI *sui, GUIElement *parent): Button(sui, parent), signal_value(0), global_button(0){}
+	IntegerSignalButton(SUI *sui, GUIElement *parent): Button(sui, parent), global_button(0){
+		this->signal.type = SignalType::BUTTON_SIGNAL;
+	}
 	virtual ~IntegerSignalButton(){}
 	void set_signal_value(unsigned signal_value){
-		this->signal_value = signal_value;
+		this->signal.data.button_signal = signal_value;
 	}
 	void set_global_button(bool global_button){
 		this->global_button = global_button;
 	}
 	void on_click(){
-		(this->global_button ? this->sui : this->parent)->gui_signal(this->signal_value);
+		(this->global_button ? this->sui : this->parent)->gui_signal(this->signal);
 	}
 };
 
@@ -75,9 +77,10 @@ protected:
 
 	void calculate_bounding_box();
 public:
-	TextButton(SUI *sui, GUIElement *parent): IntegerSignalButton(sui, parent), scale(1), inner_position(0){
+	TextButton(SUI *sui, GUIElement *parent, unsigned signal_value): IntegerSignalButton(sui, parent), scale(1), inner_position(0){
 		this->bounding_box.w = max_possible_value(this->bounding_box.w);
 		this->bounding_box.h = max_possible_value(this->bounding_box.h);
+		this->set_signal_value(signal_value);
 	}
 	void set_text(const std::wstring &text, int max_width = INT_MAX, double scale = 1.0){
 		this->text = text;

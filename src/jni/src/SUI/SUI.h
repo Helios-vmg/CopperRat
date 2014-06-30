@@ -6,6 +6,7 @@
 #include <SDL.h>
 #include <string>
 #include <boost/shared_ptr.hpp>
+#include <boost/coroutine/all.hpp>
 #include <memory>
 #include <list>
 #include "Font.h"
@@ -13,6 +14,7 @@
 #include "../Deleters.h"
 #include "../Threads.h"
 #include "../Image.h"
+#include "Signal.h"
 
 struct UIInitializationException{
 	std::string desc;
@@ -72,10 +74,29 @@ public:
 	virtual unsigned receive(TotalTimeUpdate &);
 	virtual unsigned receive(MetaDataUpdate &);
 	virtual unsigned receive(PlaybackStop &);
-	virtual void gui_signal(unsigned){}
+	virtual void gui_signal(const GuiSignal &){}
+};
+
+class SUI;
+
+class SUIControlCoroutine{
+	SUI *sui;
+	typedef boost::coroutines::coroutine<GuiSignal> co_t;
+	co_t::push_type co;
+	co_t::pull_type *antico;
+
+	GuiSignal display(boost::shared_ptr<GUIElement>);
+	void entry_point();
+	void load_file_menu();
+	bool load_file(std::wstring &dst, bool only_directories);
+public:
+	SUIControlCoroutine(SUI &sui);
+	void start();
+	void relay(const GuiSignal &);
 };
 
 class SUI : public GUIElement{
+	friend class SUIControlCoroutine;
 public:
 	enum InputStatus{
 		NOTHING = 0,
@@ -95,15 +116,18 @@ private:
 	WorkerThread worker;
 	boost::shared_ptr<WorkerThreadJobHandle> picture_job;
 	int full_update_count;
-	std::vector<boost::shared_ptr<GUIElement> > current_element;
+	typedef boost::shared_ptr<GUIElement> current_element_t;
+	current_element_t current_element;
+	SUIControlCoroutine scc;
 
-	unsigned handle_event(const SDL_Event &e){
-		return this->current_element.back()->handle_event(e);
-	}
+	unsigned handle_event(const SDL_Event &e);
 	unsigned handle_keys(const SDL_Event &e);
 	unsigned handle_in_events();
 	unsigned handle_out_events();
 	unsigned handle_finished_jobs();
+	//load: true for load, false for add
+	//file: true for file, false for directory
+	void load(bool load, bool file, const std::wstring &path);
 public:
 	SUI(AudioPlayer &player);
 	void loop();

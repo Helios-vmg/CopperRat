@@ -1,19 +1,18 @@
 #include "ListView.h"
 
-ListView::ListView(SUI *sui, GUIElement *parent, const std::vector<std::wstring> &list): GUIElement(sui, parent){
+ListView::ListView(SUI *sui, GUIElement *parent, const std::vector<std::wstring> &list, unsigned listview_name): GUIElement(sui, parent){
 	this->items.resize(list.size());
 	size_t i = 0;
 	int accum = 0;
 	int square = sui->get_bounding_square();
 	for (auto &s : list){
-		boost::shared_ptr<TextButton> button(new TextButton(sui, this));
+		boost::shared_ptr<TextButton> button(new TextButton(sui, this, (unsigned)i));
 		button->set_text(s, square, 1);
 		button->set_text_size_mm(2.5);
 		auto bb = button->get_bounding_box();
 		bb.w = square;
 		bb.y = accum;
 		button->set_bounding_box(bb);
-		button->set_signal_value((unsigned)i);
 		button->set_minimum_height(10.0);
 		bb = button->get_bounding_box();
 		accum += bb.h;
@@ -29,6 +28,9 @@ ListView::ListView(SUI *sui, GUIElement *parent, const std::vector<std::wstring>
 		this->min_offset = 0;
 	this->movement_speed = 0;
 	this->moving = 0;
+
+	this->signal.type = SignalType::LISTVIEW_SIGNAL;
+	this->signal.data.listview_signal.listview_name = listview_name;
 }
 
 unsigned ListView::handle_event(const SDL_Event &event){
@@ -75,10 +77,12 @@ unsigned ListView::handle_event(const SDL_Event &event){
 	return ret;
 }
 
-#include <iostream>
-
-void ListView::gui_signal(unsigned i){
-	std::wcout <<this->items[i]->get_text()<<std::endl;
+void ListView::gui_signal(const GuiSignal &s){
+	if (s.type != SignalType::BUTTON_SIGNAL)
+		return;
+	auto relay = this->signal;
+	relay.data.listview_signal.signal = &s;
+	this->parent->gui_signal(relay);
 }
 
 void ListView::update(){

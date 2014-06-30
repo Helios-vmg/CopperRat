@@ -4,6 +4,17 @@
 #include <vector>
 #include <string>
 
-void list_files(std::vector<std::wstring> &dst, const std::wstring &path);
-void list_files(std::vector<std::string> &dst, const std::string &path);
+struct DirectoryElement{
+	std::wstring name;
+	bool is_dir;
+};
+
+enum class FilteringType{
+	RETURN_ALL,
+	RETURN_FILES,
+	RETURN_DIRECTORIES,
+};
+
+void list_files(std::vector<DirectoryElement> &dst, const std::wstring &path, FilteringType);
+void list_files(std::vector<DirectoryElement> &dst, const std::string &path, FilteringType);
 #endif

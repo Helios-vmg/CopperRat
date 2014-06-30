@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <boost/type_traits.hpp>
 
 inline double s16_to_double(Sint16 x){
 	return (x<0) ? (x/32768.0) : (x/32767.0);
@@ -242,5 +243,19 @@ inline T max_possible_value(T x){
 }
 
 double get_dots_per_millimeter();
+
+inline std::wstring to_wstring(const std::wstring &s){
+	return s;
+}
+
+template <typename T>
+std::wstring to_wstring(const std::basic_string<T> &s){
+	std::wstring ret;
+	ret.resize(s.size());
+	typedef boost::make_unsigned<T>::type UT;
+	for (auto i = s.size(); i--;)
+		ret[i] = (wchar_t)(UT)s[i];
+	return ret;
+}
 
 #endif
