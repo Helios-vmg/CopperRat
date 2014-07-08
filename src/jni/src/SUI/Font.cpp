@@ -29,7 +29,7 @@ void Font::initialize_width_bitmap(Uint32 bitmap_offset, Uint32 offsets_table_of
 
 void Font::initialize_offsets_table(Uint32 bitmap_offset, Uint32 offsets_table_offset){
 	this->font_file.seekg(offsets_table_offset);
-	const unsigned n = 1 << 16;
+	const unsigned n = 1 << 8;
 	this->offsets_table.resize(n + 1);
 	for (int i = 0; i < n; i++){
 		if (!read_32_bits(this->offsets_table[i], this->font_file))

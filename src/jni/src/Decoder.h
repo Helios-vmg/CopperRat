@@ -61,4 +61,7 @@ public:
 class DecoderException{};
 class DecoderInitializationException : public DecoderException{};
 
+void filter_list_by_supported_formats(std::vector<std::wstring> &dst, const std::vector<std::wstring> &src);
+bool format_is_supported(const std::wstring &);
+
 #endif

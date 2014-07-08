@@ -15,6 +15,6 @@ struct GuiSignal{
 			unsigned listview_name;
 			const GuiSignal *signal;
 		} listview_signal;
-		unsigned file_browser_result;
+		bool file_browser_success;
 	} data;
 };

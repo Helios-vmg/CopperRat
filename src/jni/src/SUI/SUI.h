@@ -119,6 +119,7 @@ private:
 	typedef boost::shared_ptr<GUIElement> current_element_t;
 	current_element_t current_element;
 	SUIControlCoroutine scc;
+	bool update_requested;
 
 	unsigned handle_event(const SDL_Event &e);
 	unsigned handle_keys(const SDL_Event &e);
@@ -157,6 +158,8 @@ public:
 	void end_full_updating(){
 		this->full_update_count--;
 	}
+	void gui_signal(const GuiSignal &);
+	void request_update();
 };
 
 #endif

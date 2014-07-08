@@ -200,12 +200,19 @@ void MainScreen::gui_signal(const GuiSignal &signal){
 			this->player.request_stop();
 			break;
 		case ButtonSignal::LOAD:
+			/*
 			if (!this->listview){
 				std::vector<std::wstring> files;
 				for (auto p : test_list)
 					files.push_back(p);
 				this->listview.reset(new ListView(this->sui, this, files, 0));
 				this->children.push_back(this->listview);
+			}
+			*/
+			{
+				GuiSignal signal;
+				signal.type = SignalType::MAINSCREEN_LOAD;
+				this->parent->gui_signal(signal);
 			}
 			break;
 		case ButtonSignal::PREVIOUS:

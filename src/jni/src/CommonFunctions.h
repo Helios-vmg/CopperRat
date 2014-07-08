@@ -252,10 +252,59 @@ template <typename T>
 std::wstring to_wstring(const std::basic_string<T> &s){
 	std::wstring ret;
 	ret.resize(s.size());
-	typedef boost::make_unsigned<T>::type UT;
+	typedef typename boost::make_unsigned<T>::type UT;
 	for (auto i = s.size(); i--;)
 		ret[i] = (wchar_t)(UT)s[i];
 	return ret;
+}
+
+template <typename T>
+std::basic_string<T> tolower(const std::basic_string<T> &s){
+	auto ret = s;
+	for (auto &c : ret)
+		c = ::tolower(c);
+	return ret;
+}
+
+template <typename T>
+int strcmp_case(const std::basic_string<T> &a, const std::basic_string<T> &b){
+	const T * const ap = &a[0];
+	const T * const bp = &b[0];
+	const auto n = std::min(a.size(), b.size());
+	for (size_t i = 0; i < n; i++){
+		int d = tolower(ap[i]) - tolower(bp[i]);
+		if (d)
+			return d;
+	}
+	return (int)a.size() - (int)b.size();
+}
+
+template <typename T>
+std::basic_string<T> get_extension(const std::basic_string<T> &s){
+	auto ext = s;
+	auto dot = ext.rfind('.');
+	if (dot == ext.npos)
+		return L"";
+	ext = ext.substr(dot + 1);
+	return tolower(ext);
+}
+
+template <typename T>
+std::basic_string<T> get_container(const std::basic_string<T> &s){
+	auto slash = s.rfind('/');
+	if (slash == s.npos){
+		slash = s.rfind('\\');
+		if (slash == s.npos)
+			return std::basic_string<T>();
+	}
+	return s.substr(0, slash + 1);
+}
+
+template <typename T>
+bool path_is_rooted(const std::basic_string<T> &s){
+	if (!s.size())
+		return 0;
+	return s[0] == '/' || s[0] == '\\';
 }
 
 #endif

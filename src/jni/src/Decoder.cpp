@@ -4,20 +4,34 @@
 #include "CommonFunctions.h"
 #include <string>
 
+typedef Decoder *(*create_f)(AudioStream &, const std::wstring &);
+
+template <typename T>
+static Decoder *alloc_f(AudioStream &stream, const std::wstring &path){
+	return new T(stream, path);
+}
+
+static const wchar_t *extensions[] = {
+	L"ogg",
+	L"mp3",
+	L"flac",
+};
+
+static create_f functions[] = {
+	alloc_f<OggDecoder>,
+	alloc_f<Mp3Decoder>,
+	alloc_f<FlacDecoder>,
+};
+
 Decoder *Decoder::create(AudioStream &stream, const std::wstring &path){
-	std::wstring ext = path;
-	auto dot = ext.rfind('.');
-	if (dot == ext.npos)
-		return 0;
-	ext = ext.substr(dot + 1);
-	std::transform(ext.begin(), ext.end(), ext.begin(), tolower);
-	if (ext == L"ogg")
-		return new OggDecoder(stream, path);
-	if (ext == L"mp3")
-		return new Mp3Decoder(stream, path);
-	if (ext == L"flac")
-		return new FlacDecoder(stream, path);
-	return 0;
+	auto ext = get_extension(path);
+	int i = 0;
+	for (auto p : extensions){
+		if (ext == p)
+			return functions[i](stream, path);
+		i++;
+	}
+	return nullptr;
 }
 
 audio_buffer_t Decoder::read(){
@@ -26,4 +40,20 @@ audio_buffer_t Decoder::read(){
 		return ret;
 	this->current_position += ret.samples();
 	return ret;
+}
+
+void filter_list_by_supported_formats(std::vector<std::wstring> &dst, const std::vector<std::wstring> &src){
+	dst.clear();
+	for (const auto &s : src)
+		if (format_is_supported(s))
+			dst.push_back(s);
+}
+
+bool format_is_supported(const std::wstring &s){
+	auto ext = get_extension(s);
+	for (auto p : extensions){
+		if (ext == p)
+			return 1;
+	}
+	return 0;
 }

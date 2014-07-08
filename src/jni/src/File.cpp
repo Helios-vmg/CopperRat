@@ -1,12 +1,13 @@
 #include "File.h"
 #include "CommonFunctions.h"
+#include <algorithm>
 #if defined __ANDROID__
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <cerrno>
 #include <dirent.h>
 
-static void list_files(std::vector<std::pair<std::string, bool> > &dst, const std::string &path){
+static void list_files(std::vector<std::pair<std::wstring, bool> > &dst, const std::string &path){
 	auto dir = opendir(path.c_str());
 	if (!dir)
 		return;
@@ -15,25 +16,29 @@ static void list_files(std::vector<std::pair<std::string, bool> > &dst, const st
 		if (!entry)
 			break;
 		std::string immediate_path = entry->d_name;
-		struct stat st_buf;
-		if (stat(immediate_path.c_str(), &st_buf))
+		if (immediate_path == "." || immediate_path == "..")
 			continue;
-		bool is_dir = S_ISDIR(st_buf.st_mode);
-		dst.push_back(std::make_pair(utf8_to_string(s.first), is_dir));
+		struct stat st_buf;
+		bool is_dir;
+		if (!stat(immediate_path.c_str(), &st_buf))
+			is_dir = S_ISDIR(st_buf.st_mode);
+		else
+			is_dir = entry->d_type == DT_DIR;
+		dst.push_back(std::make_pair(utf8_to_string(immediate_path), is_dir));
 	}
 	closedir(dir);
 }
 
-void list_files(std::vector<std::wstring> &dst, const std::wstring &path){
+void list_files(std::vector<DirectoryElement> &dst, const std::wstring &path, FilteringType filter){
 	std::string npath = string_to_utf8(path);
-	std::vector<std::string> temp;
+	std::vector<std::pair<std::wstring, bool> > temp;
 	list_files(temp, npath);
 	dst.clear();
 	for (auto &s : temp){
-		if (s.second && filter == FilteringType::RETURN_FILES)
+		if (s.second && filter == FilteringType::RETURN_FILES || !s.second && filter == FilteringType::RETURN_DIRECTORIES)
 			continue;
 		DirectoryElement de = {
-			to_wstring(utf8_to_string(s.first)),
+			s.first,
 			s.second,
 		};
 		dst.push_back(de);
@@ -76,7 +81,9 @@ void basic_list_files(std::vector<DirectoryElement> &dst, const std::basic_strin
 	win32_find<T> f;
 	win32_find<T>::WIN32_FIND_DATA data;
 	dst.clear();
-	HANDLE handle = f.find_first_func(path.c_str(), &data);
+	auto temp_path = path;
+	temp_path += '*';
+	HANDLE handle = f.find_first_func(temp_path.c_str(), &data);
 	if (handle == INVALID_HANDLE_VALUE)
 		return;
 	do{
@@ -84,6 +91,10 @@ void basic_list_files(std::vector<DirectoryElement> &dst, const std::basic_strin
 		if (is_dir && filter == FilteringType::RETURN_FILES)
 			continue;
 		std::basic_string<T> temp = data.cFileName;
+		if (temp.size() == 1 && temp[0] == '.')
+			continue;
+		if (temp.size() == 2 && temp[0] == '.' && temp[1] == '.')
+			continue;
 		DirectoryElement de = {
 			to_wstring(temp),
 			is_dir,
@@ -100,3 +111,30 @@ void list_files(std::vector<DirectoryElement> &dst, const std::string &path, Fil
 	basic_list_files<char>(dst, path, filter);
 }
 #endif
+
+static void find_files_recursively_internal(std::vector<std::wstring> &dst, const std::wstring &path){
+	std::vector<DirectoryElement> temp;
+	list_files(temp, path, FilteringType::RETURN_ALL);
+	sort(temp);
+	for (auto &de : temp){
+		auto full_path = path;
+		full_path += de.name;
+		if (de.is_dir){
+			full_path += '/';
+			find_files_recursively_internal(dst, full_path);
+		}else
+			dst.push_back(full_path);
+	}
+}
+
+void find_files_recursively(std::vector<std::wstring> &dst, const std::wstring &path){
+	dst.clear();
+	find_files_recursively_internal(dst, path);
+}
+
+void sort(std::vector<DirectoryElement> &v){
+	auto f = [](const DirectoryElement &a, const DirectoryElement &b){
+		return a.is_dir > b.is_dir || a.is_dir == b.is_dir && strcmp_case(a.name, b.name) < 0;
+	};
+	std::sort(v.begin(), v.end(), f);
+}

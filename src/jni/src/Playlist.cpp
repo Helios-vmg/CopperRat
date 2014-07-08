@@ -1,4 +1,8 @@
 #include "Playlist.h"
+#include "File.h"
+#include "Decoder.h"
+#include "CommonFunctions.h"
+#include <fstream>
 
 void Playlist::clear(){
 	this->tracks.clear();
@@ -91,4 +95,46 @@ Playlist::PlaybackMode Playlist::cycle_mode(){
 	if (this->mode == PlaybackMode::REPEAT_LIST && this->tracks.size())
 		this->current_track %= this->tracks.size();
 	return this->mode;
+}
+
+void Playlist::load(bool file, const std::wstring &path){
+	this->clear();
+	std::vector<std::wstring> list;
+	if (file){
+		auto ext = get_extension(path);
+		if (ext == L"pls"){
+			this->load_playlist(path);
+			return;
+		}
+		if (!format_is_supported(path))
+			return;
+		list.push_back(path);
+	}else{
+		std::vector<std::wstring> files;
+		find_files_recursively(files, path);
+		filter_list_by_supported_formats(list, files);
+	}
+	this->insert(list, 0);
+}
+
+void Playlist::append(bool file, const std::wstring &path){
+}
+
+void Playlist::load_playlist(const std::wstring &path){
+	auto utf8 = string_to_utf8(path);
+	std::ifstream file(utf8.c_str());
+	std::vector<std::wstring> paths;
+	auto container = get_container(path);
+	while (1){
+		std::string line;
+		std::getline(file, line);
+		if (!file || !line.size() || line[0] == '#')
+			continue;
+		std::wstring wide = utf8_to_string(line);
+		if (path_is_rooted(wide))
+			paths.push_back(wide);
+		else
+			paths.push_back(container + wide);
+	}
+	this->insert(paths, 0);
 }

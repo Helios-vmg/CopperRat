@@ -25,12 +25,13 @@ void SUIControlCoroutine::relay(const GuiSignal &s){
 
 GuiSignal SUIControlCoroutine::display(boost::shared_ptr<GUIElement> el){
 	this->sui->current_element = el;
+	this->sui->request_update();
 	(*this->antico)();
 	return this->antico->get();
 }
 
 bool SUIControlCoroutine::load_file(std::wstring &dst, bool only_directories){
-	boost::shared_ptr<FileBrowser> browser(new FileBrowser(this->sui, this->sui));
+	boost::shared_ptr<FileBrowser> browser(new FileBrowser(this->sui, this->sui, !only_directories));
 	while (1){
 		auto signal = this->display(browser);
 		switch (signal.type){
@@ -41,6 +42,8 @@ bool SUIControlCoroutine::load_file(std::wstring &dst, bool only_directories){
 			default:
 				continue;
 		}
+		if (!signal.data.file_browser_success)
+			return 0;
 		break;
 	}
 	dst = browser->get_selection();
@@ -51,8 +54,8 @@ void SUIControlCoroutine::load_file_menu(){
 	static const wchar_t *options[] = {
 		L"Load file...",
 		L"Load directory...",
-		L"Add file...",
-		L"Add directory...",
+		L"Enqueue file...",
+		L"Enqueue directory...",
 	};
 	std::vector<std::wstring> strings(options, options + sizeof(options) / sizeof(*options));
 	boost::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
@@ -138,7 +141,8 @@ SUI::SUI(AudioPlayer &player):
 		current_total_time(-1),
 		bounding_square(-1),
 		full_update_count(0),
-		scc(*this){
+		scc(*this),
+		update_requested(0){
 	get_dots_per_millimeter();
 
 	this->window.reset(SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1080/2, 1920/2, 0));
@@ -188,6 +192,7 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 }
 
 unsigned SUI::handle_event(const SDL_Event &e){
+	//Note: Removing this object may incur in undefined behavior.
 	auto temp = this->current_element;
 	return temp->handle_event(e);
 }
@@ -335,6 +340,10 @@ unsigned SUI::handle_finished_jobs(){
 	return ret;
 }
 
+void SUI::load(bool load, bool file, const std::wstring &path){
+	this->player.request_load(load, file, path);
+}
+
 #if 0
 template <typename T>
 void format_memory(std::basic_ostream<T> &stream, size_t size){
@@ -379,6 +388,14 @@ SDL_Rect SUI::get_visible_region(){
 	return ret;
 }
 
+void SUI::gui_signal(const GuiSignal &signal){
+	this->scc.relay(signal);
+}
+
+void SUI::request_update(){
+	this->update_requested = 1;
+}
+
 #include "../AudioBuffer.h"
 
 void SUI::loop(){
@@ -389,17 +406,20 @@ void SUI::loop(){
 		status |= this->handle_finished_jobs();
 		Uint32 now_ticks = SDL_GetTicks();
 
-		bool do_redraw = now_ticks - last >= 500 || check_flag(status, REDRAW) || this->full_update_count > 0;
+		bool do_redraw = 0;
+		do_redraw = do_redraw || this->update_requested;
+		do_redraw = do_redraw || now_ticks - last >= 500;
+		do_redraw = do_redraw || check_flag(status, REDRAW);
+		do_redraw = do_redraw || this->full_update_count > 0;
 		if (!do_redraw){
 			SDL_Delay((Uint32)(1000.0/60.0));
 			continue;
 		}
+		this->update_requested = 0;
 
 		last = now_ticks;
 		SDL_RenderClear(this->renderer.get());
-		for (auto &p : this->children){
-			p->update();
-		}
+		this->current_element->update();
 		SDL_RenderPresent(this->renderer.get());
 	}
 }

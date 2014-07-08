@@ -26,6 +26,7 @@ private:
 	bool at_null_position() const{
 		return this->current_track < 0 || (size_t)this->current_track >= this->tracks.size();
 	}
+	void load_playlist(const std::wstring &path);
 public:
 	Playlist(): current_track(-1), mode(PlaybackMode::REPEAT_LIST), shuffle(0){}
 	void clear();
@@ -40,6 +41,8 @@ public:
 	bool back();
 	bool is_back_possible() const;
 	PlaybackMode cycle_mode();
+	void load(bool file, const std::wstring &path);
+	void append(bool file, const std::wstring &path);
 };
 
 #endif

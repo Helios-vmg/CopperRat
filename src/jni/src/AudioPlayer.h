@@ -175,6 +175,7 @@ public:
 	void request_previous();
 	void request_next();
 	void request_exit();
+	void request_load(bool load, bool file, const std::wstring &path);
 	double get_current_time();
 
 	//execute_* functions run in the internal thread!
@@ -186,6 +187,7 @@ public:
 	bool execute_seek(double seconds);
 	bool execute_previous();
 	bool execute_next();
+	bool execute_load(bool load, bool file, const std::wstring &path);
 	/*
 	bool execute_previous(bool seek_near_the_end = 0){
 		throw NotImplementedException();
@@ -268,6 +270,17 @@ public:
 	AsyncCommandExit(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
 	bool execute(){
 		return this->player->execute_exit();
+	}
+};
+
+class AsyncCommandLoad : public AudioPlayerAsyncCommand{
+	bool load,
+		file;
+	std::wstring path;
+public:
+	AsyncCommandLoad(AudioPlayer *player, bool load, bool file, const std::wstring &path): AudioPlayerAsyncCommand(player), load(load), file(file), path(path){}
+	bool execute(){
+		return this->player->execute_load(this->load, this->file, this->path);
 	}
 };
 

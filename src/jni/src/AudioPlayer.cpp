@@ -239,6 +239,10 @@ void AudioPlayer::request_exit(){
 	this->push_to_command_queue(new AsyncCommandExit(this));
 }
 
+void AudioPlayer::request_load(bool load, bool file, const std::wstring &path){
+	this->push_to_command_queue(new AsyncCommandLoad(this, load, file, path));
+}
+
 void AudioPlayer::eliminate_buffers(audio_position_t *pos){
 	AutoLocker<internal_queue_t> am(this->internal_queue);
 	std::queue<iqe_t> temp;
@@ -367,6 +371,16 @@ bool AudioPlayer::execute_next(){
 	this->now_playing.reset();
 	if (this->playlist.next())
 		this->initialize_stream();
+	return 1;
+}
+
+bool AudioPlayer::execute_load(bool load, bool file, const std::wstring &path){
+	if (load){
+		this->execute_stop();
+		this->playlist.load(file, path);
+		this->execute_play();
+	}else
+		this->playlist.append(file, path);
 	return 1;
 }
 
