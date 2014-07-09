@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "AudioBuffer.h"
+#include "CommonFunctions.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <cstring>
 #include <algorithm>
@@ -15,6 +16,10 @@ struct malloced_buffer{
 void audio_buffer_t::alloc(size_t bytes){
 	this->true_byte_length = sizeof(malloced_buffer) + bytes;
 	malloced_buffer *buffer = (malloced_buffer *)malloc(this->true_byte_length);
+	if (!buffer){
+		__android_log_print(ANDROID_LOG_ERROR, "Memory", "malloc() failed!");
+		throw std::bad_alloc();
+	}
 	if (buffer)
 		abit.alloc(this->true_byte_length);
 	this->true_pointer = buffer;

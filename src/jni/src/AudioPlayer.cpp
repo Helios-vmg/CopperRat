@@ -36,6 +36,7 @@ bool BufferQueueElement::AudioCallback_switch(
 
 void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 	AudioPlayer *player = (AudioPlayer *)udata;
+	AutoLocker<internal_queue_t> al(player->internal_queue);
 	const unsigned bytes_per_sample = 2 * 2;
 
 	memory_sample_count_t samples_written = 0;
@@ -43,7 +44,7 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 	bool perform_final_pops = 0;
 	while ((unsigned)len > samples_written * bytes_per_sample){
 		const size_t bytes_written = samples_written * bytes_per_sample;
-		auto element = player->internal_queue.try_peek();
+		auto element = player->internal_queue.unlocked_try_peek();
 		if (!element){
 			memset(stream + bytes_written, 0, len - bytes_written);
 			return;
@@ -58,7 +59,7 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 			*element
 		);
 		if (action)
-			player->internal_queue.pop();
+			player->internal_queue.unlocked_simple_pop();
 		perform_final_pops = action;
 	}
 	player->last_position_seen.set(last_position);
@@ -66,36 +67,19 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 		return;
 	while (1){
 		{
-			auto element = player->internal_queue.try_peek();
+			auto element = player->internal_queue.unlocked_try_peek();
+			if (!element)
+				return;
 			if ((*element)->is_buffer())
 				break;
 		}
-		auto element = player->internal_queue.pop();
+		auto element = player->internal_queue.unlocked_simple_pop();
 		auto eqe = static_cast<ExternalQueueElement *>(element.get());
 		eqe->push(player, element);
 	}
 }
 
 AudioPlayer::AudioPlayer(): device(*this){
-#ifndef __ANDROID__
-	//Put your test tracks here when compiling for desktop OSs.
-	{
-		std::ifstream file("test_tracks.txt");
-		std::vector<std::wstring> temp;
-		while (1){
-			std::string line;
-			std::getline(file, line);
-			if (!file)
-				break;
-			if (!line.size())
-				continue;
-			temp.push_back(utf8_to_string(line));
-		}
-		this->playlist.set(temp);
-	}
-#else
-	//Put your test tracks here when compiling for Android.
-#endif
 	this->internal_queue.max_size = 100;
 	this->last_position_seen.set(0);
 	this->state = PlayState::STOPPED;

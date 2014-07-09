@@ -138,6 +138,9 @@ public:
 	}
 	T *try_peek(){
 		AutoMutex am(this->mutex);
+		return this->unlocked_try_peek();
+	}
+	T *unlocked_try_peek(){
 		if (!this->queue.size())
 			return 0;
 		return &this->queue.front();

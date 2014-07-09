@@ -169,8 +169,12 @@ SUI::SUI(AudioPlayer &player):
 unsigned SUI::handle_keys(const SDL_Event &e){
 	unsigned ret = NOTHING;
 	switch (e.key.keysym.scancode){
+		case SDL_SCANCODE_C:
 		case SDL_SCANCODE_ANDROID_AUDIOPLAYPAUSE:
 			this->player.request_playpause();
+			break;
+		case SDL_SCANCODE_X:
+			this->player.request_hardplay();
 			break;
 		case SDL_SCANCODE_ANDROID_AUDIOPLAY:
 			this->player.request_play();
@@ -181,12 +185,15 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 		case SDL_SCANCODE_AUDIOPLAY:
 			this->player.request_play();
 			break;
+		case SDL_SCANCODE_V:
 		case SDL_SCANCODE_AUDIOSTOP:
 			this->player.request_stop();
 			break;
+		case SDL_SCANCODE_B:
 		case SDL_SCANCODE_AUDIONEXT:
 			this->player.request_next();
 			break;
+		case SDL_SCANCODE_Z:
 		case SDL_SCANCODE_AUDIOPREV:
 			this->player.request_previous();
 			break;
