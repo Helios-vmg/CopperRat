@@ -1,6 +1,14 @@
+#include "stdafx.h"
 #include "CommonFunctions.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <iomanip>
 #include <vector>
+
+#ifdef __ANDROID__
+#include <SDL_system.h>
+#include <jni.h>
+#endif
+#endif
 
 bool read_32_bits(Uint32 &dst, std::istream &stream){
 	Uint8 temp[4];
@@ -44,12 +52,6 @@ std::string string_to_utf8(const std::wstring &src){
 	std::copy(temp.begin(), temp.end(), std::back_inserter(ret));
 	return ret;
 }
-
-
-#ifdef __ANDROID__
-#include "SDL_system.h"
-#include <jni.h>
-#endif
 
 double get_dots_per_millimeter(){
 #ifndef __ANDROID__

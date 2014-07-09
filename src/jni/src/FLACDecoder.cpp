@@ -1,10 +1,13 @@
+#include "stdafx.h"
 #include "FLACDecoder.h"
 #include "CommonFunctions.h"
 #include "AudioStream.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <cassert>
 #include <utility>
 #include <vector>
 #include <boost/shared_ptr.hpp>
+#endif
 
 FlacDecoder::FlacDecoder(AudioStream &parent, const std::wstring &path):
 		Decoder(parent, path),

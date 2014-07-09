@@ -1,7 +1,9 @@
 #include "SUI.h"
 #include "../File.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <string>
 #include <vector>
+#endif
 
 class ListView;
 

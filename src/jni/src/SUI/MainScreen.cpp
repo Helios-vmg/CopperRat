@@ -1,3 +1,4 @@
+#include "../stdafx.h"
 #include "MainScreen.h"
 #include "../CommonFunctions.h"
 #include "Button.h"

@@ -1,9 +1,11 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <string>
 #include <SDL.h>
 #include <boost/shared_ptr.hpp>
+#endif
 #include "Deleters.h"
 
 typedef boost::shared_ptr<SDL_Surface> surface_t;

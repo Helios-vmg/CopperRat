@@ -1,8 +1,11 @@
+#include "stdafx.h"
 #include "Playlist.h"
 #include "File.h"
 #include "Decoder.h"
 #include "CommonFunctions.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <fstream>
+#endif
 
 void Playlist::clear(){
 	this->tracks.clear();

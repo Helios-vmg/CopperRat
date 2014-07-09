@@ -1,10 +1,12 @@
 #ifndef AUDIOSTREAM_H
 #define AUDIOSTREAM_H
 #include "AudioFilter.h"
-#include <memory>
-#include <boost/shared_ptr.hpp>
 #include "auto_ptr.h"
 //#define DUMP_OUTPUT
+#ifndef HAVE_PRECOMPILED_HEADERS
+#include <memory>
+#include <boost/shared_ptr.hpp>
+#endif
 
 #ifdef DUMP_OUTPUT
 #include <fstream>

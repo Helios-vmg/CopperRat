@@ -1,11 +1,14 @@
 #ifndef COMMONFUNCTIONS_H
 #define COMMONFUNCTIONS_H
 #include "BasicTypes.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <iostream>
 #include <iomanip>
 #include <vector>
 #include <string>
 #include <boost/type_traits.hpp>
+#include <android/log.h>
+#endif
 
 inline double s16_to_double(Sint16 x){
 	return (x<0) ? (x/32768.0) : (x/32767.0);
@@ -177,9 +180,7 @@ bool check_flag(T1 flag, T2 pattern){
 	return ((T2)flag & pattern) == pattern;
 }
 
-#ifdef __ANDROID__
-#include <android/log.h>
-#else
+#ifndef __ANDROID__
 #define __android_log_print(...)
 #endif
 

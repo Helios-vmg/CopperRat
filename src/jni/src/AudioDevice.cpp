@@ -1,7 +1,9 @@
+#include "stdafx.h"
 #include "AudioDevice.h"
 #include "AudioPlayer.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL.h>
-
+#endif
 
 AudioDevice::AudioDevice(AudioPlayer &player){
 #ifndef PROFILING

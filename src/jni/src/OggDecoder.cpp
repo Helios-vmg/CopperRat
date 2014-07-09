@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "OggDecoder.h"
 #include "AudioStream.h"
 #include "CommonFunctions.h"

@@ -1,10 +1,12 @@
 #ifndef METADATA_H
 #define METADATA_H
 
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <string>
 #include <map>
 #include <vector>
 #include <boost/shared_ptr.hpp>
+#endif
 
 class GenericMetadata{
 	std::wstring path;

@@ -3,8 +3,9 @@
 
 #include "SUI.h"
 #include "ListView.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <list>
-
+#endif
 
 class MainScreen : public GUIElement{
 	double current_total_time;

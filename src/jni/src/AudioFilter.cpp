@@ -1,8 +1,11 @@
+#include "stdafx.h"
 #include "AudioFilter.h"
 #include "AudioFilterPrivate.h"
 #include "CommonFunctions.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <cmath>
 #include <cassert>
+#endif
 
 AudioFilterManager::AudioFilterManager(Decoder &decoder, const AudioFormat &dst_format): decoder(decoder), dst_format(dst_format), filter_allocated(0), need_two_buffers(1){
 	if (!decoder.lazy_filter_allocation())
@@ -52,7 +55,7 @@ audio_buffer_t AudioFilterManager::read(memory_sample_count_t &samples_read_from
 		this->saved_buffer = buffers[1];
 	else
 		this->saved_buffer.unref();
-	if (buffers_size || !buffers[0] || this->dont_convert)
+	if (!buffers_size || !buffers[0] || this->dont_convert)
 		return buffers[0];
 	size_t bytes_required = buffers[0].byte_length(),
 		max_bytes = bytes_required;

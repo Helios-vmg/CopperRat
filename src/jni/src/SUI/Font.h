@@ -1,11 +1,15 @@
 #ifndef FONT_H
 #define FONT_H
+
+#include "../Exception.h"
+
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <vector>
 #include <fstream>
 #include <SDL.h>
 #include <boost/shared_ptr.hpp>
 #include <boost/type_traits.hpp>
-#include "../Exception.h"
+#endif
 
 #ifndef __ANDROID__
 #define BASE_PATH

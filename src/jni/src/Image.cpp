@@ -1,9 +1,12 @@
+#include "stdafx.h"
 #include "Image.h"
 #include "CommonFunctions.h"
 #include "Deleters.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL_image.h>
 #include <webp/encode.h>
 #include <fstream>
+#endif
 
 typedef unsigned char byte_t;
 
@@ -132,16 +135,16 @@ void do_transform(bool y_axis, double scale, surface_t src, surface_t dst){
 	if (scale < 1)
 		f = linear_interpolation2;
 	byte_t src_offsets[] = {
-		src->format->Rshift / 8,
-		src->format->Gshift / 8,
-		src->format->Bshift / 8,
-		src->format->Ashift / 8,
+		byte_t(src->format->Rshift / 8),
+		byte_t(src->format->Gshift / 8),
+		byte_t(src->format->Bshift / 8),
+		byte_t(src->format->Ashift / 8),
 	};
 	byte_t dst_offsets[] = {
-		dst->format->Rshift / 8,
-		dst->format->Gshift / 8,
-		dst->format->Bshift / 8,
-		dst->format->Ashift / 8,
+		byte_t(dst->format->Rshift / 8),
+		byte_t(dst->format->Gshift / 8),
+		byte_t(dst->format->Bshift / 8),
+		byte_t(dst->format->Ashift / 8),
 	};
 	unsigned src_w = src->w;
 	unsigned src_h = src->h;

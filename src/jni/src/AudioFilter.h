@@ -1,7 +1,9 @@
 #ifndef RESAMPLING_FILTER_H
 #define RESAMPLING_FILTER_H
 #include "Decoder.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <vector>
+#endif
 
 class AudioFilter;
 

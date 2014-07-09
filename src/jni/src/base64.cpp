@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "base64.h"
 
 static const char cd64[]="|$$$}rstuvwxyz{$$$$$$$>?@ABCDEFGHIJKLMNOPQRSTUVW$$$$$$XYZ[\\]^_`abcdefghijklmnopq";

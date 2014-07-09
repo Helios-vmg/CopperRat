@@ -3,18 +3,20 @@
 
 #include "../AudioPlayer.h"
 #include "../UserInterface.h"
+#include "../auto_ptr.h"
+#include "../Deleters.h"
+#include "../Threads.h"
+#include "../Image.h"
+#include "Font.h"
+#include "Signal.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL.h>
 #include <string>
 #include <boost/shared_ptr.hpp>
 #include <boost/coroutine/all.hpp>
 #include <memory>
 #include <list>
-#include "Font.h"
-#include "../auto_ptr.h"
-#include "../Deleters.h"
-#include "../Threads.h"
-#include "../Image.h"
-#include "Signal.h"
+#endif
 
 struct UIInitializationException{
 	std::string desc;

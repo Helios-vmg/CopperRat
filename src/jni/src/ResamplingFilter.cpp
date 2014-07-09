@@ -1,6 +1,9 @@
+#include "stdafx.h"
 #include "AudioFilterPrivate.h"
 #include "CommonFunctions.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <cassert>
+#endif
 
 class UpsamplingFilter : public ResamplingFilter{
 public:

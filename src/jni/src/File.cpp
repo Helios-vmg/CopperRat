@@ -1,11 +1,16 @@
+#include "stdafx.h"
 #include "File.h"
 #include "CommonFunctions.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <algorithm>
+#endif
 #if defined __ANDROID__
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <cerrno>
 #include <dirent.h>
+#endif
 
 static void list_files(std::vector<std::pair<std::wstring, bool> > &dst, const std::string &path){
 	auto dir = opendir(path.c_str());
@@ -46,7 +51,9 @@ void list_files(std::vector<DirectoryElement> &dst, const std::wstring &path, Fi
 }
 
 #elif defined WIN32
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <Windows.h>
+#endif
 
 template <typename C>
 struct win32_find{

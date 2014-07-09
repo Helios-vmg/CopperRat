@@ -1,10 +1,13 @@
+#include "../stdafx.h"
 #include "Font.h"
-#include "SDL_image.h"
 #include "../CommonFunctions.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
+#include <SDL_image.h>
 #include <SDL.h>
 #include <algorithm>
 #include <sstream>
 #include <cassert>
+#endif
 
 void Font::initialize_width_bitmap(Uint32 bitmap_offset, Uint32 offsets_table_offset){
 	this->font_file.seekg(bitmap_offset);

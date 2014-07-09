@@ -1,9 +1,11 @@
 #ifndef OGGDECODER_H
 #define OGGDECODER_H
+#include "Decoder.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <ogg/ogg.h>
 #include <vorbis/vorbisfile.h>
 #include <cstdio>
-#include "Decoder.h"
+#endif
 
 class OggDecoder: public Decoder{
 	FILE *file;

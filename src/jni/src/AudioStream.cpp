@@ -1,6 +1,9 @@
+#include "stdafx.h"
 #include "AudioStream.h"
 #include "AudioPlayer.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <string>
+#endif
 
 AudioStream::AudioStream(AudioPlayer &parent, const std::wstring &path, unsigned frequency, unsigned channels): parent(parent), dst_format(true, 2, channels, frequency){
 	this->decoder.reset(Decoder::create(*this, path));

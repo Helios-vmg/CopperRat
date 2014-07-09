@@ -1,10 +1,13 @@
+#include "stdafx.h"
 #include "Threads.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #if defined WIN32
 #include <Windows.h>
 #elif defined __ANDROID__
 #include <unistd.h>
 #else
 #error Platform not supported!
+#endif
 #endif
 
 Mutex::Mutex(){

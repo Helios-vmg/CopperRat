@@ -1,10 +1,12 @@
 #ifndef THREADS_H
 #define THREADS_H
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL.h>
 #include <SDL_atomic.h>
 #include <queue>
 #include <limits>
 #include <boost/shared_ptr.hpp>
+#endif
 
 class Mutex{
 	SDL_mutex *mutex;

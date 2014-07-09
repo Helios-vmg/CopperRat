@@ -1,8 +1,10 @@
 #ifndef FILE_H
 #define FILE_H
 
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <vector>
 #include <string>
+#endif
 
 struct DirectoryElement{
 	std::wstring name;

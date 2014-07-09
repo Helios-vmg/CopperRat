@@ -1,9 +1,12 @@
+#include "stdafx.h"
 #include "AudioFilterPrivate.h"
 #include "TypeList.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL_stdinc.h>
 #include <limits>
 #include <cassert>
 #include <boost/type_traits.hpp>
+#endif
 
 #define NODE(x) TypeCons<TypeNil, x>()
 

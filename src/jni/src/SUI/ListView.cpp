@@ -1,3 +1,4 @@
+#include "../stdafx.h"
 #include "ListView.h"
 
 ListView::ListView(SUI *sui, GUIElement *parent, const std::vector<std::wstring> &list, unsigned listview_name): GUIElement(sui, parent){

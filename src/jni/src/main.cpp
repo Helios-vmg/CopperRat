@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "AudioPlayer.h"
 #include "SUI/SUI.h"
 #include "CommonFunctions.h"

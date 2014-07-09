@@ -1,14 +1,17 @@
+#include "../stdafx.h"
 #include "SUI.h"
 #include "../CommonFunctions.h"
 #include "../Image.h"
 #include "../File.h"
 #include "MainScreen.h"
 #include "FileBrowser.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL_image.h>
 #include <iostream>
 #include <string>
 #include <iomanip>
 #include <sstream>
+#endif
 
 SUIControlCoroutine::SUIControlCoroutine(SUI &sui):
 		sui(&sui),

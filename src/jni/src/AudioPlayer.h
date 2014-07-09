@@ -1,6 +1,5 @@
 #ifndef AUDIOPLAYER_H
 #define AUDIOPLAYER_H
-#include <boost/shared_ptr.hpp>
 #include "Threads.h"
 #include "AudioDevice.h"
 #include "AudioStream.h"
@@ -8,6 +7,9 @@
 #include "Playlist.h"
 #include "UserInterface.h"
 #include "auto_ptr.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
+#include <boost/shared_ptr.hpp>
+#endif
 
 class AudioPlayerAsyncCommand{
 protected:

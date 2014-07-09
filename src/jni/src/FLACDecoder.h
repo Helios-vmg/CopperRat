@@ -1,11 +1,14 @@
 #ifndef FLACDECODER_H
 #define FLACDECODER_H
+
+#include "Decoder.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <ogg/ogg.h>
 #include <vorbis/vorbisfile.h>
 #include <FLAC++/decoder.h>
 #include <fstream>
 #include <queue>
-#include "Decoder.h"
+#endif
 
 class FlacException : public DecoderException{
 	std::string status_string;

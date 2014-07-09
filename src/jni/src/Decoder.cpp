@@ -1,8 +1,11 @@
+#include "stdafx.h"
 #include "OggDecoder.h"
 #include "FlacDecoder.h"
 #include "Mp3Decoder.h"
 #include "CommonFunctions.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <string>
+#endif
 
 typedef Decoder *(*create_f)(AudioStream &, const std::wstring &);
 

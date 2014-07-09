@@ -1,10 +1,13 @@
+#include "stdafx.h"
 #include "Mp3Decoder.h"
 #include "AudioStream.h"
+#include "CommonFunctions.h"
+#include "my_mpg123.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <fstream>
 #include <boost/type_traits.hpp>
-#include "CommonFunctions.h"
+#endif
 
-#include "my_mpg123.h"
 
 mp3_static_data Mp3Decoder::static_data;
 

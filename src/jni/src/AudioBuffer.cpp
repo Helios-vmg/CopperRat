@@ -1,6 +1,9 @@
+#include "stdafx.h"
 #include "AudioBuffer.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <cstring>
 #include <algorithm>
+#endif
 
 audio_buffer_instance_tracker audio_buffer_t::abit;
 

@@ -1,10 +1,12 @@
 #ifndef BUTTON_H
 #define BUTTON_H
 
-#include <SDL.h>
 #include "SUI.h"
 #include "../Deleters.h"
 #include "../CommonFunctions.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
+#include <SDL.h>
+#endif
 
 class Button : public GUIElement{
 protected:

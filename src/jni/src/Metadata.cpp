@@ -1,11 +1,14 @@
+#include "stdafx.h"
 #include "Metadata.h"
 #include "CommonFunctions.h"
 #include "base64.h"
+#include "my_mpg123.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <algorithm>
 #include <cctype>
 #include <fstream>
 #include <sstream>
-#include "my_mpg123.h"
+#endif
 
 std::wstring OggMetadata::ALBUM                  = L"ALBUM";
 std::wstring OggMetadata::ARTIST                 = L"ARTIST";

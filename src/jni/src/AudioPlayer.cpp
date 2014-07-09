@@ -1,5 +1,17 @@
+#include "stdafx.h"
 #include "AudioPlayer.h"
 #include "CommonFunctions.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
+#include <fstream>
+#ifdef PROFILING
+#if defined WIN32
+#include <fstream>
+#else
+#include <sstream>
+#include <android/log.h>
+#endif
+#endif
+#endif
 
 void ExternalQueueElement::push(AudioPlayer *player, boost::shared_ptr<InternalQueueElement> pointer){
 	player->external_queue_out.push(boost::static_pointer_cast<ExternalQueueElement>(pointer));
@@ -64,8 +76,6 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 	}
 }
 
-#include <fstream>
-
 AudioPlayer::AudioPlayer(): device(*this){
 #ifndef __ANDROID__
 	//Put your test tracks here when compiling for desktop OSs.
@@ -109,18 +119,6 @@ int AudioPlayer::_thread(void *p){
 	((AudioPlayer *)p)->thread();
 	return 0;
 }
-
-#ifdef PROFILING
-#if defined WIN32
-#include <iostream>
-#include <fstream>
-#else
-#include <fstream>
-#include <sstream>
-#include <android/log.h>
-#endif
-#endif
-#include <fstream>
 
 //#define OUTPUT_TO_FILE
 

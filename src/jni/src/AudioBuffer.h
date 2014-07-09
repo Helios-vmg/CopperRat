@@ -2,7 +2,9 @@
 #define AUDIOBUFFER_H
 #include "BasicTypes.h"
 #include "Threads.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <algorithm>
+#endif
 
 class audio_buffer_instance_tracker{
 	friend class audio_buffer_t;

@@ -1,7 +1,10 @@
+#include "../stdafx.h"
 #include "FileBrowser.h"
 #include "ListView.h"
 #include "../CommonFunctions.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <cassert>
+#endif
 
 FileBrowser::FileBrowser(SUI *sui, GUIElement *parent, bool select_file): GUIElement(sui, parent), select_file(select_file){
 	this->path.push_back(0);

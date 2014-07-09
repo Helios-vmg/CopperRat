@@ -1,5 +1,8 @@
 #ifndef DELETERS_H
 #define DELETERS_H
+#ifndef HAVE_PRECOMPILED_HEADERS
+#include <SDL.h>
+#endif
 
 struct SDL_Window_deleter{
 	void operator()(SDL_Window *w) const{

@@ -2,10 +2,12 @@
 #define LISTVIEW_H
 
 #include "Button.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <vector>
 #include <string>
 #include <utility>
 #include <boost/shared_ptr.hpp>
+#endif
 
 class ListView : public GUIElement{
 	GuiSignal signal;
