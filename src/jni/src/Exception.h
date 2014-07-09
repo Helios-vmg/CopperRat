@@ -1,8 +1,10 @@
 #ifndef EXCEPTION_H
 #define EXCEPTION_H
 
+#ifndef HAVE_PRECOMPILED_HEADERS
 #include <string>
 #include <exception>
+#endif
 
 #ifdef _MSC_VER
 #define NO_EXCEPT

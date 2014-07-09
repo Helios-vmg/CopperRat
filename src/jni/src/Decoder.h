@@ -3,6 +3,8 @@
 #include "AudioTypes.h"
 #include "Metadata.h"
 #include "AudioBuffer.h"
+#include "Exception.h"
+#include "CommonFunctions.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <limits>
 #endif
@@ -60,8 +62,18 @@ public:
 	}
 };
 
-class DecoderException{};
-class DecoderInitializationException : public DecoderException{};
+class DecoderException : public CR_Exception{
+public:
+	DecoderException(const std::string &description): CR_Exception(description){}
+	virtual ~DecoderException(){}
+};
+
+class DecoderInitializationException : public DecoderException{
+public:
+	DecoderInitializationException(const std::string &description): DecoderException(description){
+		__android_log_print(ANDROID_LOG_ERROR, "C++Exception", "%s", description.c_str());
+	}
+};
 
 void filter_list_by_supported_formats(std::vector<std::wstring> &dst, const std::vector<std::wstring> &src);
 bool format_is_supported(const std::wstring &);

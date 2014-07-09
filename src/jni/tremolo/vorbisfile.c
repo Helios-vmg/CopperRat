@@ -862,11 +862,11 @@ long ov_bitrate(OggVorbis_File *vf,int i){
      * gcc 3.x on x86 miscompiled this at optimisation level 2 and above,
      * so this is slightly transformed to make it work.
      */
-    return bits*1000/ov_time_total(vf,-1);
+    return bits/ov_time_total(vf,-1);
   }else{
     if(vf->seekable){
       /* return the actual bitrate */
-      return (vf->offsets[i+1]-vf->dataoffsets[i])*8000/ov_time_total(vf,i);
+      return (vf->offsets[i+1]-vf->dataoffsets[i])*8/ov_time_total(vf,i);
     }else{
       /* return nominal if set */
       if(vf->vi.bitrate_nominal>0){
@@ -953,17 +953,17 @@ ogg_int64_t ov_pcm_total(OggVorbis_File *vf,int i){
 	    OV_EINVAL if the stream is not seekable (we can't know the
 	    length) or only partially open 
 */
-ogg_int64_t ov_time_total(OggVorbis_File *vf,int i){
+double ov_time_total(OggVorbis_File *vf,int i){
   if(vf->ready_state<OPENED)return OV_EINVAL;
   if(!vf->seekable || i>=vf->links)return OV_EINVAL;
   if(i<0){
-    ogg_int64_t acc=0;
+    double acc=0;
     int i;
     for(i=0;i<vf->links;i++)
       acc+=ov_time_total(vf,i);
     return acc;
   }else{
-    return ((ogg_int64_t)vf->pcmlengths[i*2+1])*1000/vf->vi.rate;
+    return ((double)vf->pcmlengths[i*2+1])/vf->vi.rate;
   }
 }
 
@@ -1418,7 +1418,7 @@ int ov_time_seek(OggVorbis_File *vf,ogg_int64_t milliseconds){
   /* which bitstream section does this time offset occur in? */
   for(link=vf->links-1;link>=0;link--){
     pcm_total-=vf->pcmlengths[link*2+1];
-    time_total-=ov_time_total(vf,link);
+    time_total-=ov_time_total(vf,link) * 1000.0;
     if(milliseconds>=time_total)break;
   }
 

@@ -11,12 +11,8 @@
 #endif
 
 class FlacException : public DecoderException{
-	std::string status_string;
 public:
-	FlacException(const char *s): status_string(s){}
-	const std::string &what(){
-		return this->status_string;
-	}
+	FlacException(const std::string &s): DecoderException(s){}
 };
 
 class FlacDecoder: public Decoder, public FLAC::Decoder::Stream{

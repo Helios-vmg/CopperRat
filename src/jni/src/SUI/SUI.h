@@ -18,9 +18,9 @@
 #include <list>
 #endif
 
-struct UIInitializationException{
-	std::string desc;
-	UIInitializationException(const std::string &desc): desc(desc){}
+class UIInitializationException : public CR_Exception{
+public:
+	UIInitializationException(const std::string &desc): CR_Exception(desc){}
 };
 
 class SUIJob;

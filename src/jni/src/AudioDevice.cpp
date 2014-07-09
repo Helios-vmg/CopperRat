@@ -15,7 +15,7 @@ AudioDevice::AudioDevice(AudioPlayer &player){
 	specs.callback = AudioPlayer::AudioCallback;
 	specs.userdata = &player;
 	if (SDL_OpenAudio(&specs, 0) < 0)
-		throw DeviceInitializationException();
+		throw DeviceInitializationException("Could not initialize audio device.");
 	this->audio_is_open = 1;
 #endif
 }

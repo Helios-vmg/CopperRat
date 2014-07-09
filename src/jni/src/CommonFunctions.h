@@ -155,7 +155,7 @@ void string_to_utf8(std::vector<unsigned char> &dst, const std::basic_string<T> 
 	for (size_t i = 0, n = src.size(); i != n; i++){
 		unsigned c = src_pointer[i];
 
-		if (!(c & 0x80)){
+		if (c < 0x80){
 			*(pointer++) = (unsigned char)c;
 			continue;
 		}

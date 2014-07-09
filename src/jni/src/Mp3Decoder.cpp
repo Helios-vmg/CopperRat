@@ -71,15 +71,15 @@ Mp3Decoder::Mp3Decoder(AudioStream &parent, const std::wstring &path): Decoder(p
 	int error;
 
 	if (!static_data.init())
-		throw DecoderInitializationException();
+		throw DecoderInitializationException("Failed to initialize static data for MP3 decoder.");
 
 	this->handle = mpg123_new(0, &error);
 	if (!this->handle)
-		throw DecoderInitializationException();
+		throw DecoderInitializationException("MP3 decoder initialization failed.");
 
 	error = mpg123_replace_reader(this->handle, mp3_read, mp3_seek);
 	if (error != MPG123_OK)
-		throw DecoderInitializationException();
+		throw DecoderInitializationException("MP3 decoder initialization failed.");
 
 	auto converted_path = 
 #ifndef _MSC_VER
@@ -90,11 +90,11 @@ Mp3Decoder::Mp3Decoder(AudioStream &parent, const std::wstring &path): Decoder(p
 	boost::shared_ptr<std::ifstream> stream(new std::ifstream(converted_path.c_str(), std::ios::binary));
 	error = mpg123_open_fd(this->handle, this->fd = tracker.add(stream));
 	if (error != MPG123_OK)
-		throw DecoderInitializationException();
+		throw DecoderInitializationException("MP3 read failed.");
 
 	error = mpg123_format_none(this->handle);
 	if (error != MPG123_OK)
-		throw DecoderInitializationException();
+		throw DecoderInitializationException("mpg123_format_none() failed???");
 
 	auto format = this->format = parent.get_preferred_format();
 	static int encodings[] = {
@@ -172,7 +172,7 @@ void Mp3Decoder::check_for_metadata(){
 void Mp3Decoder::set_format(){
 	int error = mpg123_format(this->handle, this->freq, this->channels_enum, this->encoding_enum);
 	if (error != MPG123_OK)
-		throw DecoderException();
+		throw DecoderException("mpg123_format() failed.");
 }
 
 audio_buffer_t Mp3Decoder::read_more_internal(){
@@ -187,7 +187,7 @@ audio_buffer_t Mp3Decoder::read_more_internal(){
 	if (error == MPG123_DONE)
 		return audio_buffer_t();
 	if (error != MPG123_OK && error != MPG123_NEW_FORMAT)
-		throw DecoderException();
+		throw DecoderException("Decoding of MP3 frame failed.");
 
 	const auto samples = memory_sample_count_t(size / (this->format.bytes_per_sample()));
 	audio_buffer_t ret(this->format.bytes_per_channel, this->format.channels, samples);

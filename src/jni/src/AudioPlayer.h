@@ -190,12 +190,6 @@ public:
 	bool execute_previous();
 	bool execute_next();
 	bool execute_load(bool load, bool file, const std::wstring &path);
-	/*
-	bool execute_previous(bool seek_near_the_end = 0){
-		throw NotImplementedException();
-		return 1;
-	}
-	*/
 	bool execute_exit(){
 		return 0;
 	}

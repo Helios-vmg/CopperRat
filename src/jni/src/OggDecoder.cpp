@@ -8,6 +8,7 @@ OggDecoder::OggDecoder(AudioStream &parent, const std::wstring &path): Decoder(p
 #pragma warning(push)
 #pragma warning(disable: 4996)
 #endif
+	auto utf8 = string_to_utf8(path);
 	this->file = 
 #ifdef WIN32
 		_wfopen(path.c_str(), L"rb");
@@ -18,7 +19,7 @@ OggDecoder::OggDecoder(AudioStream &parent, const std::wstring &path): Decoder(p
 #pragma warning(pop)
 #endif
 	if (!this->file)
-		throw DecoderInitializationException();
+		throw DecoderInitializationException("Open file for Vorbis decoder failed.");
 	this->bitstream = 0;
 	ov_callbacks cb;
 	cb.read_func = OggDecoder::read;
@@ -27,10 +28,10 @@ OggDecoder::OggDecoder(AudioStream &parent, const std::wstring &path): Decoder(p
 	cb.close_func = 0;
 	int error = ov_open_callbacks(this, &this->ogg_file, 0, 0, cb);
 	if (error < 0)
-		throw DecoderInitializationException();
+		throw DecoderInitializationException("ov_open_callbacks() failed???");
 	vorbis_info *i = ov_info(&this->ogg_file, this->bitstream);
 	if (!i)
-		throw DecoderInitializationException();
+		throw DecoderInitializationException("Failed to read Ogg Vorbis stream info.");
 	this->frequency = i->rate;
 	this->channels = i->channels;
 	vorbis_comment *comment = ov_comment(&this->ogg_file, this->bitstream);
@@ -92,7 +93,10 @@ sample_count_t OggDecoder::get_pcm_length_internal(){
 }
 
 double OggDecoder::get_seconds_length_internal(){
-	return ov_time_total(&this->ogg_file, this->bitstream);
+	double ret = ov_time_total(&this->ogg_file, this->bitstream);
+	if (ret <= 0)
+		return -1;
+	return ret;
 }
 
 bool OggDecoder::seek(audio_position_t pos){
