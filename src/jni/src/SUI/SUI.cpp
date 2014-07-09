@@ -249,12 +249,10 @@ void PictureDecodingJob::load_picture_from_filesystem(){
 	auto directory = get_contaning_directory(path);
 
 	std::wstring patterns[5];
-	for (auto &pattern : patterns)
-		pattern = directory;
 
 	{
-		patterns[0] += L"front.*";
-		patterns[1] += L"cover.*";
+		patterns[0] = L"front.*";
+		patterns[1] = L"cover.*";
 		{
 			patterns[2] = path;
 			auto last_dot = patterns[2].rfind('.');
@@ -262,7 +260,7 @@ void PictureDecodingJob::load_picture_from_filesystem(){
 			patterns[2] += L".*";
 		}
 		{
-			patterns[3] += this->metadata->album();
+			patterns[3] = this->metadata->album();
 			patterns[3] += L".*";
 		}
 		patterns[4] = L"folder.*";
