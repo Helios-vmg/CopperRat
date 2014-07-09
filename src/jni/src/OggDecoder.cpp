@@ -93,10 +93,7 @@ sample_count_t OggDecoder::get_pcm_length_internal(){
 }
 
 double OggDecoder::get_seconds_length_internal(){
-	double ret = ov_time_total(&this->ogg_file, this->bitstream);
-	if (ret <= 0)
-		return -1;
-	return ret;
+	return ov_time_total(&this->ogg_file, this->bitstream);
 }
 
 bool OggDecoder::seek(audio_position_t pos){
