@@ -8,7 +8,12 @@ OggDecoder::OggDecoder(AudioStream &parent, const std::wstring &path): Decoder(p
 #pragma warning(push)
 #pragma warning(disable: 4996)
 #endif
-	this->file = fopen(string_to_utf8(path).c_str(), "rb");
+	this->file = 
+#ifdef WIN32
+		_wfopen(path.c_str(), L"rb");
+#else
+		fopen(string_to_utf8(path).c_str(), "rb");
+#endif
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif

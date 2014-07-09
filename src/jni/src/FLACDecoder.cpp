@@ -14,7 +14,14 @@ FlacDecoder::FlacDecoder(AudioStream &parent, const std::wstring &path):
 		metadata(path),
 		declared_af_set(0){
 	this->set_md5_checking(0);
-	this->file.open(string_to_utf8(path).c_str(), std::ios::binary);
+
+	auto converted_path = 
+#ifndef _MSC_VER
+		string_to_utf8
+#endif
+		(path);
+
+	this->file.open(path.c_str(), std::ios::binary);
 	this->set_metadata_respond_all();
 	if (!this->file || this->init() != FLAC__STREAM_DECODER_INIT_STATUS_OK)
 		throw DecoderInitializationException();

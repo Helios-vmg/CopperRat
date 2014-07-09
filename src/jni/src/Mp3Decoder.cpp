@@ -81,7 +81,13 @@ Mp3Decoder::Mp3Decoder(AudioStream &parent, const std::wstring &path): Decoder(p
 	if (error != MPG123_OK)
 		throw DecoderInitializationException();
 
-	boost::shared_ptr<std::ifstream> stream(new std::ifstream(string_to_utf8(path).c_str(), std::ios::binary));
+	auto converted_path = 
+#ifndef _MSC_VER
+		string_to_utf8
+#endif
+		(path);
+
+	boost::shared_ptr<std::ifstream> stream(new std::ifstream(converted_path.c_str(), std::ios::binary));
 	error = mpg123_open_fd(this->handle, this->fd = tracker.add(stream));
 	if (error != MPG123_OK)
 		throw DecoderInitializationException();

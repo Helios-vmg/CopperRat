@@ -95,7 +95,7 @@ void basic_list_files(std::vector<DirectoryElement> &dst, const std::basic_strin
 		return;
 	do{
 		bool is_dir = check_flag(data.dwFileAttributes, FILE_ATTRIBUTE_DIRECTORY);
-		if (is_dir && filter == FilteringType::RETURN_FILES)
+		if (is_dir && filter == FilteringType::RETURN_FILES || !is_dir && filter == FilteringType::RETURN_DIRECTORIES)
 			continue;
 		std::basic_string<T> temp = data.cFileName;
 		if (temp.size() == 1 && temp[0] == '.')

@@ -24,21 +24,21 @@ void FileBrowser::change_directory(){
 	std::vector<DirectoryElement> list;
 	{
 		std::vector<DirectoryElement> temp;
-		list_files(temp, this->get_selection(), this->select_file ? FilteringType::RETURN_ALL : FilteringType::RETURN_DIRECTORIES);
+		list_files(temp, this->get_selection_internal(0), this->select_file ? FilteringType::RETURN_ALL : FilteringType::RETURN_DIRECTORIES);
 		list.reserve(temp.size() + list.size());
 		std::copy(temp.begin(), temp.end(), std::back_inserter(list));
 	}
 	sort(list);
-	if (!this->select_file){
-		DirectoryElement de = {
-			L".",
-			1,
-		};
-		list.insert(list.begin(), de);
-	}
 	for (auto &f : list){
 		if (f.is_dir)
 			f.name += '/';
+	}
+	if (!this->select_file){
+		DirectoryElement de = {
+			L"<Select this directory>",
+			1,
+		};
+		list.insert(list.begin(), de);
 	}
 	this->directory_list_stack.push_back(list);
 	std::vector<std::wstring> temp;
@@ -78,15 +78,20 @@ unsigned FileBrowser::handle_event(const SDL_Event &e){
 	return ret;
 }
 
-std::wstring FileBrowser::get_selection() const{
+std::wstring FileBrowser::get_selection_internal(bool from_outside) const{
 	assert(this->directory_list_stack.size() == this->path.size());
 	std::wstring path;
 	size_t i = 0;
+	bool skip_last = from_outside && !this->select_file;
+	std::wstring ret;
 	for (auto &vector : this->directory_list_stack){
+		ret = path;
 		path += vector[this->path[i]].name;
 		i++;
 	}
-	return path;
+	if (!skip_last)
+		ret = path;
+	return ret;
 }
 
 void FileBrowser::gui_signal(const GuiSignal &_signal){
