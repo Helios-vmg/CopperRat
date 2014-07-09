@@ -21,7 +21,7 @@ FlacDecoder::FlacDecoder(AudioStream &parent, const std::wstring &path):
 #endif
 		(path);
 
-	this->file.open(path.c_str(), std::ios::binary);
+	this->file.open(converted_path.c_str(), std::ios::binary);
 	this->set_metadata_respond_all();
 	if (!this->file || this->init() != FLAC__STREAM_DECODER_INIT_STATUS_OK)
 		throw DecoderInitializationException();
