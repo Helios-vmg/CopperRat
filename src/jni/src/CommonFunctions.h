@@ -233,7 +233,7 @@ std::basic_string<T> get_contaning_directory(const std::basic_string<T> &path){
 	for (T c : slashes){
 		auto slash = path.rfind(c);
 		if (slash != path.npos)
-			return path.substr(0, slash);
+			return path.substr(0, slash + 1);
 	}
 	return std::basic_string<T>();
 }
@@ -288,17 +288,6 @@ std::basic_string<T> get_extension(const std::basic_string<T> &s){
 		return L"";
 	ext = ext.substr(dot + 1);
 	return tolower(ext);
-}
-
-template <typename T>
-std::basic_string<T> get_container(const std::basic_string<T> &s){
-	auto slash = s.rfind('/');
-	if (slash == s.npos){
-		slash = s.rfind('\\');
-		if (slash == s.npos)
-			return std::basic_string<T>();
-	}
-	return s.substr(0, slash + 1);
 }
 
 template <typename T>

@@ -127,7 +127,7 @@ void Playlist::load_playlist(const std::wstring &path){
 	auto utf8 = string_to_utf8(path);
 	std::ifstream file(utf8.c_str());
 	std::vector<std::wstring> paths;
-	auto container = get_container(path);
+	auto container = get_contaning_directory(path);
 	while (1){
 		std::string line;
 		std::getline(file, line);
