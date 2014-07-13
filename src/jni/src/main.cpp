@@ -37,9 +37,11 @@ int main(int argc, char **argv){
 	setlocale(LC_ALL, "en.UTF-8");
 	SDL_Init(SDL_INIT_EVERYTHING);
 	try{
-		AudioPlayer player;
-		SUI sui(player);
-		sui.loop();
+		{
+			SUI sui;
+			sui.loop();
+		}
+		__android_log_print(ANDROID_LOG_INFO, "C++main", "%s", "Terminating normally.");
 	}catch (const std::exception &e){
 		e; //Shut MSVC up about unreferenced local variables.
 		__android_log_print(ANDROID_LOG_DEBUG, "C++Exception", "%s", e.what());

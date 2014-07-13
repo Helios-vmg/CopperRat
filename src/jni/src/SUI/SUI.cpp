@@ -41,6 +41,34 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sstream>
 #endif
 
+class DelayedPictureLoadStartAction : public DelayedPictureLoadAction{
+	SUI *sui;
+	boost::shared_ptr<PictureDecodingJob> job;
+public:
+	DelayedPictureLoadStartAction(SUI &sui, boost::shared_ptr<PictureDecodingJob> job): sui(&sui), job(job){}
+	void perform(){
+		std::string temp = "Resuming loading of ";
+		temp += this->job->description;
+		temp += " due to switch to foreground.";
+		__android_log_print(ANDROID_LOG_DEBUG, "C++DPLA", "%s", temp.c_str());
+		this->sui->start_picture_load(this->job);
+	}
+};
+
+class DelayedTextureLoadAction : public DelayedPictureLoadAction{
+	Texture *dst;
+	surface_t src;
+public:
+	DelayedTextureLoadAction(Texture &dst, surface_t src): dst(&dst), src(src){}
+	void perform(){
+		__android_log_print(ANDROID_LOG_DEBUG, "C++DPLA", "%s", "Resuming texture creation due to switch to foreground.");
+		if (!this->src)
+			this->dst->unload();
+		else
+			this->dst->load(this->src);
+	}
+};
+
 SUIControlCoroutine::SUIControlCoroutine(SUI &sui):
 		sui(&sui),
 		co([this](co_t::pull_type &pt){ this->antico = &pt; this->entry_point(); }){
@@ -164,16 +192,16 @@ void GUIElement::update(){
 		child->update();
 }
 
-SUI::SUI(AudioPlayer &player):
+SUI::SUI():
 		GUIElement(this, nullptr),
-		player(player),
 		window(nullptr, [](SDL_Window *w) { if (w) SDL_DestroyWindow(w); }),
 		renderer(nullptr, SDL_Renderer_deleter()),
 		current_total_time(-1),
 		bounding_square(-1),
 		full_update_count(0),
 		scc(*this),
-		update_requested(0){
+		update_requested(0),
+		ui_in_foreground(1){
 	get_dots_per_millimeter();
 
 	this->window.reset(SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1080/2, 1920/2, 0));
@@ -235,6 +263,13 @@ unsigned SUI::handle_event(const SDL_Event &e){
 	return temp->handle_event(e);
 }
 	
+void SUI::on_switch_to_foreground(){
+	this->ui_in_foreground = 1;
+	if (this->dpla){
+		this->dpla->perform();
+		this->dpla.reset();
+	}
+}
 
 unsigned SUI::handle_in_events(){
 	SDL_Event e;
@@ -248,6 +283,13 @@ unsigned SUI::handle_in_events(){
 				break;
 			case SDL_KEYDOWN:
 				ret |= this->handle_keys(e);
+				break;
+			case SDL_APP_DIDENTERBACKGROUND:
+				this->ui_in_foreground = 0;
+				break;
+			case SDL_APP_DIDENTERFOREGROUND:
+				this->on_switch_to_foreground();
+				ret |= REDRAW;
 				break;
 		}
 		ret |= this->handle_event(e);
@@ -320,6 +362,10 @@ unsigned PictureDecodingJob::finish(SUI &sui){
 	return sui.finish(*this);
 }
 
+void SUI::start_picture_load(boost::shared_ptr<PictureDecodingJob> job){
+	this->picture_job = this->worker.attach(job);
+}
+
 unsigned SUI::receive(MetaDataUpdate &mdu){
 	auto metadata = mdu.get_metadata();
 	this->metadata.clear();
@@ -330,9 +376,17 @@ unsigned SUI::receive(MetaDataUpdate &mdu){
 	this->metadata += metadata->track_title();
 
 	boost::shared_ptr<PictureDecodingJob> job(new PictureDecodingJob(this->finished_jobs_queue, metadata, this->get_bounding_square()));
-	this->picture_job = this->worker.attach(job);
-
-	return REDRAW;
+	job->description = to_string(metadata->get_path());
+	if (this->ui_in_foreground)
+		this->start_picture_load(job);
+	else{
+		std::string temp = "Suspending loading of ";
+		temp += job->description;
+		temp += " due to switch to background.";
+		__android_log_print(ANDROID_LOG_INFO, "C++DPLA", "%s", temp.c_str());
+		this->dpla.reset(new DelayedPictureLoadStartAction(*this, job));
+	}
+	return NOTHING;
 }
 
 unsigned SUI::receive(PlaybackStop &x){
@@ -358,13 +412,18 @@ unsigned SUI::finish(PictureDecodingJob &job){
 	if (job.get_id() != this->picture_job->get_id())
 		return ret;
 	auto picture = job.get_picture();
-	if (!picture)
-		this->tex_picture.unload();
-	else{
-		this->tex_picture.load(picture);
-		ret = REDRAW;
-	}
 	this->picture_job.reset();
+	if (this->ui_in_foreground){
+		if (!picture)
+			this->tex_picture.unload();
+		else{
+			this->tex_picture.load(picture);
+			ret = REDRAW;
+		}
+	}else{
+		__android_log_print(ANDROID_LOG_INFO, "C++DPLA", "%s", "Suspending texture creation due to switch to background.");
+		this->dpla.reset(new DelayedTextureLoadAction(this->tex_picture, picture));
+	}
 	return ret;
 }
 
@@ -440,13 +499,15 @@ void SUI::loop(){
 	while (!check_flag(status = this->handle_in_events(), QUIT)){
 		status |= this->handle_out_events();
 		status |= this->handle_finished_jobs();
-		Uint32 now_ticks = SDL_GetTicks();
-
 		bool do_redraw = 0;
-		do_redraw = do_redraw || this->update_requested;
-		do_redraw = do_redraw || now_ticks - last >= 500;
-		do_redraw = do_redraw || check_flag(status, REDRAW);
-		do_redraw = do_redraw || this->full_update_count > 0;
+		Uint32 now_ticks = 0;
+		if (this->ui_in_foreground){
+			now_ticks = SDL_GetTicks();
+			do_redraw = do_redraw || this->update_requested;
+			do_redraw = do_redraw || now_ticks - last >= 500;
+			do_redraw = do_redraw || check_flag(status, REDRAW);
+			do_redraw = do_redraw || this->full_update_count > 0;
+		}
 		if (!do_redraw){
 			SDL_Delay((Uint32)(1000.0/60.0));
 			continue;

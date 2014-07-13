@@ -273,6 +273,19 @@ inline T max_possible_value(T x){
 
 double get_dots_per_millimeter();
 
+inline std::string to_string(const std::string &s){
+	return s;
+}
+
+template <typename T>
+std::string to_string(const std::basic_string<T> &s){
+	std::string ret;
+	ret.resize(s.size());
+	for (auto i = s.size(); i--;)
+		ret[i] = (char)s[i];
+	return ret;
+}
+
 inline std::wstring to_wstring(const std::wstring &s){
 	return s;
 }

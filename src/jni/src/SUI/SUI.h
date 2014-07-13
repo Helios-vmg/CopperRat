@@ -77,6 +77,7 @@ class PictureDecodingJob : public SUIJob{
 	void sui_perform(WorkerThread &wt);
 	void load_picture_from_filesystem();
 public:
+	std::string description;
 	PictureDecodingJob(finished_jobs_queue_t &queue, boost::shared_ptr<GenericMetadata> metadata, unsigned target_square):
 		SUIJob(queue),
 		metadata(metadata),
@@ -125,6 +126,12 @@ public:
 	void relay(const GuiSignal &);
 };
 
+class DelayedPictureLoadAction{
+public:
+	virtual ~DelayedPictureLoadAction(){}
+	virtual void perform() = 0;
+};
+
 class SUI : public GUIElement{
 	friend class SUIControlCoroutine;
 public:
@@ -134,7 +141,7 @@ public:
 		REDRAW = 2,
 	};
 private:
-	AudioPlayer &player;
+	AudioPlayer player;
 	finished_jobs_queue_t finished_jobs_queue;
 	SDL_PTR_WRAPPER(SDL_Window) window;
 	renderer_t renderer;
@@ -150,6 +157,8 @@ private:
 	current_element_t current_element;
 	SUIControlCoroutine scc;
 	bool update_requested;
+	bool ui_in_foreground;
+	boost::shared_ptr<DelayedPictureLoadAction> dpla;
 
 	unsigned handle_event(const SDL_Event &e);
 	unsigned handle_keys(const SDL_Event &e);
@@ -159,8 +168,9 @@ private:
 	//load: true for load, false for add
 	//file: true for file, false for directory
 	void load(bool load, bool file, const std::wstring &path);
+	void on_switch_to_foreground();
 public:
-	SUI(AudioPlayer &player);
+	SUI();
 	void loop();
 
 	unsigned receive(TotalTimeUpdate &);
@@ -190,6 +200,7 @@ public:
 	}
 	void gui_signal(const GuiSignal &);
 	void request_update();
+	void start_picture_load(boost::shared_ptr<PictureDecodingJob>);
 };
 
 #endif
