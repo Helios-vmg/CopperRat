@@ -116,7 +116,7 @@ void ListView::gui_signal(const GuiSignal &s){
 
 void ListView::update(){
 update_restart:
-	auto renderer = sui->get_renderer();
+	auto renderer = this->sui->get_renderer();
 	if (this->movement_speed && !this->buttondown){
 		this->offset += this->movement_speed;
 		if (this->offset > 0){
@@ -158,7 +158,7 @@ update_restart:
 			10,
 			this->visible_region.h * this->visible_region.h / this->total_length,
 		};
-		SDL_RenderDrawRect(renderer.get(), &rect);
+		SDL_RenderFillRect(renderer.get(), &rect);
 	}
 	SDL_SetRenderDrawColor(renderer.get(), red, green, blue, alpha);
 }

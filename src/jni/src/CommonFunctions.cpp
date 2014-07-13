@@ -98,3 +98,7 @@ double get_dots_per_millimeter(){
 	return ret;
 #endif
 }
+
+bool is_inside(int x, int y, const SDL_Rect &region){
+	return x >= region.x && x < region.x + region.w && y >= region.y && y < region.y + region.h;
+}

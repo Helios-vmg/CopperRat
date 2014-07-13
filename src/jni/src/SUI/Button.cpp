@@ -36,7 +36,7 @@ unsigned Button::handle_event(const SDL_Event &event){
 	auto x = event.button.x - this->offset_x;
 	auto y = event.button.y - this->offset_y;
 	const auto &bb = this->bounding_box;
-	if (x >= bb.x && x < bb.x + bb.w && y >= bb.y && y < bb.y + bb.h)
+	if (is_inside(x, y, bb))
 		this->on_click();
 	return SUI::NOTHING;
 }

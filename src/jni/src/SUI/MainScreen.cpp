@@ -31,6 +31,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../CommonFunctions.h"
 #include "Button.h"
 #include "../File.h"
+#include "ListView.h"
+#include "SeekBar.h"
 
 enum class ButtonSignal{
 	PLAY = 0,
@@ -47,27 +49,15 @@ MainScreen::MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player):
 		GUIElement(sui, parent),
 		player(player){
 	this->prepare_buttons();
+	this->children.push_back(boost::shared_ptr<GUIElement>(new SeekBar(sui, this)));
 }
 
 unsigned MainScreen::handle_event(const SDL_Event &event){
-	if (!!this->listview)
-		return this->listview->handle_event(event);
 	return GUIElement::handle_event(event);
 }
 
 void MainScreen::update(){
-	if (!!this->listview){
-		this->listview->update();
-		return;
-	}
-	std::wstringstream stream;
-	parse_into_hms(stream, player.get_current_time());
-	stream <<" / ";
-	parse_into_hms(stream, this->sui->get_current_total_time());
-	stream <<std::endl
-		<<this->sui->get_metadata();
 	this->sui->draw_picture();
-	this->sui->get_font()->draw_text(stream.str(), 0, 0, this->sui->get_bounding_square(), 2);
 	GUIElement::update();
 }
 
@@ -95,10 +85,10 @@ void MainScreen::gui_signal(const GuiSignal &signal){
 			this->player.request_previous();
 			break;
 		case ButtonSignal::SEEKBACK:
-			this->player.request_seek(-5);
+			this->player.request_relative_seek(-5);
 			break;
 		case ButtonSignal::SEEKFORTH:
-			this->player.request_seek(5);
+			this->player.request_relative_seek(5);
 			break;
 		case ButtonSignal::NEXT:
 			this->player.request_next();
@@ -151,4 +141,12 @@ void MainScreen::prepare_buttons(){
 		button->set_signal_value(i);
 		this->children.push_back(button);
 	}
+}
+
+SDL_Rect MainScreen::get_seekbar_region() const{
+	auto ret = this->sui->get_visible_region();
+	auto square = this->sui->get_bounding_square();
+	ret.y += square * 3 / 2;
+	ret.h -= square * 3 / 2;
+	return ret;
 }

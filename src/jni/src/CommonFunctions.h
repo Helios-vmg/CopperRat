@@ -338,4 +338,6 @@ bool path_is_rooted(const std::basic_string<T> &s){
 	return s[0] == '/' || s[0] == '\\';
 }
 
+bool is_inside(int x, int y, const SDL_Rect &region);
+
 #endif

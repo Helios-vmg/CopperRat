@@ -59,13 +59,31 @@ audio_buffer_t AudioStream::read(){
 	return ret;
 }
 
+void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audio_position_t current_position, double param, bool scaling){
+	if (this->position < current_position){
+		//There was a track switch in the middle of the buffer queue. Do not seek.
+		new_position = this->position;
+		return;
+	}
+	audio_position_t target;
+	if (scaling)
+		target = audio_position_t(this->decoder->get_pcm_length() * param);
+	else
+		target = audio_position_t(param * (double)this->decoder->get_audio_format().freq);
+	if (target >= this->decoder->get_pcm_length()){
+		player->execute_next();
+		return;
+	}
+	this->position = new_position = this->decoder->seek(target) ? target : current_position;
+}
+
 void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audio_position_t current_position, double seconds){
 	if (this->position < current_position){
 		//There was a track switch in the middle of the buffer queue. Do not seek.
 		new_position = this->position;
 		return;
 	}
-	audio_position_t target = audio_position_t(current_position + seconds * double(this->decoder->get_audio_format().freq));
+	audio_position_t target = audio_position_t(current_position + seconds * (double)this->decoder->get_audio_format().freq);
 	if (target >= this->decoder->get_pcm_length()){
 		if (seconds > 0)
 			player->execute_next();

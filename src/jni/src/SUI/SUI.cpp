@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../File.h"
 #include "MainScreen.h"
 #include "FileBrowser.h"
+#include "ListView.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL_image.h>
 #include <iostream>

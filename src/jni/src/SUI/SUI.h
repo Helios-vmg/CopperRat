@@ -197,6 +197,12 @@ public:
 	unsigned receive(PlaybackStop &x);
 	unsigned finish(PictureDecodingJob &);
 	void draw_picture();
+	AudioPlayer &get_player(){
+		return this->player;
+	}
+	const AudioPlayer &get_player() const{
+		return this->player;
+	}
 	double get_current_total_time() const{
 		return this->current_total_time;
 	}

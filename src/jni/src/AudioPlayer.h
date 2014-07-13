@@ -201,7 +201,8 @@ public:
 	void request_play();
 	void request_pause();
 	void request_stop();
-	void request_seek(double seconds);
+	void request_absolute_scaling_seek(double scale);
+	void request_relative_seek(double seconds);
 	void request_previous();
 	void request_next();
 	void request_exit();
@@ -214,7 +215,8 @@ public:
 	bool execute_play();
 	bool execute_pause();
 	bool execute_stop();
-	bool execute_seek(double seconds);
+	bool execute_absolute_seek(double param, bool scaling);
+	bool execute_relative_seek(double seconds);
 	bool execute_previous();
 	bool execute_next();
 	bool execute_load(bool load, bool file, const std::wstring &path);
@@ -264,12 +266,22 @@ public:
 	}
 };
 
-class AsyncCommandSeek : public AudioPlayerAsyncCommand{
+class AsyncCommandAbsoluteSeek : public AudioPlayerAsyncCommand{
+	bool scaling;
+	double param;
+public:
+	AsyncCommandAbsoluteSeek(AudioPlayer *player, double param, bool scaling = 1): AudioPlayerAsyncCommand(player), param(param), scaling(scaling){}
+	bool execute(){
+		return this->player->execute_absolute_seek(this->param, this->scaling);
+	}
+};
+
+class AsyncCommandRelativeSeek : public AudioPlayerAsyncCommand{
 	double seconds;
 public:
-	AsyncCommandSeek(AudioPlayer *player, double seconds): AudioPlayerAsyncCommand(player), seconds(seconds){}
+	AsyncCommandRelativeSeek(AudioPlayer *player, double seconds): AudioPlayerAsyncCommand(player), seconds(seconds){}
 	bool execute(){
-		return this->player->execute_seek(this->seconds);
+		return this->player->execute_relative_seek(this->seconds);
 	}
 };
 

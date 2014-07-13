@@ -233,8 +233,12 @@ void AudioPlayer::request_stop(){
 	this->push_to_command_queue(new AsyncCommandStop(this));
 }
 
-void AudioPlayer::request_seek(double seconds){
-	this->push_to_command_queue(new AsyncCommandSeek(this, seconds));
+void AudioPlayer::request_absolute_scaling_seek(double scale){
+	this->push_to_command_queue(new AsyncCommandAbsoluteSeek(this, scale, 1));
+}
+
+void AudioPlayer::request_relative_seek(double seconds){
+	this->push_to_command_queue(new AsyncCommandRelativeSeek(this, seconds));
 }
 
 void AudioPlayer::request_previous(){
@@ -352,7 +356,22 @@ bool AudioPlayer::execute_stop(){
 	return 1;
 }
 
-bool AudioPlayer::execute_seek(double seconds){
+bool AudioPlayer::execute_absolute_seek(double param, bool scaling){
+	//TODO: Find some way to mergethis code with AudioPlayer::execute_relative_seek().
+	if (!this->now_playing || this->jumped_this_loop)
+		return 1;
+	AudioLocker al(*this);
+	audio_position_t pos = invalid_audio_position;
+	this->eliminate_buffers(&pos);
+	if (pos == invalid_audio_position)
+		pos = this->last_position_seen.get();
+	audio_position_t new_pos;
+	this->now_playing->seek(this, new_pos, pos, param, scaling);
+	this->last_position_seen.set(new_pos);
+	return 1;
+}
+
+bool AudioPlayer::execute_relative_seek(double seconds){
 	if (!this->now_playing || this->jumped_this_loop)
 		return 1;
 	AudioLocker al(*this);
