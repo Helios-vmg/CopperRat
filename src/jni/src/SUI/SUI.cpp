@@ -350,12 +350,20 @@ void PictureDecodingJob::load_picture_from_filesystem(){
 		for (auto &element : files){
 			const auto &filename = element.name;
 			if (glob(pattern.c_str(), filename.c_str(), [](wchar_t c){ return tolower(c == '\\' ? '/' : c); })){
-				this->picture = load_image_from_file(directory + L"/" + filename);
-				if (!!this->picture)
+				auto path = directory;
+				path += L"/";
+				path += filename;
+				if (path == this->current_source)
+					continue;
+				this->picture = load_image_from_file(path);
+				if (!!this->picture){
+					this->source = path;
 					return;
+				}
 			}
 		}
 	}
+	this->skip_loading = 1;
 }
 
 unsigned PictureDecodingJob::finish(SUI &sui){
@@ -375,7 +383,7 @@ unsigned SUI::receive(MetaDataUpdate &mdu){
 	this->metadata += L" - ";
 	this->metadata += metadata->track_title();
 
-	boost::shared_ptr<PictureDecodingJob> job(new PictureDecodingJob(this->finished_jobs_queue, metadata, this->get_bounding_square()));
+	boost::shared_ptr<PictureDecodingJob> job(new PictureDecodingJob(this->finished_jobs_queue, metadata, this->get_bounding_square(), this->tex_picture_source));
 	job->description = to_string(metadata->get_path());
 	if (this->ui_in_foreground)
 		this->start_picture_load(job);
@@ -390,6 +398,7 @@ unsigned SUI::receive(MetaDataUpdate &mdu){
 }
 
 unsigned SUI::receive(PlaybackStop &x){
+	this->tex_picture_source.clear();
 	this->tex_picture.unload();
 	this->metadata.clear();
 	this->current_total_time = -1;
@@ -413,10 +422,16 @@ unsigned SUI::finish(PictureDecodingJob &job){
 		return ret;
 	auto picture = job.get_picture();
 	this->picture_job.reset();
+	if (job.get_skip_loading()){
+		__android_log_print(ANDROID_LOG_INFO, "C++AlbumArt", "%s", "Album art load optimized away.\n");
+		return ret;
+	}
 	if (this->ui_in_foreground){
-		if (!picture)
+		if (!picture){
+			this->tex_picture_source.clear();
 			this->tex_picture.unload();
-		else{
+		}else{
+			this->tex_picture_source = job.get_source();
 			this->tex_picture.load(picture);
 			ret = REDRAW;
 		}

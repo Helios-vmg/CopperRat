@@ -209,7 +209,7 @@ bool check_flag(T1 flag, T2 pattern){
 }
 
 #ifndef __ANDROID__
-#define __android_log_print(...)
+#define __android_log_print(x, y, ...) printf(__VA_ARGS__)
 #endif
 
 bool read_32_bits(Uint32 &dst, std::istream &stream);

@@ -74,18 +74,33 @@ class PictureDecodingJob : public SUIJob{
 	boost::shared_ptr<GenericMetadata> metadata;
 	unsigned target_square;
 	surface_t picture;
+	std::wstring current_source,
+		source;
+	bool skip_loading;
 	void sui_perform(WorkerThread &wt);
 	void load_picture_from_filesystem();
 public:
 	std::string description;
-	PictureDecodingJob(finished_jobs_queue_t &queue, boost::shared_ptr<GenericMetadata> metadata, unsigned target_square):
+	PictureDecodingJob(
+			finished_jobs_queue_t &queue,
+			boost::shared_ptr<GenericMetadata> metadata,
+			unsigned target_square,
+			const std::wstring &current_source):
 		SUIJob(queue),
 		metadata(metadata),
 		target_square(target_square),
-		picture(nullptr, SDL_Surface_deleter_func){}
+		picture(nullptr, SDL_Surface_deleter_func),
+		current_source(current_source),
+		skip_loading(0){}
 	unsigned finish(SUI &);
 	surface_t get_picture(){
 		return this->picture;
+	}
+	const std::wstring &get_source() const {
+		return this->source;
+	}
+	bool get_skip_loading() const{
+		return this->skip_loading;
 	}
 };
 
@@ -140,6 +155,10 @@ public:
 		QUIT = 1,
 		REDRAW = 2,
 	};
+	//If the currently loaded picture came from a file, this string contains
+	//the path. If no picture is currently loaded, or if the one that is loaded
+	//came from somewhere other than a file, this string is empty.
+	std::wstring tex_picture_source;
 private:
 	AudioPlayer player;
 	finished_jobs_queue_t finished_jobs_queue;
