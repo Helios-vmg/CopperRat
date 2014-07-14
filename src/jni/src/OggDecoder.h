@@ -50,7 +50,7 @@ class OggDecoder: public Decoder{
 public:
 	OggDecoder(AudioStream &parent, const std::wstring &path);
 	~OggDecoder();
-	AudioFormat get_audio_format(){
+	AudioFormat get_audio_format() const{
 		return AudioFormat(true, 2, this->channels, this->frequency);
 	}
 	bool seek(audio_position_t);

@@ -59,7 +59,7 @@ public:
 		length(invalid_sample_count),
 		seconds_length(-1){}
 	virtual ~Decoder(){}
-	virtual AudioFormat get_audio_format() = 0;
+	virtual AudioFormat get_audio_format() const = 0;
 	virtual bool lazy_filter_allocation(){
 		return 0;
 	}

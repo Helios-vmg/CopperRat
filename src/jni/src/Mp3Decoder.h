@@ -70,7 +70,7 @@ class Mp3Decoder : public Decoder{
 public:
 	Mp3Decoder(AudioStream &parent, const std::wstring &path);
 	~Mp3Decoder();
-	AudioFormat get_audio_format(){
+	AudioFormat get_audio_format() const{
 		return this->format;
 	}
 	bool seek(audio_position_t);

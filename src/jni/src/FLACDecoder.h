@@ -75,7 +75,7 @@ public:
 	~FlacDecoder(){
 		this->free_buffers();
 	}
-	AudioFormat get_audio_format(){
+	AudioFormat get_audio_format() const{
 		return this->declared_af;
 	}
 	bool seek(audio_position_t);

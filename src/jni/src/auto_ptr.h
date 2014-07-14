@@ -56,6 +56,9 @@ public:
 	T *operator->(){
 		return this->p;
 	}
+	const T *operator->() const{
+		return this->p;
+	}
 	operator bool() const{
 		return this->p != nullptr;
 	}
@@ -81,6 +84,9 @@ public:
 		return *this->p;
 	}
 	T *operator->(){
+		return this->p;
+	}
+	const T *operator->() const{
 		return this->p;
 	}
 	operator bool() const{
