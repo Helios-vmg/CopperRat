@@ -62,6 +62,9 @@ public:
 		return this->decoder->get_seconds_length();
 	}
 	void metadata_update(boost::shared_ptr<GenericMetadata>);
+	AudioFormat get_stream_format() const{
+		return this->decoder->get_audio_format();
+	}
 	AudioFormat get_preferred_format() const{
 		return this->dst_format;
 	}

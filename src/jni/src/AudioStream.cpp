@@ -52,7 +52,7 @@ audio_buffer_t AudioStream::read(){
 	if (!ret)
 		return ret;
 	ret.position = this->position;
-	this->position += ret.samples();
+	this->position += samples_read;
 #ifdef DUMP_OUTPUT
 	this->test_file.write((const char *)ret.raw_pointer(0), ret.byte_length());
 #endif

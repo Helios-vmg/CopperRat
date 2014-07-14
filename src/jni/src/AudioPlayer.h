@@ -58,6 +58,7 @@ public:
 		unsigned bytes_per_sample,
 		memory_sample_count_t &samples_written,
 		audio_position_t &last_position,
+		unsigned &sample_rate,
 		boost::shared_ptr<InternalQueueElement> pointer
 	) = 0;
 	virtual bool is_buffer() const = 0;
@@ -65,8 +66,9 @@ public:
 
 class BufferQueueElement : public InternalQueueElement{
 	audio_buffer_t buffer;
+	AudioFormat stream_format;
 public:
-	BufferQueueElement(audio_buffer_t buffer): buffer(buffer){}
+	BufferQueueElement(audio_buffer_t buffer, const AudioFormat &stream_format): buffer(buffer), stream_format(stream_format){}
 	audio_buffer_t get_buffer(){
 		return this->buffer;
 	}
@@ -77,6 +79,7 @@ public:
 		unsigned bytes_per_sample,
 		memory_sample_count_t &samples_written,
 		audio_position_t &last_position,
+		unsigned &sample_rate,
 		boost::shared_ptr<InternalQueueElement> pointer
 	);
 	bool is_buffer() const{
@@ -95,6 +98,7 @@ public:
 		unsigned bytes_per_sample,
 		memory_sample_count_t &samples_written,
 		audio_position_t &last_position,
+		unsigned &sample_rate,
 		boost::shared_ptr<InternalQueueElement> pointer
 	){
 		this->push(player, pointer);
@@ -172,7 +176,9 @@ class AudioPlayer{
 	Playlist playlist;
 	static void AudioCallback(void *udata, Uint8 *stream, int len);
 	static int _thread(void *);
-	Atomic<audio_position_t> last_position_seen;
+	Mutex position_mutex;
+	unsigned last_freq_seen;
+	audio_position_t last_position_seen;
 	double current_total_time;
 	bool jumped_this_loop;
 

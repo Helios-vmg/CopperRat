@@ -52,11 +52,13 @@ bool BufferQueueElement::AudioCallback_switch(
 	unsigned bytes_per_sample,
 	memory_sample_count_t &samples_written,
 	audio_position_t &last_position,
+	unsigned &sample_rate,
 	boost::shared_ptr<InternalQueueElement> pointer
 ){
 	const size_t bytes_written = samples_written * bytes_per_sample;
 	auto &buffer = this->buffer;
 	last_position = buffer.position;
+	sample_rate = this->stream_format.freq;
 	size_t ctb_res = buffer.copy_to_buffer<Sint16, 2>(stream + bytes_written, len - samples_written * bytes_per_sample);
 	samples_written += (memory_sample_count_t)(ctb_res / bytes_per_sample);
 	return !buffer.samples();
@@ -70,6 +72,7 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 	memory_sample_count_t samples_written = 0;
 	audio_position_t last_position;
 	bool perform_final_pops = 0;
+	unsigned last_sample_rate;
 	while ((unsigned)len > samples_written * bytes_per_sample){
 		const size_t bytes_written = samples_written * bytes_per_sample;
 		auto element = player->internal_queue.unlocked_try_peek();
@@ -84,13 +87,18 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 			bytes_per_sample,
 			samples_written,
 			last_position,
+			last_sample_rate,
 			*element
 		);
 		if (action)
 			player->internal_queue.unlocked_simple_pop();
 		perform_final_pops = action;
 	}
-	player->last_position_seen.set(last_position);
+	{
+		AutoMutex am(player->position_mutex);
+		player->last_freq_seen = last_sample_rate;
+		player->last_position_seen = last_position;
+	}
 	if (!perform_final_pops)
 		return;
 	while (1){
@@ -109,7 +117,8 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 
 AudioPlayer::AudioPlayer(): device(*this){
 	this->internal_queue.max_size = 100;
-	this->last_position_seen.set(0);
+	this->last_position_seen = 0;
+	this->last_freq_seen = 0;
 	this->state = PlayState::STOPPED;
 #ifndef PROFILING
 	this->sdl_thread = SDL_CreateThread(_thread, "AudioPlayerThread", this);
@@ -132,7 +141,7 @@ int AudioPlayer::_thread(void *p){
 	return 0;
 }
 
-//#define OUTPUT_TO_FILE
+#define OUTPUT_TO_FILE
 
 bool AudioPlayer::initialize_stream(){
 	if (this->now_playing || this->state == PlayState::STOPPED)
@@ -151,7 +160,11 @@ bool AudioPlayer::initialize_stream(){
 
 void AudioPlayer::on_stop(){
 	this->current_total_time = 0;
-	this->last_position_seen.set(0);
+	{
+		AutoMutex am(this->position_mutex);
+		this->last_position_seen = 0;
+		this->last_freq_seen = 0;
+	}
 	this->external_queue_out.push(eqe_t(new PlaybackStop));
 }
 
@@ -159,9 +172,9 @@ void AudioPlayer::thread(){
 #ifdef PROFILING
 	unsigned long long samples_decoded = 0;
 	Uint32 t0 = SDL_GetTicks();
+#endif
 #ifdef OUTPUT_TO_FILE
 	std::ofstream raw_file("output.raw", std::ios::binary);
-#endif
 #endif
 	this->jumped_this_loop = 0;
 	while (this->handle_requests()){
@@ -184,9 +197,11 @@ void AudioPlayer::thread(){
 			continue;
 		}
 		this->jumped_this_loop = 0;
+		std::cout <<"Outputting "<<buffer.samples()<<" samples.\n";
 #if !defined PROFILING
-		this->push_to_internal_queue(new BufferQueueElement(buffer));
-#elif defined OUTPUT_TO_FILE
+		this->push_to_internal_queue(new BufferQueueElement(buffer, this->now_playing->get_stream_format()));
+#endif
+#if defined OUTPUT_TO_FILE
 		raw_file.write((char *)buffer.raw_pointer(0), buffer.byte_length());
 #endif
 	}
@@ -363,11 +378,14 @@ bool AudioPlayer::execute_absolute_seek(double param, bool scaling){
 	AudioLocker al(*this);
 	audio_position_t pos = invalid_audio_position;
 	this->eliminate_buffers(&pos);
-	if (pos == invalid_audio_position)
-		pos = this->last_position_seen.get();
+	if (pos == invalid_audio_position){
+		AutoMutex am(this->position_mutex);
+		pos = this->last_position_seen;
+	}
 	audio_position_t new_pos;
 	this->now_playing->seek(this, new_pos, pos, param, scaling);
-	this->last_position_seen.set(new_pos);
+	AutoMutex am(this->position_mutex);
+	this->last_position_seen = new_pos;
 	return 1;
 }
 
@@ -377,11 +395,14 @@ bool AudioPlayer::execute_relative_seek(double seconds){
 	AudioLocker al(*this);
 	audio_position_t pos = invalid_audio_position;
 	this->eliminate_buffers(&pos);
-	if (pos == invalid_audio_position)
-		pos = this->last_position_seen.get();
+	if (pos == invalid_audio_position){
+		AutoMutex am(this->position_mutex);
+		pos = this->last_position_seen;
+	}
 	audio_position_t new_pos;
 	this->now_playing->seek(this, new_pos, pos, seconds);
-	this->last_position_seen.set(new_pos);
+	AutoMutex am(this->position_mutex);
+	this->last_position_seen = new_pos;
 	return 1;
 }
 
@@ -419,7 +440,10 @@ bool AudioPlayer::execute_metadata_update(boost::shared_ptr<GenericMetadata> met
 }
 
 double AudioPlayer::get_current_time(){
-	return this->last_position_seen.get() / 44100.0;
+	AutoMutex am(this->position_mutex);
+	if (!this->last_freq_seen)
+		return 0;
+	return (double)this->last_position_seen / (double)this->last_freq_seen;
 }
 
 void AudioPlayer::try_update_total_time(){

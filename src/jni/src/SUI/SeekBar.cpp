@@ -50,7 +50,7 @@ void SeekBar::update(){
 		SDL_GetRenderDrawColor(renderer.get(), &red, &green, &blue, &alpha);
 		SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0, 0, 0xFF);
 		auto rect = this->region;
-		rect.w *= !this->drag_started ? current_time / total_time : this->multiplier;
+		rect.w = int(rect.w * (!this->drag_started ? current_time / total_time : this->multiplier));
 		SDL_RenderFillRect(renderer.get(), &rect);
 		SDL_SetRenderDrawColor(renderer.get(), red, green, blue, alpha);
 	}
