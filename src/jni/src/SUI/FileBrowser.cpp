@@ -39,7 +39,7 @@ FileBrowser::FileBrowser(SUI *sui, GUIElement *parent, bool select_file): GUIEle
 	{
 		std::vector<DirectoryElement> temp;
 		DirectoryElement de = {
-			L"/Users/Victor/Desktop/Music/",
+			L"/",
 			1,
 		};
 		temp.push_back(de);

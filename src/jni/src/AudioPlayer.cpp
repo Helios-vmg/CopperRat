@@ -141,7 +141,7 @@ int AudioPlayer::_thread(void *p){
 	return 0;
 }
 
-#define OUTPUT_TO_FILE
+//#define OUTPUT_TO_FILE
 
 bool AudioPlayer::initialize_stream(){
 	if (this->now_playing || this->state == PlayState::STOPPED)
@@ -197,7 +197,7 @@ void AudioPlayer::thread(){
 			continue;
 		}
 		this->jumped_this_loop = 0;
-		std::cout <<"Outputting "<<buffer.samples()<<" samples.\n";
+		//std::cout <<"Outputting "<<buffer.samples()<<" samples.\n";
 #if !defined PROFILING
 		this->push_to_internal_queue(new BufferQueueElement(buffer, this->now_playing->get_stream_format()));
 #endif
