@@ -89,9 +89,12 @@ struct UpsamplingFilterCond{
 		return !!this->samples_unwritten;
 	}
 	dst_sample_t get_dst(){
+		auto pos = this->samples_unwritten;
+		if (PowerVersion)
+			pos--;
 		if (Channels)
-			return (dst_sample_t)buffer.get_sample<NumberT, Channels>(this->samples_unwritten - 1);
-		return (dst_sample_t)buffer.get_sample_use_channels<NumberT>(this->samples_unwritten);
+			return (dst_sample_t)buffer.get_sample<NumberT, Channels>(pos);
+		return (dst_sample_t)buffer.get_sample_use_channels<NumberT>(pos);
 	}
 	src_sample_t get_src(){
 		memory_audio_position_t src_sample_pos;

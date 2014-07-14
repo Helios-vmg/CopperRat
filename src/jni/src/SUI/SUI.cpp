@@ -364,7 +364,7 @@ void PictureDecodingJob::load_picture_from_filesystem(){
 			}
 		}
 	}
-	this->skip_loading = 1;
+	this->skip_loading = !!this->current_source.size();
 }
 
 unsigned PictureDecodingJob::finish(SUI &sui){
