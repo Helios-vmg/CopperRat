@@ -159,6 +159,7 @@ bool AudioPlayer::initialize_stream(){
 }
 
 void AudioPlayer::on_stop(){
+	this->state = PlayState::STOPPED;
 	this->current_total_time = 0;
 	{
 		AutoMutex am(this->position_mutex);
