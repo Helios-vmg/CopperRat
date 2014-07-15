@@ -81,6 +81,22 @@ public:
 	}
 };
 
+class MultiplicationFilter : public AudioFilter{
+	double factor;
+	Uint16 multiplier,
+		divider;
+public:
+	MultiplicationFilter(const AudioFormat &format, double scaling_factor);
+	~MultiplicationFilter(){}
+	static MultiplicationFilter *create(const AudioFormat &format, double scaling_factor){
+		return new MultiplicationFilter(format, scaling_factor);
+	}
+	void read(audio_buffer_t *buffers, size_t size);
+	size_t calculate_required_byte_size(size_t bytes){
+		return bytes;
+	}
+};
+
 class ResamplingFilter : public AudioFilter{
 public:
 	ResamplingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): AudioFilter(src_format, dst_format){}

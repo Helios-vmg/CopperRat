@@ -52,6 +52,11 @@ void AudioFilterManager::allocate_filters(){
 	temp.channels = dst_format.channels;
 	if (src_format.channels != temp.channels)
 		this->filters.push_back(ChannelMixingFilter::create(src_format, temp));
+	/*
+	{
+		this->filters.push_back(MultiplicationFilter::create(src_format, 1.0/M_PI));
+	}
+	*/
 	temp.freq = dst_format.freq;
 	if (src_format.freq != temp.freq)
 		this->filters.push_back(ResamplingFilter::create(src_format, temp));

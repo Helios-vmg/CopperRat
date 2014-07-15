@@ -36,6 +36,7 @@ LOCAL_SRC_FILES += $(LOCAL_PATH)/FLACDecoder.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Image.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/main.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Metadata.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/MultiplicationFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Mp3Decoder.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/OggDecoder.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Playlist.cpp
