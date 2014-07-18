@@ -33,11 +33,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #endif
 
-AudioStream::AudioStream(AudioPlayer &parent, const std::wstring &path, unsigned frequency, unsigned channels): parent(parent), dst_format(true, 2, channels, frequency){
+AudioStream::AudioStream(AudioPlayer &parent, const std::wstring &path, unsigned frequency, unsigned channels):
+		parent(parent),
+		dst_format(true, 2, channels, frequency),
+		multiplier(1){
 	this->decoder.reset(Decoder::create(*this, path));
 	if (!this->decoder)
 		return;
-	filter.reset(new AudioFilterManager(*this->decoder, dst_format));
+	filter.reset(new AudioFilterManager(*this->decoder, dst_format, this->multiplier));
 #ifdef DUMP_OUTPUT
 	std::string s = filename;
 	s.append(".raw");
@@ -96,6 +99,13 @@ void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audi
 
 void AudioStream::metadata_update(boost::shared_ptr<GenericMetadata> p){
 	this->parent.execute_metadata_update(p);
+	double multiplier = replaygain_get_multiplier(*p, ReplayGainSettings());
+		this->multiplier = multiplier;
+	if (multiplier != 1.0){
+		__android_log_print(ANDROID_LOG_INFO, "C++ReplayGain", "ReplayGain applied: %f\n", multiplier);
+		if (!!this->filter)
+			this->filter->add_multiplication_filter(multiplier);
+	}
 }
 
 bool AudioStream::reset(){

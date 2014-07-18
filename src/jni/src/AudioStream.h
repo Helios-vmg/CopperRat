@@ -52,6 +52,7 @@ class AudioStream{
 	std::ofstream test_file;
 #endif
 	AudioFormat dst_format;
+	double multiplier;
 public:
 	AudioStream(AudioPlayer &parent, const std::wstring &path, unsigned frequency, unsigned channels);
 	audio_buffer_t read();

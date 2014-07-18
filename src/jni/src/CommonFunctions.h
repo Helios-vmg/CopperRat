@@ -301,10 +301,28 @@ std::wstring to_wstring(const std::basic_string<T> &s){
 }
 
 template <typename T>
+void tolower_inplace(std::basic_string<T> &s){
+	for (auto &c : s)
+		c = ::tolower(c);
+}
+
+template <typename T>
 std::basic_string<T> tolower(const std::basic_string<T> &s){
 	auto ret = s;
-	for (auto &c : ret)
-		c = ::tolower(c);
+	tolower_inplace(ret);
+	return ret;
+}
+
+template <typename T>
+void toupper_inplace(std::basic_string<T> &s){
+	for (auto &c : s)
+		c = ::toupper(c);
+}
+
+template <typename T>
+std::basic_string<T> toupper(const std::basic_string<T> &s){
+	auto ret = s;
+	toupper_inplace(ret);
 	return ret;
 }
 

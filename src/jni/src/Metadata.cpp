@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cctype>
 #include <fstream>
 #include <sstream>
+#include <cmath>
 #endif
 
 std::wstring OggMetadata::ALBUM                  = L"ALBUM";
@@ -46,6 +47,23 @@ std::wstring OggMetadata::OPUS                   = L"OPUS";
 std::wstring OggMetadata::PART                   = L"PART";
 std::wstring OggMetadata::TITLE                  = L"TITLE";
 std::wstring OggMetadata::TRACKNUMBER            = L"TRACKNUMBER";
+static std::wstring REPLAYGAIN_TRACK_GAIN        = L"REPLAYGAIN_TRACK_GAIN";
+static std::wstring REPLAYGAIN_TRACK_PEAK        = L"REPLAYGAIN_TRACK_PEAK";
+static std::wstring REPLAYGAIN_ALBUM_GAIN        = L"REPLAYGAIN_ALBUM_GAIN";
+static std::wstring REPLAYGAIN_ALBUM_PEAK        = L"REPLAYGAIN_ALBUM_PEAK";
+static const std::wstring * const replaygain_strings[] = {
+	&REPLAYGAIN_TRACK_GAIN,
+	&REPLAYGAIN_TRACK_PEAK,
+	&REPLAYGAIN_ALBUM_GAIN,
+	&REPLAYGAIN_ALBUM_PEAK,
+};
+
+static bool is_replaygain_tag(const std::wstring &s){
+	for (auto p : replaygain_strings)
+		if (!strcmp_case(s, *p))
+			return 1;
+	return 0;
+}
 
 int GenericMetadata::track_number_int(){
 	std::wstringstream stream(this->track_number());
@@ -76,7 +94,7 @@ void OggMetadata::add_vorbis_comment(const void *buffer, size_t length){
 		//invalid comment
 		return;
 	auto field_name = comment.substr(0, equals);
-	std::transform(field_name.begin(), field_name.end(), field_name.begin(), toupper);
+	toupper_inplace(field_name);
 	equals++;
 	if (field_name == METADATA_BLOCK_PICTURE){
 		std::vector<unsigned char> decoded_buffer;
@@ -140,6 +158,30 @@ bool OggMetadata::picture(unsigned char *&buffer, size_t &length){
 	return 1;
 }
 
+template <typename T>
+bool find_in_map(const T &map, const std::wstring &what, double &dst){
+	auto it = map.find(what);
+	if (it == map.end())
+		return 0;
+	return !!(std::wstringstream(it->second) >>dst);
+}
+
+bool OggMetadata::track_gain(double &dst){
+	return find_in_map(this->map, REPLAYGAIN_TRACK_GAIN, dst);
+}
+
+bool OggMetadata::track_peak(double &dst){
+	return find_in_map(this->map, REPLAYGAIN_TRACK_PEAK, dst);
+}
+
+bool OggMetadata::album_gain(double &dst){
+	return find_in_map(this->map, REPLAYGAIN_ALBUM_GAIN, dst);
+}
+
+bool OggMetadata::album_peak(double &dst){
+	return find_in_map(this->map, REPLAYGAIN_ALBUM_PEAK, dst);
+}
+
 std::wstring OggMetadata::track_title(){
 	std::wstring ret;
 	auto i = this->map.find(TITLE);
@@ -178,6 +220,8 @@ void Mp3Metadata::add_mp3_extra(const void *_text){
 	std::wstring key, value;
 	utf8_to_string(key, (const unsigned char *)text->description.p, strnlen(text->description.p, text->description.size));
 	utf8_to_string(value, (const unsigned char *)text->text.p, strnlen(text->text.p, text->text.size));
+	if (is_replaygain_tag(key))
+		toupper_inplace(key);
 	this->texts[key] = value;
 }
 
@@ -192,4 +236,75 @@ bool Mp3Metadata::picture(unsigned char *&buffer, size_t &length){
 	buffer = &this->id3_picture[0];
 	length = this->id3_picture.size();
 	return 1;
+}
+
+bool Mp3Metadata::track_gain(double &dst){
+	return find_in_map(this->texts, REPLAYGAIN_TRACK_GAIN, dst);
+}
+
+bool Mp3Metadata::track_peak(double &dst){
+	return find_in_map(this->texts, REPLAYGAIN_TRACK_PEAK, dst);
+}
+
+bool Mp3Metadata::album_gain(double &dst){
+	return find_in_map(this->texts, REPLAYGAIN_ALBUM_GAIN, dst);
+}
+
+bool Mp3Metadata::album_peak(double &dst){
+	return find_in_map(this->texts, REPLAYGAIN_ALBUM_PEAK, dst);
+}
+
+inline double db_to_multiplier(double db){
+	return pow(10.0, db / 20.0);
+}
+
+double replaygain_get_multiplier(GenericMetadata &meta, const ReplayGainSettings &settings){
+	double gain,
+		peak;
+	int gain_present = -1,
+		peak_present = -1;
+	double values[2][2];
+	bool values_present[2][2];
+	typedef bool (GenericMetadata::*f_t)(double &);
+	static f_t functions[] = {
+		&GenericMetadata::album_gain,
+		&GenericMetadata::album_peak,
+		&GenericMetadata::track_gain,
+		&GenericMetadata::track_peak,
+	};
+	unsigned index = settings.prefer_album_gain ? 0 : 2;
+	{
+		int i = 0;
+		for (auto p : functions){
+			auto x = index / 2;
+			auto y = index % 2;
+			values_present[x][y] = (meta.*functions[i++])(values[x][y]);
+			index++;
+		}
+	}
+	
+	if (values_present[0][0]){
+		gain_present = 0;
+		gain = values[0][0];
+	}else if (values_present[1][0]){
+		gain_present = 1;
+		gain = values[1][0];
+	}
+
+	if (gain_present < 0)
+		return db_to_multiplier(settings.fallback_preamp_db);
+
+	if (values_present[gain_present][1]){
+		peak_present = gain_present;
+		peak = values[gain_present][1];
+	}
+
+	if (settings.apply_preamp)
+		gain += settings.preamp_db;
+
+	double ret = db_to_multiplier(gain);
+	if (settings.apply_peak && peak_present >= 0)
+		ret = std::min(ret, 1.0 / peak);
+
+	return ret;
 }

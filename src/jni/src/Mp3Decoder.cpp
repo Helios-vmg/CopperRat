@@ -185,7 +185,7 @@ void Mp3Decoder::check_for_metadata(){
 	for (size_t i = 0; i < p->texts; i++)
 		meta->add_mp3_text(p->text + i);
 	for (size_t i = 0; i < p->extras; i++)
-		meta->add_mp3_text(p->extra + i);
+		meta->add_mp3_extra(p->extra + i);
 	for (size_t i = 0; i < p->pictures; i++){
 		if (p->picture[i].type != mpg123_id3_pic_front_cover)
 			continue;

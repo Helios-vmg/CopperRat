@@ -37,6 +37,9 @@ public:
 	virtual ~AudioFilter(){}
 	virtual void read(audio_buffer_t *buffers, size_t size) = 0;
 	virtual size_t calculate_required_byte_size(size_t) = 0;
+	const AudioFormat &get_src_format() const{
+		return this->src_format;
+	}
 };
 
 #define INTEGER_TYPE_LIST \

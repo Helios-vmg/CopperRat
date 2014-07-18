@@ -41,7 +41,7 @@ int main(int argc, char **argv){
 			SUI sui;
 			sui.loop();
 		}
-		__android_log_print(ANDROID_LOG_INFO, "C++main", "%s", "Terminating normally.");
+		__android_log_print(ANDROID_LOG_INFO, "C++main", "%s", "Terminating normally.\n");
 	}catch (const std::exception &e){
 		e; //Shut MSVC up about unreferenced local variables.
 		__android_log_print(ANDROID_LOG_DEBUG, "C++Exception", "%s", e.what());

@@ -47,6 +47,10 @@ public:
 	virtual std::wstring track_number() = 0;
 	virtual std::wstring track_artist() = 0;
 	virtual std::wstring date() = 0;
+	virtual bool track_gain(double &) = 0;
+	virtual bool track_peak(double &) = 0;
+	virtual bool album_gain(double &) = 0;
+	virtual bool album_peak(double &) = 0;
 	std::wstring track_id();
 	virtual bool picture(unsigned char *&buffer, size_t &length) = 0;
 	const std::wstring &get_path() const{
@@ -98,6 +102,10 @@ public:
 		return this->get_string_or_nothing(DATE);
 	}
 	bool picture(unsigned char *&buffer, size_t &length);
+	bool track_gain(double &);
+	bool track_peak(double &);
+	bool album_gain(double &);
+	bool album_peak(double &);
 };
 
 class Mp3Metadata : public GenericMetadata{
@@ -133,6 +141,26 @@ public:
 		return this->id3_year;
 	}
 	bool picture(unsigned char *&buffer, size_t &length);
+	bool track_gain(double &);
+	bool track_peak(double &);
+	bool album_gain(double &);
+	bool album_peak(double &);
 };
+
+struct ReplayGainSettings{
+	bool prefer_album_gain;
+	double preamp_db;
+	bool apply_preamp;
+	bool apply_peak;
+	double fallback_preamp_db;
+	ReplayGainSettings():
+		prefer_album_gain(1),
+		preamp_db(0),
+		apply_preamp(0),
+		apply_peak(1),
+		fallback_preamp_db(-6){}
+};
+
+double replaygain_get_multiplier(GenericMetadata &, const ReplayGainSettings &);
 
 #endif
