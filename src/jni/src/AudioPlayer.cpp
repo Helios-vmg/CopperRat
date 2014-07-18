@@ -115,7 +115,7 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 	}
 }
 
-AudioPlayer::AudioPlayer(): device(*this){
+AudioPlayer::AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp): device(*this, rtpcp){
 	this->internal_queue.max_size = 100;
 	this->last_position_seen = 0;
 	this->last_freq_seen = 0;
@@ -125,12 +125,10 @@ AudioPlayer::AudioPlayer(): device(*this){
 #else
 	this->thread();
 #endif
-	this->device.start_audio();
 }
 
 AudioPlayer::~AudioPlayer(){
 #ifndef PROFILING
-	this->device.close();
 	this->request_exit();
 	SDL_WaitThread(this->sdl_thread, 0);
 #endif
@@ -166,6 +164,7 @@ void AudioPlayer::on_stop(){
 		this->last_position_seen = 0;
 		this->last_freq_seen = 0;
 	}
+	this->device.close();
 	this->external_queue_out.push(eqe_t(new PlaybackStop));
 }
 
@@ -298,7 +297,7 @@ void AudioPlayer::eliminate_buffers(audio_position_t *pos){
 }
 
 bool AudioPlayer::execute_hardplay(){
-	SDL_PauseAudio(0);
+	this->device.start_audio();
 	switch (this->state){
 		case PlayState::STOPPED:
 		case PlayState::PAUSED:
@@ -316,11 +315,11 @@ bool AudioPlayer::execute_playpause(){
 	switch (this->state){
 		case PlayState::STOPPED:
 		case PlayState::PAUSED:
-			SDL_PauseAudio(0);
+			this->device.start_audio();
 			this->state = PlayState::PLAYING;
 			break;
 		case PlayState::PLAYING:
-			SDL_PauseAudio(1);
+			this->device.pause_audio();
 			this->state = PlayState::PAUSED;
 			break;
 	}
@@ -331,7 +330,7 @@ bool AudioPlayer::execute_play(){
 	switch (this->state){
 		case PlayState::STOPPED:
 		case PlayState::PAUSED:
-			SDL_PauseAudio(0);
+			this->device.start_audio();
 			this->state = PlayState::PLAYING;
 			break;
 		case PlayState::PLAYING:
@@ -345,11 +344,11 @@ bool AudioPlayer::execute_pause(){
 		case PlayState::STOPPED:
 			break;
 		case PlayState::PLAYING:
-			SDL_PauseAudio(1);
+			this->device.pause_audio();
 			this->state = PlayState::PAUSED;
 			break;
 		case PlayState::PAUSED:
-			SDL_PauseAudio(0);
+			this->device.start_audio();
 			this->state = PlayState::PLAYING;
 			break;
 	}
@@ -362,7 +361,7 @@ bool AudioPlayer::execute_stop(){
 			break;
 		case PlayState::PLAYING:
 		case PlayState::PAUSED:
-			SDL_PauseAudio(1);
+			this->device.pause_audio();
 			this->eliminate_buffers();
 			this->now_playing.reset();
 			this->on_stop();
@@ -373,7 +372,7 @@ bool AudioPlayer::execute_stop(){
 }
 
 bool AudioPlayer::execute_absolute_seek(double param, bool scaling){
-	//TODO: Find some way to mergethis code with AudioPlayer::execute_relative_seek().
+	//TODO: Find some way to merge this code with AudioPlayer::execute_relative_seek().
 	if (!this->now_playing || this->jumped_this_loop)
 		return 1;
 	AudioLocker al(*this);

@@ -33,31 +33,54 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <SDL.h>
 #endif
 
-AudioDevice::AudioDevice(AudioPlayer &player){
-#ifndef PROFILING
-	SDL_AudioSpec specs;
-	specs.freq = 44100;
-	specs.format = AUDIO_S16SYS;
-	specs.channels = 2;
-	specs.samples = 1024*4;
-	specs.callback = AudioPlayer::AudioCallback;
-	specs.userdata = &player;
-	if (SDL_OpenAudio(&specs, 0) < 0)
-		throw DeviceInitializationException("Could not initialize audio device.");
-	this->audio_is_open = 1;
-#endif
+AudioDevice::AudioDevice(AudioPlayer &player, RemoteThreadProcedureCallPerformer &rtpcp):
+		player(player),
+		rtpcp(rtpcp),
+		audio_is_open(0){
 }
 
 AudioDevice::~AudioDevice(){
-	this->close();
+	this->close_in_main();
+}
+
+void AudioDevice::open_in_remote(){
+#ifndef PROFILING
+		SDL_AudioSpec specs;
+		specs.freq = 44100;
+		specs.format = AUDIO_S16SYS;
+		specs.channels = 2;
+		specs.samples = 1024*4;
+		specs.callback = AudioPlayer::AudioCallback;
+		specs.userdata = &this->player;
+		if (SDL_OpenAudio(&specs, 0) < 0){
+			throw DeviceInitializationException(std::string("Could not initialize audio device: ") + SDL_GetError());
+		}
+#endif
+}
+
+void AudioDevice::close_in_main(){
+	if (this->audio_is_open){
+		SDL_CloseAudio();
+		this->audio_is_open = 0;
+	}
+}
+
+void AudioDevice::open(){
+	if (!this->audio_is_open){
+		InitializeAudioDevice(this, this->rtpcp)();
+		this->audio_is_open = 1;
+	}
 }
 
 void AudioDevice::close(){
 	if (this->audio_is_open)
-		SDL_CloseAudio();
+		CloseAudioDevice(this, this->rtpcp)();
 }
 
+#undef SDL_PauseAudio
+
 void AudioDevice::start_audio(){
+	this->open();
 	SDL_PauseAudio(0);
 }
 

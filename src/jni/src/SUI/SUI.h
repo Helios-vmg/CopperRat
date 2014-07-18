@@ -120,6 +120,7 @@ public:
 	virtual unsigned receive(TotalTimeUpdate &);
 	virtual unsigned receive(MetaDataUpdate &);
 	virtual unsigned receive(PlaybackStop &);
+	virtual unsigned receive(RTPCQueueElement &);
 	virtual void gui_signal(const GuiSignal &){}
 };
 
@@ -147,7 +148,19 @@ public:
 	virtual void perform() = 0;
 };
 
-class SUI : public GUIElement{
+class RTPCQueueElement : public ExternalQueueElement{
+	RemoteThreadProcedureCall *rtpc;
+public:
+	RTPCQueueElement(RemoteThreadProcedureCall *rtpc): rtpc(rtpc){}
+	RemoteThreadProcedureCall *get_rtpc(){
+		return this->rtpc;
+	}
+	unsigned receive(UserInterface &ui){
+		return ui.receive(*this);
+	}
+};
+
+class SUI : public GUIElement, public RemoteThreadProcedureCallPerformer{
 	friend class SUIControlCoroutine;
 public:
 	enum InputStatus{
@@ -195,6 +208,7 @@ public:
 	unsigned receive(TotalTimeUpdate &);
 	unsigned receive(MetaDataUpdate &);
 	unsigned receive(PlaybackStop &x);
+	unsigned receive(RTPCQueueElement &);
 	unsigned finish(PictureDecodingJob &);
 	void draw_picture();
 	AudioPlayer &get_player(){
@@ -226,6 +240,7 @@ public:
 	void gui_signal(const GuiSignal &);
 	void request_update();
 	void start_picture_load(boost::shared_ptr<PictureDecodingJob>);
+	void perform(RemoteThreadProcedureCall *);
 };
 
 #endif

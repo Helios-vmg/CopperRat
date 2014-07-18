@@ -326,4 +326,33 @@ public:
 	}
 };
 
+class RemoteThreadProcedureCall;
+
+class RemoteThreadProcedureCallPerformer{
+protected:
+	void perform_internal(RemoteThreadProcedureCall *);
+public:
+	virtual ~RemoteThreadProcedureCallPerformer(){}
+	virtual void perform(RemoteThreadProcedureCall *) = 0;
+};
+
+class RemoteThreadProcedureCall{
+	friend class RemoteThreadProcedureCallPerformer;
+	RemoteThreadProcedureCallPerformer &rtpcp;
+	SynchronousEvent call_finished;
+
+	void entry_point(){
+		this->entry_point_internal();
+		this->call_finished.set();
+	}
+	virtual void entry_point_internal() = 0;
+public:
+	RemoteThreadProcedureCall(RemoteThreadProcedureCallPerformer &rtpcp): rtpcp(rtpcp){}
+	virtual ~RemoteThreadProcedureCall(){}
+	void operator()(){
+		this->rtpcp.perform(this);
+		this->call_finished.wait();
+	}
+};
+
 #endif

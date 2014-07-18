@@ -30,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define AUDIODEVICE_H
 
 #include "Exception.h"
+#include "Threads.h"
 
 class AudioPlayer;
 
@@ -39,12 +40,39 @@ public:
 };
 
 class AudioDevice{
+	friend class InitializeAudioDevice;
+	AudioPlayer &player;
+	RemoteThreadProcedureCallPerformer &rtpcp;
 	bool audio_is_open;
+
+	void open_in_remote();
 public:
-	AudioDevice(AudioPlayer &);
+	AudioDevice(AudioPlayer &, RemoteThreadProcedureCallPerformer &);
 	~AudioDevice();
+	void open();
 	void close();
+	void close_in_main();
 	void start_audio();
 	void pause_audio();
 };
+
+class InitializeAudioDevice : public RemoteThreadProcedureCall{
+	AudioDevice *device;
+	void entry_point_internal(){
+		this->device->open_in_remote();
+	}
+public:
+	InitializeAudioDevice(AudioDevice *device, RemoteThreadProcedureCallPerformer &rtpcp): RemoteThreadProcedureCall(rtpcp), device(device){}
+};
+
+class CloseAudioDevice : public RemoteThreadProcedureCall{
+	AudioDevice *device;
+	void entry_point_internal(){
+		this->device->close_in_main();
+	}
+public:
+	CloseAudioDevice(AudioDevice *device, RemoteThreadProcedureCallPerformer &rtpcp): RemoteThreadProcedureCall(rtpcp), device(device){}
+};
+
+#define SDL_PauseAudio(_)
 #endif

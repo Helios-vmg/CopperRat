@@ -144,3 +144,7 @@ boost::shared_ptr<WorkerThreadJobHandle> WorkerThread::attach(boost::shared_ptr<
 	this->queue.push(job);
 	return ret;
 }
+
+void RemoteThreadProcedureCallPerformer::perform_internal(RemoteThreadProcedureCall *rtpc){
+	rtpc->entry_point();
+}

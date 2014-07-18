@@ -188,6 +188,10 @@ unsigned GUIElement::receive(PlaybackStop &x){
 	return ret;
 }
 
+unsigned GUIElement::receive(RTPCQueueElement &x){
+	return SUI::NOTHING;
+}
+
 void GUIElement::update(){
 	for (auto &child : this->children)
 		child->update();
@@ -195,6 +199,7 @@ void GUIElement::update(){
 
 SUI::SUI():
 		GUIElement(this, nullptr),
+		player(*this),
 		window(nullptr, [](SDL_Window *w) { if (w) SDL_DestroyWindow(w); }),
 		renderer(nullptr, SDL_Renderer_deleter()),
 		current_total_time(-1),
@@ -406,6 +411,11 @@ unsigned SUI::receive(PlaybackStop &x){
 	return REDRAW;
 }
 
+unsigned SUI::receive(RTPCQueueElement &x){
+	this->perform_internal(x.get_rtpc());
+	return NOTHING;
+}
+
 unsigned SUI::handle_out_events(){
 	boost::shared_ptr<ExternalQueueElement> eqe;
 	unsigned ret = NOTHING;
@@ -505,6 +515,10 @@ void SUI::gui_signal(const GuiSignal &signal){
 
 void SUI::request_update(){
 	this->update_requested = 1;
+}
+
+void SUI::perform(RemoteThreadProcedureCall *rtpc){
+	this->player.external_queue_out.push(boost::shared_ptr<ExternalQueueElement>(new RTPCQueueElement(rtpc)));
 }
 
 #include "../AudioBuffer.h"

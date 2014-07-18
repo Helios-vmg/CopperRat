@@ -198,7 +198,7 @@ class AudioPlayer{
 	void on_stop();
 public:
 	external_queue_out_t external_queue_out;
-	AudioPlayer();
+	AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp);
 	~AudioPlayer();
 
 	//request_* functions run in the caller thread!
