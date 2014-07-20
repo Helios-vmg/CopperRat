@@ -66,6 +66,13 @@ unsigned ListView::handle_event(const SDL_Event &event){
 	unsigned ret = SUI::NOTHING;
 	bool relay = 1;
 	switch (event.type){
+		case SDL_KEYDOWN:
+			if (event.key.keysym.scancode == SDL_SCANCODE_AC_BACK || event.key.keysym.scancode == SDL_SCANCODE_BACKSPACE){
+				GuiSignal signal;
+				signal.type = SignalType::BACK_PRESSED;
+				this->parent->gui_signal(signal);
+			}
+			break;
 		case SDL_MOUSEBUTTONDOWN:
 			this->mousedown_y = event.button.y;
 			this->buttondown = 1;
@@ -161,4 +168,26 @@ update_restart:
 		SDL_RenderFillRect(renderer.get(), &rect);
 	}
 	SDL_SetRenderDrawColor(renderer.get(), red, green, blue, alpha);
+}
+
+bool ListView::get_input(unsigned &dst, ControlCoroutine &coroutine, boost::shared_ptr<ListView> self){
+	unsigned this_name = this->signal.data.listview_signal.listview_name;
+	while (1){
+		auto signal = coroutine.display(self);
+		switch (signal.type){
+			case SignalType::BACK_PRESSED:
+				return 0;
+			case SignalType::LISTVIEW_SIGNAL:
+				break;
+			default:
+				continue;
+		}
+		if (signal.data.listview_signal.listview_name != this_name)
+			continue;
+		signal = *signal.data.listview_signal.signal;
+		if (signal.type != SignalType::BUTTON_SIGNAL)
+			continue;
+		dst = signal.data.button_signal;
+		return 1;
+	}
 }

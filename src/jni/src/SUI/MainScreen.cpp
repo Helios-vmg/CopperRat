@@ -53,7 +53,13 @@ MainScreen::MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player):
 }
 
 unsigned MainScreen::handle_event(const SDL_Event &event){
-	return GUIElement::handle_event(event);
+	unsigned ret = SUI::NOTHING;
+	if (event.type == SDL_KEYDOWN && (event.key.keysym.scancode == SDL_SCANCODE_MENU || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)){
+		GuiSignal signal;
+		signal.type = SignalType::MAINSCREEN_MENU;
+		this->parent->gui_signal(signal);
+	}
+	return ret | GUIElement::handle_event(event);
 }
 
 void MainScreen::update(){

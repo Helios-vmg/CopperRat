@@ -64,13 +64,21 @@ public:
 	}
 	void insert(const std::vector<std::wstring> &, size_t position);
 	void toggle_shuffle();
+	bool get_shuffle() const{
+		return this->shuffle;
+	}
 	bool get_current_track(std::wstring &dst);
 	bool next();
 	bool back();
 	bool is_back_possible() const;
 	PlaybackMode cycle_mode();
+	PlaybackMode get_playback_mode() const{
+		return this->mode;
+	}
 	void load(bool file, const std::wstring &path);
 	void append(bool file, const std::wstring &path);
 };
+
+std::wstring to_string(Playlist::PlaybackMode);
 
 #endif

@@ -124,20 +124,30 @@ public:
 	virtual void gui_signal(const GuiSignal &){}
 };
 
-class SUI;
-
-class SUIControlCoroutine{
-	SUI *sui;
+class ControlCoroutine{
+protected:
 	typedef boost::coroutines::coroutine<GuiSignal> co_t;
 	co_t::push_type co;
 	co_t::pull_type *antico;
+	virtual void entry_point() = 0;
+public:
+	ControlCoroutine();
+	virtual ~ControlCoroutine(){}
+	virtual GuiSignal display(boost::shared_ptr<GUIElement>);
+};
 
-	GuiSignal display(boost::shared_ptr<GUIElement>);
+class SUI;
+
+class SUIControlCoroutine : public ControlCoroutine{
+	SUI *sui;
+
 	void entry_point();
 	void load_file_menu();
 	bool load_file(std::wstring &dst, bool only_directories);
+	void options_menu();
 public:
 	SUIControlCoroutine(SUI &sui);
+	GuiSignal display(boost::shared_ptr<GUIElement>);
 	void start();
 	void relay(const GuiSignal &);
 };

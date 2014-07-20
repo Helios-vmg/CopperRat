@@ -37,6 +37,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #endif
 
+class ControlCoroutine;
+
 class ListView : public GUIElement{
 	GuiSignal signal;
 	std::vector<boost::shared_ptr<TextButton> > items;
@@ -54,6 +56,7 @@ public:
 	unsigned handle_event(const SDL_Event &);
 	void update();
 	void gui_signal(const GuiSignal &);
+	bool get_input(unsigned &dst, ControlCoroutine &, boost::shared_ptr<ListView> self);
 };
 
 #endif

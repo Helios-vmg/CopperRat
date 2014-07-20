@@ -87,8 +87,7 @@ unsigned FileBrowser::handle_event(const SDL_Event &e){
 				handled = 1;
 				if (this->path.size() == 1){
 					GuiSignal signal;
-					signal.type = SignalType::FILE_BROWSER_DONE;
-					signal.data.file_browser_success = 0;
+					signal.type = SignalType::BACK_PRESSED;
 					this->parent->gui_signal(signal);
 					return ret;
 				}
@@ -153,4 +152,23 @@ void FileBrowser::gui_signal(const GuiSignal &_signal){
 
 void FileBrowser::update(){
 	this->listviews.back()->update();
+}
+
+bool FileBrowser::get_input(std::wstring &dst, ControlCoroutine &coroutine, boost::shared_ptr<FileBrowser> self){
+	while (1){
+		auto signal = coroutine.display(self);
+		switch (signal.type){
+			case SignalType::BACK_PRESSED:
+				return 0;
+			case SignalType::FILE_BROWSER_DONE:
+				break;
+			default:
+				continue;
+		}
+		if (!signal.data.file_browser_success)
+			return 0;
+		break;
+	}
+	dst = this->get_selection();
+	return 1;
 }

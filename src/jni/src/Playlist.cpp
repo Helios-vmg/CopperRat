@@ -35,6 +35,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <fstream>
 #endif
 
+std::wstring to_string(Playlist::PlaybackMode mode){
+	switch (mode){
+#define CHECK_MODE(x)               \
+	case Playlist::PlaybackMode::x: \
+		return L###x
+		CHECK_MODE(SINGLE);
+		CHECK_MODE(REPEAT_LIST);
+		CHECK_MODE(REPEAT_TRACK);
+		CHECK_MODE(COUNT);
+	}
+	assert(0);
+}
+
 void Playlist::clear(){
 	this->tracks.clear();
 	this->shuffle_vector.clear();
@@ -53,7 +66,8 @@ void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
 		for (size_t i = 0; i < n; i++)
 			this->shuffle_vector[previous_size + i] = (int)(i + p);
 		std::random_shuffle(this->shuffle_vector.begin() + previous_size, this->shuffle_vector.end());
-	}else if (this->current_track < 0)
+	}
+	if (this->current_track < 0)
 		this->current_track = 0;
 	else if (this->current_track >= p)
 		this->current_track += (int)n;
@@ -133,7 +147,7 @@ void Playlist::load(bool file, const std::wstring &path){
 	std::vector<std::wstring> list;
 	if (file){
 		auto ext = get_extension(path);
-		if (ext == L"pls"){
+		if (ext == L"pls" || ext == L"m3u"){
 			this->load_playlist(path);
 			return;
 		}
@@ -159,7 +173,9 @@ void Playlist::load_playlist(const std::wstring &path){
 	while (1){
 		std::string line;
 		std::getline(file, line);
-		if (!file || !line.size() || line[0] == '#')
+		if (!file || !line.size())
+			break;
+		if (line[0] == '#')
 			continue;
 		std::wstring wide = utf8_to_string(line);
 		if (path_is_rooted(wide))

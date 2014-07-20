@@ -70,10 +70,15 @@ public:
 	}
 };
 
-SUIControlCoroutine::SUIControlCoroutine(SUI &sui):
-		sui(&sui),
-		co([this](co_t::pull_type &pt){ this->antico = &pt; this->entry_point(); }){
+ControlCoroutine::ControlCoroutine():
+	co([this](co_t::pull_type &pt){ this->antico = &pt; this->entry_point(); }){}
+
+GuiSignal ControlCoroutine::display(boost::shared_ptr<GUIElement>){
+	(*this->antico)();
+	return this->antico->get();
 }
+
+SUIControlCoroutine::SUIControlCoroutine(SUI &sui): sui(&sui){}
 
 void SUIControlCoroutine::start(){
 	this->co(GuiSignal());
@@ -86,28 +91,12 @@ void SUIControlCoroutine::relay(const GuiSignal &s){
 GuiSignal SUIControlCoroutine::display(boost::shared_ptr<GUIElement> el){
 	this->sui->current_element = el;
 	this->sui->request_update();
-	(*this->antico)();
-	return this->antico->get();
+	return ControlCoroutine::display(el);
 }
 
 bool SUIControlCoroutine::load_file(std::wstring &dst, bool only_directories){
 	boost::shared_ptr<FileBrowser> browser(new FileBrowser(this->sui, this->sui, !only_directories));
-	while (1){
-		auto signal = this->display(browser);
-		switch (signal.type){
-			case SignalType::BACK_PRESSED:
-				return 0;
-			case SignalType::FILE_BROWSER_DONE:
-				break;
-			default:
-				continue;
-		}
-		if (!signal.data.file_browser_success)
-			return 0;
-		break;
-	}
-	dst = browser->get_selection();
-	return 1;
+	return browser->get_input(dst, *this, browser);
 }
 
 void SUIControlCoroutine::load_file_menu(){
@@ -119,28 +108,39 @@ void SUIControlCoroutine::load_file_menu(){
 	};
 	std::vector<std::wstring> strings(options, options + sizeof(options) / sizeof(*options));
 	boost::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
+	unsigned button;
+	if (!lv->get_input(button, *this, lv))
+		return;
+
+	bool load = button / 2 == 0;
+	bool file = button % 2 == 0;
+	std::wstring path;
+	if (!this->load_file(path, !file))
+		return;
+
+	this->sui->load(load, file, path);
+}
+
+void SUIControlCoroutine::options_menu(){
 	while (1){
-		auto signal = this->display(lv);
-		switch (signal.type){
-			case SignalType::BACK_PRESSED:
-				return;
-			case SignalType::LISTVIEW_SIGNAL:
-				break;
-			default:
-				continue;
-		}
-		if (signal.data.listview_signal.listview_name != 0)
-			continue;
-		signal = *signal.data.listview_signal.signal;
-		if (signal.type != SignalType::BUTTON_SIGNAL)
-			continue;
-		bool load = signal.data.button_signal / 2 == 0;
-		bool file = signal.data.button_signal % 2 == 0;
-		std::wstring path;
-		if (!this->load_file(path, !file))
+		auto &playlist = this->sui->get_player().get_playlist();
+		auto playback_mode = playlist.get_playback_mode();
+		bool shuffling = playlist.get_shuffle();
+		std::vector<std::wstring> strings;
+		strings.push_back(L"Playback mode: " + to_string(playback_mode));
+		strings.push_back(std::wstring(L"Shuffling: O") + (shuffling ? L"N" : L"FF"));
+		boost::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
+		unsigned button;
+		if (!lv->get_input(button, *this, lv))
 			return;
-		this->sui->load(load, file, path);
-		break;
+		switch (button){
+			case 0:
+				playlist.cycle_mode();
+				break;
+			case 1:
+				playlist.toggle_shuffle();
+				break;
+		}
 	}
 }
 
@@ -151,6 +151,9 @@ void SUIControlCoroutine::entry_point(){
 		switch (signal.type){
 			case SignalType::MAINSCREEN_LOAD:
 				this->load_file_menu();
+				continue;
+			case SignalType::MAINSCREEN_MENU:
+				this->options_menu();
 				continue;
 			default:
 				continue;

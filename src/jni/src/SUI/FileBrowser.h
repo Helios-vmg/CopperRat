@@ -51,4 +51,5 @@ public:
 	std::wstring get_selection() const{
 		return this->get_selection_internal(1);
 	}
+	bool get_input(std::wstring &dst, ControlCoroutine &coroutine, boost::shared_ptr<FileBrowser> self);
 };

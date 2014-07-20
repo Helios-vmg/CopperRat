@@ -230,6 +230,9 @@ public:
 		return 0;
 	}
 	bool execute_metadata_update(boost::shared_ptr<GenericMetadata>);
+	Playlist &get_playlist(){
+		return this->playlist;
+	}
 };
 
 class AsyncCommandHardPlay : public AudioPlayerAsyncCommand{
