@@ -189,6 +189,7 @@ class AudioPlayer{
 	Mutex position_mutex;
 	unsigned last_freq_seen;
 	audio_position_t last_position_seen;
+	double overriding_current_time;
 	double current_total_time;
 	bool jumped_this_loop;
 	unsigned time_of_last_pause;
@@ -200,6 +201,7 @@ class AudioPlayer{
 		boost::shared_ptr<AudioPlayerAsyncCommand> sp(p);
 		this->external_queue_in.push(sp);
 	}
+	void push_maybe_to_internal_queue(ExternalQueueElement *p);
 	void push_to_internal_queue(InternalQueueElement *p){
 		boost::shared_ptr<InternalQueueElement> sp(p);
 		this->internal_queue.push(sp);

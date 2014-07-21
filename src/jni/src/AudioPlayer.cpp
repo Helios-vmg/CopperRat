@@ -116,7 +116,9 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 	}
 }
 
-AudioPlayer::AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp): device(*this, rtpcp){
+AudioPlayer::AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp):
+		device(*this, rtpcp),
+		overriding_current_time(-1){
 	this->jumped_this_loop = 0;
 	this->internal_queue.max_size = 100;
 	this->last_position_seen = 0;
@@ -126,7 +128,9 @@ AudioPlayer::AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp): device(*thi
 	if (time >= 0){
 		this->state = PlayState::PAUSED;
 		this->initialize_stream();
-		this->execute_absolute_seek(std::max(time - 5, 0.0), 0);
+		time = std::max(time - 5, 0.0);
+		this->execute_absolute_seek(time, 0);
+		this->overriding_current_time = time;
 	}
 #ifndef PROFILING
 	this->sdl_thread = SDL_CreateThread(_thread, "AudioPlayerThread", this);
@@ -177,6 +181,18 @@ bool AudioPlayer::initialize_stream(){
 	this->current_total_time = -1;
 	this->try_update_total_time();
 	return 1;
+}
+
+void AudioPlayer::push_maybe_to_internal_queue(ExternalQueueElement *p){
+	boost::shared_ptr<ExternalQueueElement> sp(p);
+	{
+		AutoLocker<internal_queue_t> al(this->internal_queue);
+		if (this->internal_queue.unlocked_is_empty()){
+			this->external_queue_out.push(sp);
+			return;
+		}
+	}
+	this->internal_queue.push(sp);
 }
 
 void AudioPlayer::on_stop(){
@@ -475,14 +491,17 @@ bool AudioPlayer::execute_load(bool load, bool file, const std::wstring &path){
 }
 
 bool AudioPlayer::execute_metadata_update(boost::shared_ptr<GenericMetadata> metadata){
-	this->push_to_internal_queue(new MetaDataUpdate(metadata));
+	this->push_maybe_to_internal_queue(new MetaDataUpdate(metadata));
 	return 1;
 }
 
 double AudioPlayer::get_current_time(){
 	AutoMutex am(this->position_mutex);
-	if (!this->last_freq_seen)
+	if (!this->last_freq_seen){
+		if (this->overriding_current_time >= 0)
+			return this->overriding_current_time;
 		return 0;
+	}
 	return (double)this->last_position_seen / (double)this->last_freq_seen;
 }
 
@@ -492,5 +511,5 @@ void AudioPlayer::try_update_total_time(){
 	this->current_total_time = this->now_playing->get_total_time();
 	if (this->current_total_time < 0)
 		return;
-	this->push_to_internal_queue(new TotalTimeUpdate(this->current_total_time));
+	this->push_maybe_to_internal_queue(new TotalTimeUpdate(this->current_total_time));
 }
