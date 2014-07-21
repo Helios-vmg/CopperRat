@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "File.h"
 #include "Decoder.h"
 #include "CommonFunctions.h"
+#include "Settings.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <fstream>
 #endif
@@ -48,10 +49,27 @@ std::wstring to_string(Playlist::PlaybackMode mode){
 	return L"";
 }
 
+Playlist::Playlist(): current_track(-1){
+	this->mode = application_settings.get_playback_mode();
+	this->shuffle = application_settings.get_shuffle();
+	application_settings.get_playlist_items(this->tracks);
+	application_settings.get_shuffle_items(this->shuffle_vector);
+	this->current_track = application_settings.get_current_track();
+}
+
 void Playlist::clear(){
 	this->tracks.clear();
 	this->shuffle_vector.clear();
 	this->current_track = -1;
+}
+
+void Playlist::save_state(){
+	application_settings.set_playback_mode(this->mode);
+	application_settings.set_shuffle(this->shuffle);
+	application_settings.set_current_track(this->current_track);
+	application_settings.set_playlist_items(this->tracks);
+	application_settings.set_shuffle_items(this->shuffle_vector);
+	application_settings.commit();
 }
 
 void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
@@ -72,6 +90,7 @@ void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
 	else if (this->current_track >= p)
 		this->current_track += (int)n;
 	this->tracks.insert(this->tracks.begin() + p, v.begin(), v.end());
+	this->save_state();
 }
 
 bool Playlist::toggle_shuffle(){
@@ -117,6 +136,7 @@ bool Playlist::next(){
 		case PlaybackMode::REPEAT_TRACK:
 			break;
 	}
+	application_settings.set_current_track(this->current_track);
 	return 1;
 }
 

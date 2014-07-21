@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include "AudioPlayer.h"
 #include "CommonFunctions.h"
+#include "Settings.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <fstream>
 #ifdef PROFILING
@@ -116,10 +117,17 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 }
 
 AudioPlayer::AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp): device(*this, rtpcp){
+	this->jumped_this_loop = 0;
 	this->internal_queue.max_size = 100;
 	this->last_position_seen = 0;
 	this->last_freq_seen = 0;
 	this->state = PlayState::STOPPED;
+	double time = application_settings.get_current_time();
+	if (time >= 0){
+		this->state = PlayState::PAUSED;
+		this->initialize_stream();
+		this->execute_absolute_seek(std::max(time - 5, 0.0), 0);
+	}
 #ifndef PROFILING
 	this->sdl_thread = SDL_CreateThread(_thread, "AudioPlayerThread", this);
 #else
@@ -146,6 +154,7 @@ AudioPlayer::~AudioPlayer(){
 #ifndef PROFILING
 	SDL_WaitThread(this->sdl_thread, 0);
 #endif
+	application_settings.set_current_time(this->state == PlayState::STOPPED ? -1 : this->get_current_time());
 }
 
 int AudioPlayer::_thread(void *p){
@@ -178,12 +187,14 @@ void AudioPlayer::on_stop(){
 		this->last_position_seen = 0;
 		this->last_freq_seen = 0;
 	}
+	application_settings.set_current_time(-1);
 	this->device.close();
 	this->external_queue_out.push(eqe_t(new PlaybackStop));
 }
 
 void AudioPlayer::on_pause(){
 	this->time_of_last_pause = SDL_GetTicks();
+	application_settings.set_current_time(this->get_current_time());
 }
 
 void AudioPlayer::thread(){
@@ -194,7 +205,6 @@ void AudioPlayer::thread(){
 #ifdef OUTPUT_TO_FILE
 	std::ofstream raw_file("output.raw", std::ios::binary);
 #endif
-	this->jumped_this_loop = 0;
 	while (this->handle_requests()){
 		if (this->state == PlayState::PAUSED && this->device.is_open()){
 			unsigned now = SDL_GetTicks();
@@ -245,7 +255,7 @@ void AudioPlayer::thread(){
 	}
 #endif
 
-	this->device.pause_audio();
+	this->device.close();
 	this->external_queue_out.push(eqe_t(new ExitAcknowledged));
 }
 

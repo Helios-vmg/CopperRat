@@ -55,8 +55,9 @@ private:
 		return this->current_track < 0 || (size_t)this->current_track >= this->tracks.size();
 	}
 	void load_playlist(const std::wstring &path);
+	void save_state();
 public:
-	Playlist(): current_track(-1), mode(PlaybackMode::REPEAT_LIST), shuffle(0){}
+	Playlist();
 	void clear();
 	void set(const std::vector<std::wstring> &v){
 		this->clear();

@@ -30,6 +30,17 @@ Settings::Settings(){
 			this->shuffle = el->BoolValue();
 		else if (!strcmp(name, "last_browse_directory"))
 			this->last_browse_directory = utf8_to_string(el->Value());
+		else if (!strcmp(name, "current_track"))
+			this->current_track = el->IntValue();
+		else if (!strcmp(name, "current_time"))
+			this->current_time = el->DoubleValue();
+	}
+	for (auto *el = settings->FirstChildElement(); el; el = el->NextSiblingElement()){
+		auto name = el->Name();
+		if (!strcmp(name, "playlist_item"))
+			this->playlist_items.push_back(utf8_to_string(el->Attribute("value")));
+		else if (!strcmp(name, "shuffle_item"))
+			this->shuffle_items.push_back(el->IntAttribute("value"));
 	}
 }
 
@@ -42,12 +53,26 @@ void Settings::commit(){
 	settings->SetAttribute("shuffle", this->shuffle);
 	if (this->last_browse_directory.size())
 		settings->SetAttribute("last_browse_directory", string_to_utf8(this->last_browse_directory).c_str());
+	settings->SetAttribute("current_track", this->current_track);
+	settings->SetAttribute("current_time", this->current_time);
+	for (auto &s : this->playlist_items){
+		auto playlist_item = doc.NewElement("playlist_item");
+		settings->LinkEndChild(playlist_item);
+		playlist_item->SetAttribute("value", string_to_utf8(s).c_str());
+	}
+	for (auto i : this->shuffle_items){
+		auto shuffle_item = doc.NewElement("shuffle_item");
+		settings->LinkEndChild(shuffle_item);
+		shuffle_item->SetAttribute("value", i);
+	}
 	doc.SaveFile(SAVE_PATH);
 }
 
 void Settings::set_default_values(){
 	this->shuffle = 0;
 	this->playback_mode = Mode::REPEAT_LIST;
+	this->current_time = 0;
+	this->current_track = -1;
 }
 
 void Settings::set_playback_mode(Mode mode){
@@ -68,6 +93,26 @@ void Settings::set_last_browse_directory(const std::wstring &last_browse_directo
 	this->commit();
 }
 
+void Settings::set_current_track(int current_track){
+	AutoMutex am(this->mutex);
+	this->current_track = current_track;
+}
+
+void Settings::set_current_time(double current_time){
+	AutoMutex am(this->mutex);
+	this->current_time = current_time;
+}
+
+void Settings::set_playlist_items(const std::vector<std::wstring> &playlist_items){
+	AutoMutex am(this->mutex);
+	this->playlist_items = playlist_items;
+}
+
+void Settings::set_shuffle_items(const std::vector<int> &shuffle_items){
+	AutoMutex am(this->mutex);
+	this->shuffle_items = shuffle_items;
+}
+
 Settings::Mode Settings::get_playback_mode(){
 	AutoMutex am(this->mutex);
 	return this->playback_mode;
@@ -81,4 +126,24 @@ bool Settings::get_shuffle(){
 std::wstring Settings::get_last_browse_directory(){
 	AutoMutex am(this->mutex);
 	return this->last_browse_directory;
+}
+
+int Settings::get_current_track(){
+	AutoMutex am(this->mutex);
+	return this->current_track;
+}
+
+double Settings::get_current_time(){
+	AutoMutex am(this->mutex);
+	return this->current_time;
+}
+
+void Settings::get_playlist_items(std::vector<std::wstring> &playlist_items){
+	AutoMutex am(this->mutex);
+	playlist_items = this->playlist_items;
+}
+
+void Settings::get_shuffle_items(std::vector<int> &shuffle_items){
+	AutoMutex am(this->mutex);
+	shuffle_items = this->shuffle_items;
 }

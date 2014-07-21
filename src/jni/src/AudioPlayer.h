@@ -160,12 +160,15 @@ class AudioPlayer{
 	typedef thread_safe_queue<eqe_t> external_queue_out_t;
 
 	struct AudioLocker{
+		bool restore;
 		AudioPlayer &player;
 		AudioLocker(AudioPlayer &player): player(player){
+			this->restore = player.device.is_open();
 			player.device.pause_audio();
 		}
 		~AudioLocker(){
-			player.device.start_audio();
+			if (restore)
+				player.device.start_audio();
 		}
 	};
 
