@@ -43,9 +43,9 @@ std::wstring to_string(Playlist::PlaybackMode mode){
 		CHECK_MODE(SINGLE);
 		CHECK_MODE(REPEAT_LIST);
 		CHECK_MODE(REPEAT_TRACK);
-		CHECK_MODE(COUNT);
 	}
 	assert(0);
+	return L"";
 }
 
 void Playlist::clear(){
@@ -74,7 +74,7 @@ void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
 	this->tracks.insert(this->tracks.begin() + p, v.begin(), v.end());
 }
 
-void Playlist::toggle_shuffle(){
+bool Playlist::toggle_shuffle(){
 	if (this->shuffle){
 		if (this->shuffle_vector.size()){
 			this->current_track = this->shuffle_vector[this->current_track];
@@ -91,6 +91,7 @@ void Playlist::toggle_shuffle(){
 		}
 	}
 	this->shuffle = !this->shuffle;
+	return this->shuffle;
 }
 
 bool Playlist::get_current_track(std::wstring &dst){

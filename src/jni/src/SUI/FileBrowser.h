@@ -41,10 +41,12 @@ class FileBrowser : public GUIElement{
 	typedef boost::shared_ptr<ListView> lv_t;
 	std::vector<lv_t> listviews;
 	std::list<std::vector<DirectoryElement> > directory_list_stack;
+	std::wstring new_initial_directory;
 	void change_directory();
 	std::wstring get_selection_internal(bool from_outside) const;
+	void generate_next_list();
 public:
-	FileBrowser(SUI *sui, GUIElement *parent, bool select_file);
+	FileBrowser(SUI *sui, GUIElement *parent, bool select_file, const std::wstring &initial_directory);
 	unsigned handle_event(const SDL_Event &);
 	void gui_signal(const GuiSignal &);
 	void update();
@@ -52,4 +54,7 @@ public:
 		return this->get_selection_internal(1);
 	}
 	bool get_input(std::wstring &dst, ControlCoroutine &coroutine, boost::shared_ptr<FileBrowser> self);
+	const std::wstring &get_new_initial_directory() const{
+		return this->new_initial_directory;
+	}
 };

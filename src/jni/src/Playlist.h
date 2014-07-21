@@ -63,7 +63,7 @@ public:
 		this->insert(v, 0);
 	}
 	void insert(const std::vector<std::wstring> &, size_t position);
-	void toggle_shuffle();
+	bool toggle_shuffle();
 	bool get_shuffle() const{
 		return this->shuffle;
 	}

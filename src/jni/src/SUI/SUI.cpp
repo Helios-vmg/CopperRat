@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "MainScreen.h"
 #include "FileBrowser.h"
 #include "ListView.h"
+#include "../Settings.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL_image.h>
 #include <iostream>
@@ -95,8 +96,11 @@ GuiSignal SUIControlCoroutine::display(boost::shared_ptr<GUIElement> el){
 }
 
 bool SUIControlCoroutine::load_file(std::wstring &dst, bool only_directories){
-	boost::shared_ptr<FileBrowser> browser(new FileBrowser(this->sui, this->sui, !only_directories));
-	return browser->get_input(dst, *this, browser);
+	boost::shared_ptr<FileBrowser> browser(new FileBrowser(this->sui, this->sui, !only_directories, application_settings.get_last_browse_directory()));
+	bool ret = browser->get_input(dst, *this, browser);
+	if (ret)
+		application_settings.set_last_browse_directory(browser->get_new_initial_directory());
+	return ret;
 }
 
 void SUIControlCoroutine::load_file_menu(){
@@ -135,10 +139,10 @@ void SUIControlCoroutine::options_menu(){
 			return;
 		switch (button){
 			case 0:
-				playlist.cycle_mode();
+				application_settings.set_playback_mode(playlist.cycle_mode());
 				break;
 			case 1:
-				playlist.toggle_shuffle();
+				application_settings.set_shuffle(playlist.toggle_shuffle());
 				break;
 		}
 	}
@@ -154,6 +158,7 @@ void SUIControlCoroutine::entry_point(){
 				continue;
 			case SignalType::MAINSCREEN_MENU:
 				this->options_menu();
+				application_settings.commit();
 				continue;
 			default:
 				continue;

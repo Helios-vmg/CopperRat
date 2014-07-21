@@ -160,9 +160,9 @@ update_restart:
 	if (this->total_length > this->visible_region.h){
 		SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0xFF, 0xFF, 0x80);
 		SDL_Rect rect = {
-			this->visible_region.w - 10,
+			this->visible_region.w - 5,
 			(int)(-this->offset / this->total_length * this->visible_region.h),
-			10,
+			5,
 			this->visible_region.h * this->visible_region.h / this->total_length,
 		};
 		SDL_RenderFillRect(renderer.get(), &rect);
