@@ -127,9 +127,23 @@ AudioPlayer::AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp): device(*thi
 #endif
 }
 
-AudioPlayer::~AudioPlayer(){
+void AudioPlayer::terminate_thread(UserInterface &ui){
 #ifndef PROFILING
 	this->request_exit();
+	ExitAcknowledged *target = nullptr;
+	while (1){
+		auto el = this->external_queue_out.pop();
+		target = dynamic_cast<ExitAcknowledged *>(&*el);
+		if (!target)
+			el->receive(ui);
+		else
+			break;
+	}
+#endif
+}
+
+AudioPlayer::~AudioPlayer(){
+#ifndef PROFILING
 	SDL_WaitThread(this->sdl_thread, 0);
 #endif
 }
@@ -168,6 +182,10 @@ void AudioPlayer::on_stop(){
 	this->external_queue_out.push(eqe_t(new PlaybackStop));
 }
 
+void AudioPlayer::on_pause(){
+	this->time_of_last_pause = SDL_GetTicks();
+}
+
 void AudioPlayer::thread(){
 #ifdef PROFILING
 	unsigned long long samples_decoded = 0;
@@ -178,6 +196,13 @@ void AudioPlayer::thread(){
 #endif
 	this->jumped_this_loop = 0;
 	while (this->handle_requests()){
+		if (this->state == PlayState::PAUSED && this->device.is_open()){
+			unsigned now = SDL_GetTicks();
+			if (now >= this->time_of_last_pause + 5000){
+				__android_log_print(ANDROID_LOG_INFO, "C++Audio", "%s", "Audio inactivity timeout. Closing device.\n");
+				this->device.close();
+			}
+		}
 #if PROFILING
 		if (!this->now_playing && !this->track_queue.size())
 			break;
@@ -219,6 +244,9 @@ void AudioPlayer::thread(){
 #endif
 	}
 #endif
+
+	this->device.pause_audio();
+	this->external_queue_out.push(eqe_t(new ExitAcknowledged));
 }
 
 bool AudioPlayer::handle_requests(){
@@ -321,6 +349,7 @@ bool AudioPlayer::execute_playpause(){
 		case PlayState::PLAYING:
 			this->device.pause_audio();
 			this->state = PlayState::PAUSED;
+			this->on_pause();
 			break;
 	}
 	return 1;
@@ -344,6 +373,7 @@ bool AudioPlayer::execute_pause(){
 		case PlayState::STOPPED:
 			break;
 		case PlayState::PLAYING:
+			this->on_pause();
 			this->device.pause_audio();
 			this->state = PlayState::PAUSED;
 			break;

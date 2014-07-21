@@ -231,6 +231,10 @@ SUI::SUI():
 	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
 }
 
+SUI::~SUI(){
+	this->player.terminate_thread(*this);
+}
+
 unsigned SUI::handle_keys(const SDL_Event &e){
 	unsigned ret = NOTHING;
 	switch (e.key.keysym.scancode){

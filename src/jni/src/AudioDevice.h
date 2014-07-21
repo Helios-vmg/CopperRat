@@ -45,7 +45,7 @@ class AudioDevice{
 	RemoteThreadProcedureCallPerformer &rtpcp;
 	bool audio_is_open;
 
-	void open_in_remote();
+	void open_in_main();
 public:
 	AudioDevice(AudioPlayer &, RemoteThreadProcedureCallPerformer &);
 	~AudioDevice();
@@ -54,12 +54,15 @@ public:
 	void close_in_main();
 	void start_audio();
 	void pause_audio();
+	bool is_open() const{
+		return this->audio_is_open;
+	}
 };
 
 class InitializeAudioDevice : public RemoteThreadProcedureCall{
 	AudioDevice *device;
 	void entry_point_internal(){
-		this->device->open_in_remote();
+		this->device->open_in_main();
 	}
 public:
 	InitializeAudioDevice(AudioDevice *device, RemoteThreadProcedureCallPerformer &rtpcp): RemoteThreadProcedureCall(rtpcp), device(device){}

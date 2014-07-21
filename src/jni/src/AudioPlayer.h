@@ -141,6 +141,13 @@ public:
 	}
 };
 
+class ExitAcknowledged : public ExternalQueueElement{
+public:
+	unsigned receive(UserInterface &ui){
+		return 0;
+	}
+};
+
 struct NotImplementedException{};
 
 class AudioPlayer{
@@ -181,6 +188,7 @@ class AudioPlayer{
 	audio_position_t last_position_seen;
 	double current_total_time;
 	bool jumped_this_loop;
+	unsigned time_of_last_pause;
 
 	void thread();
 	void try_update_total_time();
@@ -196,10 +204,13 @@ class AudioPlayer{
 	void eliminate_buffers(audio_position_t * = 0);
 	bool handle_requests();
 	void on_stop();
+	void on_pause();
 public:
 	external_queue_out_t external_queue_out;
 	AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp);
 	~AudioPlayer();
+
+	void terminate_thread(UserInterface &ui);
 
 	//request_* functions run in the caller thread!
 	void request_hardplay();

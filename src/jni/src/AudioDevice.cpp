@@ -43,7 +43,7 @@ AudioDevice::~AudioDevice(){
 	this->close_in_main();
 }
 
-void AudioDevice::open_in_remote(){
+void AudioDevice::open_in_main(){
 #ifndef PROFILING
 		SDL_AudioSpec specs;
 		specs.freq = 44100;

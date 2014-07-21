@@ -213,6 +213,7 @@ private:
 	void on_switch_to_foreground();
 public:
 	SUI();
+	~SUI();
 	void loop();
 
 	unsigned receive(TotalTimeUpdate &);
