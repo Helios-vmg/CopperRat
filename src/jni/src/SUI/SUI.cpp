@@ -502,7 +502,9 @@ void format_memory(std::basic_ostream<T> &stream, size_t size){
 #endif
 
 void SUI::draw_picture(){
-	SDL_Rect dst = { 0, 0, 0, 0 };
+	auto rect = this->tex_picture.get_rect();
+	int sq = this->get_bounding_square();
+	SDL_Rect dst = { (sq - rect.w) / 2, (sq - rect.h) / 2, 0, 0 };
 	this->tex_picture.draw(dst);
 }
 
