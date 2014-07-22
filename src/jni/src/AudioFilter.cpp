@@ -66,7 +66,7 @@ void AudioFilterManager::allocate_filters(double multiplier){
 	if (src_format.channels != temp.channels)
 		this->filters.push_back(std::make_pair(CHANNEL_MIXING_FILTER, ChannelMixingFilter::create(src_format, temp)));
 	if (multiplier != 1.0)
-		this->filters.push_back(std::make_pair(MULTIPLICATION_FILTER, MultiplicationFilter::create(src_format, multiplier)));
+		this->filters.push_back(std::make_pair(MULTIPLICATION_FILTER, MultiplicationFilter::create(temp, multiplier)));
 	temp.freq = dst_format.freq;
 	if (src_format.freq != temp.freq)
 		this->filters.push_back(std::make_pair(RESAMPLING_FILTER, ResamplingFilter::create(src_format, temp)));
