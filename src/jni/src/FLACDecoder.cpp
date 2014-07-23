@@ -37,6 +37,25 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #endif
 
+const char *to_string(FLAC__StreamDecoderInitStatus status){
+	switch (status){
+		case FLAC__STREAM_DECODER_INIT_STATUS_OK:
+			return "OK";
+		case FLAC__STREAM_DECODER_INIT_STATUS_UNSUPPORTED_CONTAINER:
+			return "UNSUPPORTED_CONTAINER";
+		case FLAC__STREAM_DECODER_INIT_STATUS_INVALID_CALLBACKS:
+			return "INVALID_CALLBACKS";
+		case FLAC__STREAM_DECODER_INIT_STATUS_MEMORY_ALLOCATION_ERROR:
+			return "MEMORY_ALLOCATION_ERROR";
+		case FLAC__STREAM_DECODER_INIT_STATUS_ERROR_OPENING_FILE:
+			return "ERROR_OPENING_FILE";
+		case FLAC__STREAM_DECODER_INIT_STATUS_ALREADY_INITIALIZED:
+			return "ALREADY_INITIALIZED";
+		default:
+			return "unknown error";
+	}
+}
+
 FlacDecoder::FlacDecoder(AudioStream &parent, const std::wstring &path):
 		Decoder(parent, path),
 		metadata(path),
@@ -51,8 +70,11 @@ FlacDecoder::FlacDecoder(AudioStream &parent, const std::wstring &path):
 
 	this->file.open(converted_path.c_str(), std::ios::binary);
 	this->set_metadata_respond_all();
-	if (!this->file || this->init() != FLAC__STREAM_DECODER_INIT_STATUS_OK)
-		throw DecoderInitializationException("FLAC initialization failed.");
+	if (!this->file)
+		throw FileNotFoundException(string_to_utf8(path));
+	auto status = this->init();
+	if (status != FLAC__STREAM_DECODER_INIT_STATUS_OK)
+		throw DecoderInitializationException(std::string("FLAC initialization failed: ") + to_string(status));
 	this->process_until_end_of_metadata();
 }
 

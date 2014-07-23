@@ -45,7 +45,8 @@ AudioDevice::~AudioDevice(){
 }
 
 void AudioDevice::open_in_main(){
-#ifndef PROFILING
+	if (!this->audio_is_open){
+#if !defined PROFILING
 		SDL_AudioSpec specs;
 		specs.freq = 44100;
 		specs.format = AUDIO_S16SYS;
@@ -53,10 +54,15 @@ void AudioDevice::open_in_main(){
 		specs.samples = 1024*4;
 		specs.callback = AudioPlayer::AudioCallback;
 		specs.userdata = &this->player;
+
 		if (SDL_OpenAudio(&specs, 0) < 0){
-			throw DeviceInitializationException(std::string("Could not initialize audio device: ") + SDL_GetError());
+			this->error_string = "Could not initialize audio device: ";
+			this->error_string += SDL_GetError();
+			return;
 		}
+		this->audio_is_open = 1;
 #endif
+	}
 }
 
 void AudioDevice::close_in_main(){
@@ -69,7 +75,8 @@ void AudioDevice::close_in_main(){
 void AudioDevice::open(){
 	if (!this->audio_is_open){
 		InitializeAudioDevice(this, this->rtpcp)();
-		this->audio_is_open = 1;
+		if (!this->audio_is_open)
+			throw DeviceInitializationException(this->error_string);
 	}
 }
 

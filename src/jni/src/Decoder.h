@@ -94,12 +94,26 @@ class DecoderException : public CR_Exception{
 public:
 	DecoderException(const std::string &description): CR_Exception(description){}
 	virtual ~DecoderException(){}
+	virtual CR_Exception *clone() const{
+		return new CR_Exception(*this);
+	}
 };
 
 class DecoderInitializationException : public DecoderException{
 public:
 	DecoderInitializationException(const std::string &description): DecoderException(description){
-		__android_log_print(ANDROID_LOG_ERROR, "C++Exception", "%s", description.c_str());
+	}
+	virtual CR_Exception *clone() const{
+		return new DecoderInitializationException(*this);
+	}
+};
+
+class FileNotFoundException : public DecoderInitializationException{
+public:
+	FileNotFoundException(const std::string &description): DecoderInitializationException("File not found: " + description){
+	}
+	virtual CR_Exception *clone() const{
+		return new FileNotFoundException(*this);
 	}
 };
 

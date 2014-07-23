@@ -358,4 +358,11 @@ bool path_is_rooted(const std::basic_string<T> &s){
 
 bool is_inside(int x, int y, const SDL_Rect &region);
 
+template <typename T>
+void normalize_slashes(std::basic_string<T> &s){
+	for (auto &c : s)
+		if (c == '\\')
+			c = '/';
+}
+
 #endif

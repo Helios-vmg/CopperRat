@@ -41,6 +41,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class FlacException : public DecoderException{
 public:
 	FlacException(const std::string &s): DecoderException(s){}
+	virtual CR_Exception *clone() const{
+		return new FlacException(*this);
+	}
 };
 
 class FlacDecoder: public Decoder, public FLAC::Decoder::Stream{

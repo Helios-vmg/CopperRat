@@ -213,15 +213,11 @@ void AudioPlayer::on_pause(){
 	application_settings.set_current_time(this->get_current_time());
 }
 
-void AudioPlayer::thread(){
-#ifdef PROFILING
-	unsigned long long samples_decoded = 0;
-	Uint32 t0 = SDL_GetTicks();
-#endif
-#ifdef OUTPUT_TO_FILE
-	std::ofstream raw_file("output.raw", std::ios::binary);
-#endif
-	while (this->handle_requests()){
+void AudioPlayer::thread_loop(){
+	while (1){
+		bool continue_loop = this->handle_requests();
+		if (!continue_loop)
+			break;
 		if (this->state == PlayState::PAUSED && this->device.is_open()){
 			unsigned now = SDL_GetTicks();
 			if (now >= this->time_of_last_pause + 5000){
@@ -233,20 +229,33 @@ void AudioPlayer::thread(){
 		if (!this->now_playing && !this->track_queue.size())
 			break;
 #endif
-		if (!this->initialize_stream() || this->internal_queue.is_full() || this->state == PlayState::STOPPED){
-			SDL_Delay(50);
-			continue;
-		}
-		audio_buffer_t buffer = this->now_playing->read();
-		this->try_update_total_time();
+		audio_buffer_t buffer;
+		boost::shared_ptr<DecoderException> exc;
+		try{
+			if (!this->initialize_stream() || this->internal_queue.is_full() || this->state == PlayState::STOPPED){
+				SDL_Delay(50);
+				continue;
+			}
+			buffer = this->now_playing->read();
+			this->try_update_total_time();
 #ifdef PROFILING
-		samples_decoded += buffer.samples();
+			samples_decoded += buffer.samples();
 #endif
+		}catch (DecoderException &e){
+			exc.reset(static_cast<DecoderException *>(e.clone()));
+		}
+
+		bool b_continue = 0;
 		if (!buffer){
 			this->now_playing.reset();
 			this->playlist.next();
-			continue;
+			b_continue = 1;
 		}
+		if (exc)
+			throw *exc;
+		if (b_continue)
+			continue;
+
 		this->jumped_this_loop = 0;
 		//std::cout <<"Outputting "<<buffer.samples()<<" samples.\n";
 #if !defined PROFILING
@@ -255,6 +264,34 @@ void AudioPlayer::thread(){
 #if defined OUTPUT_TO_FILE
 		raw_file.write((char *)buffer.raw_pointer(0), buffer.byte_length());
 #endif
+	}
+}
+
+void AudioPlayer::thread(){
+#ifdef PROFILING
+	unsigned long long samples_decoded = 0;
+	Uint32 t0 = SDL_GetTicks();
+#endif
+#ifdef OUTPUT_TO_FILE
+	std::ofstream raw_file("output.raw", std::ios::binary);
+#endif
+	bool fatal_error = 0;
+	while (!fatal_error){
+		try{
+			this->thread_loop();
+			break;
+		}catch (const std::bad_alloc &){
+			abort();
+		}catch (const DeviceInitializationException &e){
+			auto temp = e.clone();
+			this->push_to_external_queue(new ExceptionTransport(*temp));
+			delete temp;
+			fatal_error = 1;
+		}catch (CR_Exception &e){
+			auto temp = e.clone();
+			this->push_to_external_queue(new ExceptionTransport(*temp));
+			delete temp;
+		}
 	}
 #ifdef PROFILING
 	Uint32 t1 = SDL_GetTicks();
@@ -266,7 +303,7 @@ void AudioPlayer::thread(){
 #else
 		std::ofstream file("/sdcard/external_sd/log.txt", std::ios::app);
 		file <<times<<"x\n";
-		__android_log_print(ANDROID_LOG_ERROR, "PERFORMANCE", "%fx", times);
+		__android_log_print(ANDROID_LOG_INFO, "PERFORMANCE", "%fx", times);
 #endif
 	}
 #endif

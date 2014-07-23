@@ -47,7 +47,7 @@ OggDecoder::OggDecoder(AudioStream &parent, const std::wstring &path): Decoder(p
 #pragma warning(pop)
 #endif
 	if (!this->file)
-		throw DecoderInitializationException("Open file for Vorbis decoder failed.");
+		throw FileNotFoundException(utf8);
 	this->bitstream = 0;
 	ov_callbacks cb;
 	cb.read_func = OggDecoder::read;

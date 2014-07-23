@@ -110,6 +110,16 @@ public:
 	virtual unsigned receive(UserInterface &) = 0;
 };
 
+class ExceptionTransport : public ExternalQueueElement{
+	CR_Exception e;
+public:
+	ExceptionTransport(const CR_Exception &e): e(e){}
+	unsigned receive(UserInterface &ui){
+		throw this->e;
+		return 0;
+	}
+};
+
 class TotalTimeUpdate : public ExternalQueueElement{
 	double seconds;
 public:
@@ -195,6 +205,7 @@ class AudioPlayer{
 	unsigned time_of_last_pause;
 
 	void thread();
+	void thread_loop();
 	void try_update_total_time();
 	bool initialize_stream();
 	void push_to_command_queue(AudioPlayerAsyncCommand *p){
@@ -202,6 +213,10 @@ class AudioPlayer{
 		this->external_queue_in.push(sp);
 	}
 	void push_maybe_to_internal_queue(ExternalQueueElement *p);
+	void push_to_external_queue(ExternalQueueElement *p){
+		boost::shared_ptr<ExternalQueueElement> sp(p);
+		this->external_queue_out.push(sp);
+	}
 	void push_to_internal_queue(InternalQueueElement *p){
 		boost::shared_ptr<InternalQueueElement> sp(p);
 		this->internal_queue.push(sp);

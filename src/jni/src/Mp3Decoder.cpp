@@ -116,6 +116,8 @@ Mp3Decoder::Mp3Decoder(AudioStream &parent, const std::wstring &path): Decoder(p
 		(path);
 
 	boost::shared_ptr<std::ifstream> stream(new std::ifstream(converted_path.c_str(), std::ios::binary));
+	if (!*stream)
+		throw FileNotFoundException(string_to_utf8(path));
 	error = mpg123_open_fd(this->handle, this->fd = tracker.add(stream));
 	if (error != MPG123_OK)
 		throw DecoderInitializationException("MP3 read failed.");

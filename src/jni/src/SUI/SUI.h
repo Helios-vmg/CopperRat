@@ -49,6 +49,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class UIInitializationException : public CR_Exception{
 public:
 	UIInitializationException(const std::string &desc): CR_Exception(desc){}
+	CR_Exception *clone() const{
+		return new UIInitializationException(*this);
+	}
 };
 
 class SUIJob;

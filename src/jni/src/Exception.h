@@ -49,6 +49,9 @@ public:
 	const char *what() const NO_EXCEPT{
 		return this->description.c_str();
 	}
+	virtual CR_Exception *clone() const{
+		return new CR_Exception(*this);
+	}
 };
 
 #endif

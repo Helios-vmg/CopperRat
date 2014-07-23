@@ -188,16 +188,20 @@ void Playlist::append(bool file, const std::wstring &path){
 
 void Playlist::load_playlist(const std::wstring &path){
 	auto utf8 = string_to_utf8(path);
-	std::ifstream file(utf8.c_str());
+	std::ifstream file(utf8.c_str(), std::ios::binary);
+	std::string data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+	file.close();
 	std::vector<std::wstring> paths;
 	auto container = get_contaning_directory(path);
-	while (1){
-		std::string line;
-		std::getline(file, line);
-		if (!file || !line.size())
-			break;
-		if (line[0] == '#')
+	size_t first = 0;
+	while (first < data.size()){
+		size_t second = data.find_first_of("\n\r", first);
+		std::string line = data.substr(first, second - first);
+		first = second + (second != data.npos);
+
+		if (!line.size() || line[0] == '#')
 			continue;
+		normalize_slashes(line);
 		std::wstring wide = utf8_to_string(line);
 		if (path_is_rooted(wide))
 			paths.push_back(wide);

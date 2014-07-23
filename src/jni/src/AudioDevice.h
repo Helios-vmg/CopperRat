@@ -37,6 +37,9 @@ class AudioPlayer;
 class DeviceInitializationException : public CR_Exception{
 public:
 	DeviceInitializationException(const std::string &desc): CR_Exception(desc){}
+	CR_Exception *clone() const{
+		return new DeviceInitializationException(*this);
+	}
 };
 
 class AudioDevice{
@@ -44,6 +47,7 @@ class AudioDevice{
 	AudioPlayer &player;
 	RemoteThreadProcedureCallPerformer &rtpcp;
 	bool audio_is_open;
+	std::string error_string;
 
 	void open_in_main();
 public:

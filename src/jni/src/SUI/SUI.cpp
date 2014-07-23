@@ -541,7 +541,15 @@ void SUI::loop(){
 	Uint32 last = 0;
 	unsigned status;
 	while (!check_flag(status = this->handle_in_events(), QUIT)){
-		status |= this->handle_out_events();
+		try{
+			status |= this->handle_out_events();
+		}catch (const DeviceInitializationException &e){
+			__android_log_print(ANDROID_LOG_INFO, "C++Exception", "Fatal exception caught: %s\n", e.what());
+			return;
+		}catch (const CR_Exception &e){
+			__android_log_print(ANDROID_LOG_INFO, "C++Exception", "Non-fatal exception caught: %s\n", e.what());
+		}catch (...){
+		}
 		status |= this->handle_finished_jobs();
 		bool do_redraw = 0;
 		Uint32 now_ticks = 0;
