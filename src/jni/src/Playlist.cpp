@@ -177,7 +177,7 @@ void Playlist::load(bool file, const std::wstring &path){
 		list.push_back(path);
 	}else{
 		std::vector<std::wstring> files;
-		find_files_recursively(files, path);
+		find_files_recursively(files, path, SortingType::FILES_FIRST);
 		filter_list_by_supported_formats(list, files);
 	}
 	this->insert(list, 0);

@@ -147,29 +147,35 @@ void list_files(std::vector<DirectoryElement> &dst, const std::string &path, Fil
 }
 #endif
 
-static void find_files_recursively_internal(std::vector<std::wstring> &dst, const std::wstring &path){
+static void find_files_recursively_internal(std::vector<std::wstring> &dst, const std::wstring &path, SortingType st){
 	std::vector<DirectoryElement> temp;
 	list_files(temp, path, FilteringType::RETURN_ALL);
-	sort(temp);
+	sort(temp, st);
 	for (auto &de : temp){
 		auto full_path = path;
 		full_path += de.name;
 		if (de.is_dir){
 			full_path += '/';
-			find_files_recursively_internal(dst, full_path);
+			find_files_recursively_internal(dst, full_path, st);
 		}else
 			dst.push_back(full_path);
 	}
 }
 
-void find_files_recursively(std::vector<std::wstring> &dst, const std::wstring &path){
+void find_files_recursively(std::vector<std::wstring> &dst, const std::wstring &path, SortingType st){
 	dst.clear();
-	find_files_recursively_internal(dst, path);
+	find_files_recursively_internal(dst, path, st);
 }
 
-void sort(std::vector<DirectoryElement> &v){
-	auto f = [](const DirectoryElement &a, const DirectoryElement &b){
-		return a.is_dir > b.is_dir || a.is_dir == b.is_dir && strcmp_case(a.name, b.name) < 0;
-	};
+void sort(std::vector<DirectoryElement> &v, SortingType st){
+	bool (*f)(const DirectoryElement &a, const DirectoryElement &b);
+	if (st == SortingType::DIRECTORIES_FIRST)
+		f = [](const DirectoryElement &a, const DirectoryElement &b){
+			return a.is_dir > b.is_dir || a.is_dir == b.is_dir && strcmp_case(a.name, b.name) < 0;
+		};
+	else
+		f = [](const DirectoryElement &a, const DirectoryElement &b){
+			return a.is_dir < b.is_dir || a.is_dir == b.is_dir && strcmp_case(a.name, b.name) < 0;
+		};
 	std::sort(v.begin(), v.end(), f);
 }
