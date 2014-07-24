@@ -138,9 +138,6 @@ void preprocess_image(SDL_Surface *img){
 			}
 		}
 	}
-	std::ofstream raw("test.raw", std::ios::binary);
-	raw.write((const char *)pixels, 256 * 256 * 4);
-	raw.close();
 	SDL_UnlockSurface(img);
 }
 
