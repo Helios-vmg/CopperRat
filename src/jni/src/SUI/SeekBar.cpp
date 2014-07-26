@@ -48,9 +48,10 @@ void SeekBar::update(){
 		auto renderer = this->sui->get_renderer();
 		Uint8 red, green, blue, alpha;
 		SDL_GetRenderDrawColor(renderer.get(), &red, &green, &blue, &alpha);
-		SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0, 0, 0xFF);
+		SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0xFF, 0xFF, 0x40);
 		auto rect = this->region;
 		rect.w = int(rect.w * (!this->drag_started ? current_time / total_time : this->multiplier));
+		rect.y += rect.h / 4 * 3;
 		SDL_RenderFillRect(renderer.get(), &rect);
 		SDL_SetRenderDrawColor(renderer.get(), red, green, blue, alpha);
 	}

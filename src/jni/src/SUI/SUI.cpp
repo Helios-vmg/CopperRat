@@ -133,9 +133,11 @@ void SUIControlCoroutine::options_menu(){
 		auto &playlist = this->sui->get_player().get_playlist();
 		auto playback_mode = playlist.get_playback_mode();
 		bool shuffling = playlist.get_shuffle();
+		bool expensive_gfx = application_settings.get_expensive_gfx();
 		std::vector<std::wstring> strings;
 		strings.push_back(L"Playback mode: " + to_string(playback_mode));
 		strings.push_back(std::wstring(L"Shuffling: O") + (shuffling ? L"N" : L"FF"));
+		strings.push_back(std::wstring(L"Expensive graphical operations: O") + (expensive_gfx ? L"N" : L"FF"));
 		boost::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
 		unsigned button;
 		if (!lv->get_input(button, *this, lv))
@@ -146,6 +148,9 @@ void SUIControlCoroutine::options_menu(){
 				break;
 			case 1:
 				application_settings.set_shuffle(playlist.toggle_shuffle());
+				break;
+			case 2:
+				application_settings.set_expensive_gfx(!expensive_gfx);
 				break;
 		}
 	}
@@ -215,6 +220,7 @@ SUI::SUI():
 		renderer(nullptr, SDL_Renderer_deleter()),
 		current_total_time(-1),
 		bounding_square(-1),
+		max_square(-1),
 		full_update_count(0),
 		scc(*this),
 		update_requested(0),
@@ -231,12 +237,14 @@ SUI::SUI():
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
 	this->tex_picture.set_renderer(this->renderer);
+	this->background_picture.set_renderer(this->renderer);
 
 	this->font.reset(new Font(this->renderer));
 
 	this->scc.start();
 
-	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
+	SDL_SetRenderDrawColor(this->renderer.get(), 0, 0, 0, 0);
+	SDL_SetRenderDrawBlendMode(this->renderer.get(), SDL_BLENDMODE_BLEND);
 }
 
 SUI::~SUI(){
@@ -274,7 +282,7 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 		case SDL_SCANCODE_AUDIOPREV:
 			this->player.request_previous();
 			break;
-#ifdef WIN32
+#if defined WIN32 && 0
 		case SDL_SCANCODE_F12:
 			{
 				boost::shared_array<unsigned char> pixels;
@@ -369,8 +377,22 @@ void PictureDecodingJob::sui_perform(WorkerThread &wt){
 		this->picture = load_image_from_memory(buffer, length);
 	else
 		this->load_picture_from_filesystem();
-	if (!!this->picture)
-		this->picture = bind_surface_to_square(this->picture, this->target_square);
+	if (this->picture){
+		auto new_surface1 = bind_surface_to_square(this->picture, this->target_square);
+		if (application_settings.get_expensive_gfx()){
+			double scale = (double)this->secondary_square / (double)std::min(new_surface1->w, new_surface1->h);
+			auto new_surface2 = scale_surface(new_surface1, unsigned(new_surface1->w * scale), unsigned(new_surface1->h * scale));
+			auto new_surface3 = create_rgba_surface(this->trim_rect.w, this->trim_rect.h);
+			auto rect = this->trim_rect;
+			rect.y = (new_surface2->clip_rect.h - rect.h) / 2;
+			rect.x = (new_surface2->clip_rect.w - rect.w) / 2;
+			SDL_BlitSurface(new_surface2.get(), 0, new_surface3.get(), 0);
+			new_surface2 = new_surface3;
+			new_surface2 = apply_gaussian_blur2(new_surface2, 10);
+			this->secondary_picture = new_surface2;
+		}
+		this->picture = new_surface1;
+	}
 }
 
 void PictureDecodingJob::load_picture_from_filesystem(){
@@ -445,7 +467,13 @@ unsigned SUI::receive(MetaDataUpdate &mdu){
 	if (!this->metadata.size())
 		this->metadata = get_filename(metadata->get_path());
 
-	boost::shared_ptr<PictureDecodingJob> job(new PictureDecodingJob(this->finished_jobs_queue, metadata, this->get_bounding_square(), this->tex_picture_source));
+	boost::shared_ptr<PictureDecodingJob> job(new PictureDecodingJob(
+		this->finished_jobs_queue, metadata,
+		this->get_bounding_square(),
+		this->get_max_square(),
+		this->get_visible_region(),
+		this->tex_picture_source
+	));
 	job->description = to_string(metadata->get_path());
 	if (this->ui_in_foreground)
 		this->start_picture_load(job);
@@ -499,9 +527,15 @@ unsigned SUI::finish(PictureDecodingJob &job){
 		if (!picture){
 			this->tex_picture_source.clear();
 			this->tex_picture.unload();
+			this->background_picture.unload();
 		}else{
 			this->tex_picture_source = job.get_source();
 			this->tex_picture.load(picture);
+			auto secondary = job.get_secondary_picture();
+			if (secondary)
+				this->background_picture.load(secondary);
+			else
+				this->background_picture.unload();
 			ret = REDRAW;
 		}
 	}else{
@@ -548,10 +582,16 @@ void format_memory(std::basic_ostream<T> &stream, size_t size){
 #endif
 
 void SUI::draw_picture(){
-	auto rect = this->tex_picture.get_rect();
 	int sq = this->get_bounding_square();
-	SDL_Rect dst = { (sq - rect.w) / 2, (sq - rect.h) / 2, 0, 0 };
-	this->tex_picture.draw(dst);
+	if (this->background_picture){
+		SDL_Rect rect = { 0, 0, 0, 0 };
+		this->background_picture.draw(rect);
+	}
+	if (this->tex_picture){
+		auto rect = this->tex_picture.get_rect();
+		SDL_Rect dst = { (sq - rect.w) / 2, (sq - rect.h) / 2, 0, 0 };
+		this->tex_picture.draw(dst);
+	}
 }
 
 int SUI::get_bounding_square(){
@@ -560,6 +600,14 @@ int SUI::get_bounding_square(){
 	int w, h;
 	SDL_GetWindowSize(this->window.get(), &w, &h);
 	return this->bounding_square = std::min(w, h);
+}
+
+int SUI::get_max_square(){
+	if (this->max_square >= 0)
+		return this->max_square;
+	int w, h;
+	SDL_GetWindowSize(this->window.get(), &w, &h);
+	return this->max_square = std::max(w, h);
 }
 
 SDL_Rect SUI::get_visible_region(){
@@ -579,6 +627,14 @@ void SUI::request_update(){
 
 void SUI::perform(RemoteThreadProcedureCall *rtpc){
 	this->player.external_queue_out.push(boost::shared_ptr<ExternalQueueElement>(new RTPCQueueElement(rtpc)));
+}
+
+SDL_Rect SUI::get_seekbar_region(){
+	auto ret = this->get_visible_region();
+	auto square = this->get_bounding_square();
+	ret.y += square * 3 / 2;
+	ret.h -= square * 3 / 2;
+	return ret;
 }
 
 #include "../AudioBuffer.h"

@@ -34,6 +34,8 @@ Settings::Settings(): no_changes(1){
 			this->current_track = el->IntValue();
 		else if (!strcmp(name, "current_time"))
 			this->current_time = el->DoubleValue();
+		else if (!strcmp(name, "expensive_gfx"))
+			this->expensive_gfx = el->BoolValue();
 	}
 	for (auto *el = settings->FirstChildElement(); el; el = el->NextSiblingElement()){
 		auto name = el->Name();
@@ -58,6 +60,7 @@ void Settings::commit(){
 		settings->SetAttribute("last_browse_directory", string_to_utf8(this->last_browse_directory).c_str());
 	settings->SetAttribute("current_track", this->current_track);
 	settings->SetAttribute("current_time", this->current_time);
+	settings->SetAttribute("expensive_gfx", this->expensive_gfx);
 	for (auto &s : this->playlist_items){
 		auto playlist_item = doc.NewElement("playlist_item");
 		settings->LinkEndChild(playlist_item);
@@ -77,6 +80,7 @@ void Settings::set_default_values(){
 	this->playback_mode = Mode::REPEAT_LIST;
 	this->current_time = 0;
 	this->current_track = -1;
+	this->expensive_gfx = 1;
 }
 
 void Settings::set_playback_mode(Mode mode){
@@ -124,6 +128,12 @@ void Settings::set_shuffle_items(const std::vector<int> &shuffle_items){
 	this->no_changes = 0;
 }
 
+void Settings::set_expensive_gfx(bool expensive_gfx){
+	AutoMutex am(this->mutex);
+	this->expensive_gfx = expensive_gfx;
+	this->no_changes = 0;
+}
+
 Settings::Mode Settings::get_playback_mode(){
 	AutoMutex am(this->mutex);
 	return this->playback_mode;
@@ -157,4 +167,9 @@ void Settings::get_playlist_items(std::vector<std::wstring> &playlist_items){
 void Settings::get_shuffle_items(std::vector<int> &shuffle_items){
 	AutoMutex am(this->mutex);
 	shuffle_items = this->shuffle_items;
+}
+
+bool Settings::get_expensive_gfx(){
+	AutoMutex am(this->mutex);
+	return this->expensive_gfx;
 }

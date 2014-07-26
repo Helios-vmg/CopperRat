@@ -58,6 +58,7 @@ private:
 	void save_state();
 public:
 	Playlist();
+	~Playlist();
 	void clear();
 	void set(const std::vector<std::wstring> &v){
 		this->clear();

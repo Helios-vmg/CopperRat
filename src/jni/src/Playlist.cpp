@@ -57,6 +57,10 @@ Playlist::Playlist(): current_track(-1){
 	this->current_track = application_settings.get_current_track();
 }
 
+Playlist::~Playlist(){
+	this->save_state();
+}
+
 void Playlist::clear(){
 	this->tracks.clear();
 	this->shuffle_vector.clear();

@@ -139,7 +139,7 @@ void MainScreen::prepare_buttons(){
 	}
 	this->tex_buttons.set_renderer(this->sui->get_renderer());
 	this->tex_buttons.load(new_surface);
-	this->tex_buttons.set_alpha(0.85);
+	this->tex_buttons.set_alpha(1.0/4.0);
 	for (i = 0; i < n; i++){
 		Subtexture st(this->tex_buttons, rects[i]);
 		boost::shared_ptr<GraphicButton> button(new GraphicButton(this->sui, this));
@@ -148,12 +148,4 @@ void MainScreen::prepare_buttons(){
 		button->set_signal_value(i);
 		this->children.push_back(button);
 	}
-}
-
-SDL_Rect MainScreen::get_seekbar_region() const{
-	auto ret = this->sui->get_visible_region();
-	auto square = this->sui->get_bounding_square();
-	ret.y += square * 3 / 2;
-	ret.h -= square * 3 / 2;
-	return ret;
 }

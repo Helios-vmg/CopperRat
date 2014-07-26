@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <webp/encode.h>
 #include <fstream>
 #include <cmath>
+#include <boost/shared_array.hpp>
 #endif
 
 typedef unsigned char byte_t;
@@ -337,8 +338,6 @@ double compute_gauss_normal(double sigma){
 }
 
 surface_t apply_gaussian_blur(surface_t src_surface, double sigma){
-	std::cout <<"apply_gaussian_blur() started.\n";
-	auto t0 = clock();
 	sigma = abs(sigma);
 
 	surface_t dst_surface = create_surface_without_copy(src_surface);
@@ -406,14 +405,10 @@ surface_t apply_gaussian_blur(surface_t src_surface, double sigma){
 			}
 		}
 	}
-	auto t1 = clock();
-	std::cout <<"apply_gaussian_blur() finished. "<<t1 - t0<<std::endl;
 	return dst_surface;
 }
 
 surface_t apply_gaussian_blur_double(surface_t src_surface, double sigma){
-	std::cout <<"apply_gaussian_blur_double() started.\n";
-	auto t0 = clock();
 	sigma = abs(sigma);
 
 	surface_t dst_surface = create_surface_without_copy(src_surface);
@@ -478,8 +473,6 @@ surface_t apply_gaussian_blur_double(surface_t src_surface, double sigma){
 			}
 		}
 	}
-	auto t1 = clock();
-	std::cout <<"apply_gaussian_blur_double() finished. "<<t1 - t0<<std::endl;
 	return dst_surface;
 }
 
@@ -531,34 +524,7 @@ public:
 	}
 };
 
-void gauss_helper(unsigned char *dst_pixels, unsigned char *src_pixels, unsigned w, unsigned h, unsigned pitch, unsigned advance, int r, double iarr){
-	for(int i = 0; i < h; i++){
-		int ti = i * w,
-			li = ti,
-			ri = ti + r;
-		int fv = src_pixels[ti],
-			lv = src_pixels[ti + w - 1],
-			val = (r + 1) * fv;
-		for (int j = 0; j < r; j++)
-			val += src_pixels[ti + j];
-		for (int j = 0; j <= r; j++){
-			val += src_pixels[ri++] - fv;
-			dst_pixels[ti++] = (unsigned char)round(val * iarr);
-		}
-		for (int j = r + 1; j < w - r; j++){
-			val += src_pixels[ri++] - src_pixels[li++];
-			dst_pixels[ti++] = (unsigned char)round(val * iarr);
-		}
-		for (int j = w - r; j < w; j++) {
-			val += lv - src_pixels[li++];
-			dst_pixels[ti++] = (unsigned char)round(val * iarr);
-		}
-	}
-}
-
 surface_t apply_gaussian_blur2(surface_t src_surface, double sigma){
-	std::cout <<"apply_gaussian_blur2() started.\n";
-	auto t0 = clock();
 	sigma = abs(sigma);
 
 	surface_t src_surface2 = copy_surface(src_surface);
@@ -578,14 +544,13 @@ surface_t apply_gaussian_blur2(surface_t src_surface, double sigma){
 
 		for (int ii = 0; ii < 3; ii++){
 			int r = (boxes[ii] - 1) / 2;
-			memcpy(dst_gsurface[0], src_gsurface[0], byte_length);
 
-			const double iarr = 1.0 / (r * 2 + 1);
+			const unsigned iarr = unsigned((1<<12) / (r * 2 + 1));
 			for (int jj = 0; jj < 2; jj++){
-				for (int channel = 0; channel < dst_gsurface.channel_count; channel++){
-					src_gsurface.set_channel_offset(channel);
-					dst_gsurface.set_channel_offset(channel);
-					for(int i = 0; i < dst_gsurface.h; i++){
+				for(unsigned i = 0; i < dst_gsurface.h; i++){
+					for (unsigned channel = 0; channel < dst_gsurface.channel_count; channel++){
+						src_gsurface.set_channel_offset(channel);
+						dst_gsurface.set_channel_offset(channel);
 						int ti = dst_gsurface.get_index(0, i),
 							li = ti,
 							ri = ti + dst_gsurface.get_index(r, 0);
@@ -596,15 +561,15 @@ surface_t apply_gaussian_blur2(surface_t src_surface, double sigma){
 							val += *src_gsurface[ti + j];
 						for (int j = 0; j <= r; j++){
 							val += *src_gsurface[ri++] - fv;
-							*dst_gsurface[ti++] = (unsigned char)round(val * iarr);
+							*dst_gsurface[ti++] = ((val * iarr) + (1<<11)) >> 12;
 						}
-						for (int j = r + 1; j < dst_gsurface.w - r; j++){
+						for (int j = r + 1; j < (int)dst_gsurface.w - r; j++){
 							val += *src_gsurface[ri++] - *src_gsurface[li++];
-							*dst_gsurface[ti++] = (unsigned char)round(val * iarr);
+							*dst_gsurface[ti++] = ((val * iarr) + (1<<11)) >> 12;
 						}
-						for (int j = dst_gsurface.w - r; j < dst_gsurface.w; j++) {
+						for (int j = dst_gsurface.w - r; j < (int)dst_gsurface.w; j++) {
 							val += lv - *src_gsurface[li++];
-							*dst_gsurface[ti++] = (unsigned char)round(val * iarr);
+							*dst_gsurface[ti++] = ((val * iarr) + (1<<11)) >> 12;
 						}
 					}
 				}
@@ -615,8 +580,6 @@ surface_t apply_gaussian_blur2(surface_t src_surface, double sigma){
 			}
 		}
 	}
-	auto t1 = clock();
-	std::cout <<"apply_gaussian_blur2() finished. "<<t1 - t0<<std::endl;
 	return src_surface;
 }
 

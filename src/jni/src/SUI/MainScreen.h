@@ -48,7 +48,9 @@ public:
 	MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player);
 	unsigned handle_event(const SDL_Event &);
 	void update();
-	SDL_Rect get_seekbar_region() const;
+	SDL_Rect get_seekbar_region() const{
+		return this->sui->get_seekbar_region();
+	}
 };
 
 #endif

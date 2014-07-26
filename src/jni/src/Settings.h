@@ -7,6 +7,7 @@ class Settings{
 	bool no_changes;
 	Mode playback_mode;
 	bool shuffle;
+	bool expensive_gfx;
 	std::wstring last_browse_directory;
 	int current_track;
 	double current_time;
@@ -28,6 +29,7 @@ public:
 	void set_current_time(double);
 	void set_playlist_items(const std::vector<std::wstring> &);
 	void set_shuffle_items(const std::vector<int> &);
+	void set_expensive_gfx(bool);
 	//Getters:
 	Mode get_playback_mode();
 	bool get_shuffle();
@@ -36,6 +38,7 @@ public:
 	double get_current_time();
 	void get_playlist_items(std::vector<std::wstring> &);
 	void get_shuffle_items(std::vector<int> &);
+	bool get_expensive_gfx();
 };
 
 extern Settings application_settings;

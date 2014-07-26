@@ -76,7 +76,10 @@ public:
 class PictureDecodingJob : public SUIJob{
 	boost::shared_ptr<GenericMetadata> metadata;
 	unsigned target_square;
-	surface_t picture;
+	unsigned secondary_square;
+	surface_t picture,
+		secondary_picture;
+	SDL_Rect trim_rect;
 	std::wstring current_source,
 		source;
 	bool skip_loading;
@@ -88,16 +91,23 @@ public:
 			finished_jobs_queue_t &queue,
 			boost::shared_ptr<GenericMetadata> metadata,
 			unsigned target_square,
+			unsigned secondary_square,
+			const SDL_Rect &trim_rect,
 			const std::wstring &current_source):
 		SUIJob(queue),
 		metadata(metadata),
 		target_square(target_square),
+		secondary_square(secondary_square),
+		trim_rect(trim_rect),
 		picture(nullptr, SDL_Surface_deleter_func),
 		current_source(current_source),
 		skip_loading(0){}
 	unsigned finish(SUI &);
 	surface_t get_picture(){
 		return this->picture;
+	}
+	surface_t get_secondary_picture(){
+		return this->secondary_picture;
 	}
 	const std::wstring &get_source() const {
 		return this->source;
@@ -194,7 +204,9 @@ private:
 	double current_total_time;
 	std::wstring metadata;
 	Texture tex_picture;
+	Texture background_picture;
 	int bounding_square;
+	int max_square;
 	WorkerThread worker;
 	boost::shared_ptr<WorkerThreadJobHandle> picture_job;
 	int full_update_count;
@@ -244,6 +256,7 @@ public:
 		return this->renderer;
 	}
 	int get_bounding_square();
+	int get_max_square();
 	SDL_Rect get_visible_region();
 	void start_full_updating(){
 		this->full_update_count++;
@@ -255,6 +268,7 @@ public:
 	void request_update();
 	void start_picture_load(boost::shared_ptr<PictureDecodingJob>);
 	void perform(RemoteThreadProcedureCall *);
+	SDL_Rect get_seekbar_region();
 };
 
 #endif
