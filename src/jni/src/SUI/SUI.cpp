@@ -41,6 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <iomanip>
 #include <sstream>
+#include <boost/shared_array.hpp>
 #endif
 
 class DelayedPictureLoadStartAction : public DelayedPictureLoadAction{
@@ -49,10 +50,12 @@ class DelayedPictureLoadStartAction : public DelayedPictureLoadAction{
 public:
 	DelayedPictureLoadStartAction(SUI &sui, boost::shared_ptr<PictureDecodingJob> job): sui(&sui), job(job){}
 	void perform(){
+#ifdef _DEBUG
 		std::string temp = "Resuming loading of ";
 		temp += this->job->description;
 		temp += " due to switch to foreground.";
 		__android_log_print(ANDROID_LOG_DEBUG, "C++DPLA", "%s", temp.c_str());
+#endif
 		this->sui->start_picture_load(this->job);
 	}
 };
@@ -271,6 +274,37 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 		case SDL_SCANCODE_AUDIOPREV:
 			this->player.request_previous();
 			break;
+#ifdef WIN32
+		case SDL_SCANCODE_F12:
+			{
+				boost::shared_array<unsigned char> pixels;
+				auto screen = to_surface_t(SDL_GetWindowSurface(this->window.get()));
+				if (!screen)
+					break;
+				auto size = screen->w * screen->h * screen->format->BytesPerPixel;
+				pixels.reset(new unsigned char[size]);
+				if (SDL_RenderReadPixels(this->renderer.get(), &screen->clip_rect, screen->format->format, pixels.get(), screen->pitch))
+					break;
+				auto surface = to_surface_t(SDL_CreateRGBSurfaceFrom(
+					pixels.get(),
+					screen->w,
+					screen->h,
+					screen->format->BitsPerPixel,
+					screen->pitch,
+					screen->format->Rmask,
+					screen->format->Gmask,
+					screen->format->Bmask,
+					screen->format->Amask
+				));
+				//auto new_s = apply_gaussian_blur(surface, 5);
+				//SDL_SaveBMP(new_s.get(), "screenshot1.bmp");
+				//new_s = apply_gaussian_blur_double(surface, 5);
+				//SDL_SaveBMP(new_s.get(), "screenshot2.bmp");
+				auto new_s = apply_gaussian_blur2(surface, 5);
+				SDL_SaveBMP(new_s.get(), "screenshot3.bmp");
+			}
+			break;
+#endif
 	}
 	return ret;
 }
@@ -305,7 +339,7 @@ unsigned SUI::handle_in_events(){
 			case SDL_APP_DIDENTERBACKGROUND:
 				this->ui_in_foreground = 0;
 				break;
-			case SDL_APP_DIDENTERFOREGROUND:
+			case SDL_APP_WILLENTERFOREGROUND:
 				this->on_switch_to_foreground();
 				ret |= REDRAW;
 				break;
@@ -395,21 +429,33 @@ void SUI::start_picture_load(boost::shared_ptr<PictureDecodingJob> job){
 unsigned SUI::receive(MetaDataUpdate &mdu){
 	auto metadata = mdu.get_metadata();
 	this->metadata.clear();
-	this->metadata += metadata->track_number();
-	this->metadata += L" - ";
-	this->metadata += metadata->track_artist();
-	this->metadata += L" - ";
-	this->metadata += metadata->track_title();
+	auto track_number = metadata->track_number();
+	auto track_artist = metadata->track_artist();
+	auto track_title = metadata->track_title();
+	auto size = this->metadata.size();
+	this->metadata += track_number;
+	if (size < this->metadata.size())
+		this->metadata += L" - ";
+	size = this->metadata.size();
+	this->metadata += track_artist;
+	if (size < this->metadata.size())
+		this->metadata += L" - ";
+	this->metadata += track_title;
+
+	if (!this->metadata.size())
+		this->metadata = get_filename(metadata->get_path());
 
 	boost::shared_ptr<PictureDecodingJob> job(new PictureDecodingJob(this->finished_jobs_queue, metadata, this->get_bounding_square(), this->tex_picture_source));
 	job->description = to_string(metadata->get_path());
 	if (this->ui_in_foreground)
 		this->start_picture_load(job);
 	else{
+#ifdef _DEBUG
 		std::string temp = "Suspending loading of ";
 		temp += job->description;
 		temp += " due to switch to background.";
 		__android_log_print(ANDROID_LOG_INFO, "C++DPLA", "%s", temp.c_str());
+#endif
 		this->dpla.reset(new DelayedPictureLoadStartAction(*this, job));
 	}
 	return NOTHING;

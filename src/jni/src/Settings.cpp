@@ -8,7 +8,7 @@ Settings application_settings;
 
 #define SAVE_PATH (BASE_PATH "settings.xml")
 
-Settings::Settings(){
+Settings::Settings(): no_changes(1){
 	this->set_default_values();
 	tinyxml2::XMLDocument doc;
 	doc.LoadFile(SAVE_PATH);
@@ -46,6 +46,9 @@ Settings::Settings(){
 
 void Settings::commit(){
 	AutoMutex am(this->mutex);
+	if (this->no_changes)
+		return;
+
 	tinyxml2::XMLDocument doc;
 	auto settings = doc.NewElement("settings");
 	doc.LinkEndChild(settings);
@@ -66,6 +69,7 @@ void Settings::commit(){
 		shuffle_item->SetAttribute("value", i);
 	}
 	doc.SaveFile(SAVE_PATH);
+	this->no_changes = 1;
 }
 
 void Settings::set_default_values(){
@@ -78,17 +82,20 @@ void Settings::set_default_values(){
 void Settings::set_playback_mode(Mode mode){
 	AutoMutex am(this->mutex);
 	this->playback_mode = mode;
+	this->no_changes = 0;
 }
 
 void Settings::set_shuffle(bool shuffle){
 	AutoMutex am(this->mutex);
 	this->shuffle = shuffle;
+	this->no_changes = 0;
 }
 
 void Settings::set_last_browse_directory(const std::wstring &last_browse_directory){
 	{
 		AutoMutex am(this->mutex);
 		this->last_browse_directory = last_browse_directory;
+		this->no_changes = 0;
 	}
 	this->commit();
 }
@@ -96,21 +103,25 @@ void Settings::set_last_browse_directory(const std::wstring &last_browse_directo
 void Settings::set_current_track(int current_track){
 	AutoMutex am(this->mutex);
 	this->current_track = current_track;
+	this->no_changes = 0;
 }
 
 void Settings::set_current_time(double current_time){
 	AutoMutex am(this->mutex);
 	this->current_time = current_time;
+	this->no_changes = 0;
 }
 
 void Settings::set_playlist_items(const std::vector<std::wstring> &playlist_items){
 	AutoMutex am(this->mutex);
 	this->playlist_items = playlist_items;
+	this->no_changes = 0;
 }
 
 void Settings::set_shuffle_items(const std::vector<int> &shuffle_items){
 	AutoMutex am(this->mutex);
 	this->shuffle_items = shuffle_items;
+	this->no_changes = 0;
 }
 
 Settings::Mode Settings::get_playback_mode(){

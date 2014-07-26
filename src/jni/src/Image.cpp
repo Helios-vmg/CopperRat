@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <SDL_image.h>
 #include <webp/encode.h>
 #include <fstream>
+#include <cmath>
 #endif
 
 typedef unsigned char byte_t;
@@ -253,9 +254,12 @@ surface_t load_image_from_memory(const void *buffer, size_t length){
 void save_surface_compressed(const char *path, surface_t src){
 	uint8_t *buffer;
 	size_t buffer_size;
-	{
+	if (src->format->BytesPerPixel == 3){
 		SurfaceLocker sl(src);
 		buffer_size = WebPEncodeRGB((const uint8_t *)src->pixels, src->w, src->h, src->pitch, 75, &buffer);
+	}else{
+		SurfaceLocker sl(src);
+		buffer_size = WebPEncodeRGBA((const uint8_t *)src->pixels, src->w, src->h, src->pitch, 75, &buffer);
 	}
 	{
 		std::ofstream file(path, std::ios::binary);
@@ -274,6 +278,346 @@ surface_t create_rgb_surface(unsigned w, unsigned h){
 
 surface_t create_rgba_surface(unsigned w, unsigned h){
 	return create_rgbq_surface(32, w, h);
+}
+
+surface_t create_surface_without_copy(surface_t src){
+	return to_surface_t(SDL_CreateRGBSurface(
+		0,
+		src->w,
+		src->h,
+		src->format->BitsPerPixel,
+		src->format->Rmask,
+		src->format->Gmask,
+		src->format->Bmask,
+		src->format->Amask));
+}
+
+surface_t copy_surface(surface_t s){
+	surface_t ret = create_surface_without_copy(s);
+	{
+		SurfaceLocker sl0(s);
+		SurfaceLocker sl1(ret);
+		memcpy(ret->pixels, s->pixels, s->pitch * s->h);
+	}
+	return ret;
+}
+
+inline double gauss_kernel(unsigned x, unsigned y, double sigma){
+	double s2 = sigma * sigma;
+	return exp((x * x + y * y) / -(2 * s2)) / (2.0 * M_PI * s2);
+}
+
+inline double round(double x){
+	return floor(x + 0.5);
+}
+
+inline double round_neg(double x){
+	if (x > 0)
+		return round(x);
+	return ceil(x - 0.5);
+}
+
+double compute_gauss_normal(double sigma){
+	double ret = 0;
+	auto matrix_side = (unsigned)ceil(sigma * 3);
+
+	for (unsigned x = 0; x < matrix_side; x++){
+		for (unsigned y = 0; y < matrix_side; y++){
+			double m;
+			if (x && !y || !x && y)
+				m = 2;
+			else if (x && y)
+				m = 4;
+			else
+				m = 1;
+			ret += gauss_kernel(x, y, sigma) * m;
+		}
+	}
+	return ret;
+}
+
+surface_t apply_gaussian_blur(surface_t src_surface, double sigma){
+	std::cout <<"apply_gaussian_blur() started.\n";
+	auto t0 = clock();
+	sigma = abs(sigma);
+
+	surface_t dst_surface = create_surface_without_copy(src_surface);
+	{
+		SurfaceLocker src_locker(src_surface);
+		SurfaceLocker dst_locker(dst_surface);
+
+		auto src_pixels = (unsigned char *)src_surface->pixels;
+		auto pitch = src_surface->pitch;
+		auto advance = src_surface->format->BytesPerPixel;
+	
+		auto dst_pixels = (unsigned char *)dst_surface->pixels;
+
+		int w = src_surface->w;
+		int h = src_surface->h;
+
+		auto matrix_side = (unsigned)ceil(sigma * 3);
+		boost::shared_array<unsigned> matrix(new unsigned[matrix_side * matrix_side]);
+		unsigned *matrix_p = matrix.get();
+
+		const unsigned nk = 12;
+		const double k = 1 << nk;
+
+		for (unsigned x = 0; x < matrix_side; x++){
+			for (unsigned y = 0; y < matrix_side; y++){
+				matrix_p[x + y * matrix_side] = (unsigned)round(k * gauss_kernel(x, y, sigma));
+			}
+		}
+
+		auto normal = (unsigned)round(k * compute_gauss_normal(sigma));
+
+		int max_d = matrix_side;
+
+		for (int dst_y = 0; dst_y < h; dst_y++){
+			int src_min_y = std::max(dst_y - max_d + 1, 0);
+			int src_max_y = std::min(dst_y + max_d, h);
+			for (int dst_x = 0; dst_x < w; dst_x++){
+				unsigned accum[4] = {0};
+				int src_min_x = std::max(dst_x - max_d + 1, 0);
+				int src_max_x = std::min(dst_x + max_d, w);
+				auto dst_pixel = dst_pixels + pitch * dst_y + advance * dst_x;
+				unsigned normalization = 0;
+				for (int src_y = src_min_y; src_y < src_max_y; src_y++){
+					int dy = src_y - dst_y;
+					auto mask = dy >> 31;
+					dy = (dy + mask) ^ mask;
+					for (int src_x = src_min_x; src_x < src_max_x; src_x++){
+						int dx = src_x - dst_x;
+						mask = dx >> 31;
+						dx = (dx + mask) ^ mask;
+
+						auto src_pixel = src_pixels + pitch * src_y + advance * src_x;
+						auto factor = matrix_p[dx + dy * matrix_side];
+						normalization += factor;
+						accum[0] += src_pixel[0] * factor;
+						accum[1] += src_pixel[1] * factor;
+						accum[2] += src_pixel[2] * factor;
+						if (advance != 4)
+							continue;
+						accum[3] += src_pixel[3] * factor;
+					}
+				}
+				for (int i = 0; i < advance; i++)
+					dst_pixel[i] = (unsigned char)((accum[i] * normal / normalization) >> nk);
+			}
+		}
+	}
+	auto t1 = clock();
+	std::cout <<"apply_gaussian_blur() finished. "<<t1 - t0<<std::endl;
+	return dst_surface;
+}
+
+surface_t apply_gaussian_blur_double(surface_t src_surface, double sigma){
+	std::cout <<"apply_gaussian_blur_double() started.\n";
+	auto t0 = clock();
+	sigma = abs(sigma);
+
+	surface_t dst_surface = create_surface_without_copy(src_surface);
+	{
+		SurfaceLocker src_locker(src_surface);
+		SurfaceLocker dst_locker(dst_surface);
+
+		auto src_pixels = (unsigned char *)src_surface->pixels;
+		auto pitch = src_surface->pitch;
+		auto advance = src_surface->format->BytesPerPixel;
+	
+		auto dst_pixels = (unsigned char *)dst_surface->pixels;
+
+		int w = src_surface->w;
+		int h = src_surface->h;
+
+		auto matrix_side = (unsigned)ceil(sigma * 3);
+		boost::shared_array<double> matrix(new double[matrix_side * matrix_side]);
+		double *matrix_p = matrix.get();
+
+		for (unsigned x = 0; x < matrix_side; x++){
+			for (unsigned y = 0; y < matrix_side; y++){
+				matrix_p[x + y * matrix_side] = gauss_kernel(x, y, sigma);
+			}
+		}
+
+		auto normal = compute_gauss_normal(sigma);
+
+		int max_d = matrix_side;
+
+		for (int dst_y = 0; dst_y < h; dst_y++){
+			int src_min_y = std::max(dst_y - max_d + 1, 0);
+			int src_max_y = std::min(dst_y + max_d, h);
+			for (int dst_x = 0; dst_x < w; dst_x++){
+				double accum[4] = {0};
+				int src_min_x = std::max(dst_x - max_d + 1, 0);
+				int src_max_x = std::min(dst_x + max_d, w);
+				auto dst_pixel = dst_pixels + pitch * dst_y + advance * dst_x;
+				double normalization = 0;
+				for (int src_y = src_min_y; src_y < src_max_y; src_y++){
+					int dy = src_y - dst_y;
+					if (dy < 0)
+						dy = -dy;
+					for (int src_x = src_min_x; src_x < src_max_x; src_x++){
+						int dx = src_x - dst_x;
+						if (dx < 0)
+							dx = -dx;
+
+						auto src_pixel = src_pixels + pitch * src_y + advance * src_x;
+						auto factor = matrix_p[dx + dy * matrix_side];
+						normalization += factor;
+						accum[0] += src_pixel[0] * factor;
+						accum[1] += src_pixel[1] * factor;
+						accum[2] += src_pixel[2] * factor;
+						if (advance != 4)
+							continue;
+						accum[3] += src_pixel[3] * factor;
+					}
+				}
+				for (int i = 0; i < advance; i++)
+					dst_pixel[i] = (unsigned char)round(accum[i] * normal / normalization);
+			}
+		}
+	}
+	auto t1 = clock();
+	std::cout <<"apply_gaussian_blur_double() finished. "<<t1 - t0<<std::endl;
+	return dst_surface;
+}
+
+void gauss_boxes(int sizes[], size_t n, double sigma){
+	double w_ideal = sqrt((12 * sigma * sigma / n) + 1);
+	int wl = (int)w_ideal;
+	if (wl % 2 == 0)
+		wl--;
+	int wu = wl + 2;
+
+	double m_ideal = (12 * sigma * sigma - n * wl * wl - 4 * n * wl - 3 * n) / (-4 * wl - 4);
+	int m = (int)round_neg(m_ideal);
+
+	for (size_t i = 0; i < n; i++)
+		sizes[i] = i < m ? wl : wu;
+}
+
+class GaussSurface{
+	surface_t surface;
+	unsigned char *pixels;
+	unsigned channel_offset;
+public:
+	unsigned channel_count, w, h, pitch, advance;
+	GaussSurface(surface_t surface): surface(surface){
+		this->pixels = (unsigned char *)surface->pixels;
+		this->w = surface->w;
+		this->h = surface->h;
+		this->pitch = surface->pitch;
+		this->channel_count = this->advance = surface->format->BytesPerPixel;
+		this->channel_offset = 0;
+	}
+	void set_channel_offset(unsigned channel){
+		this->channel_offset = channel;
+	}
+	unsigned char *operator[](unsigned i){
+		unsigned x = i % this->w;
+		unsigned y = i / this->w;
+		return this->get_pixel(x, y);
+	}
+	unsigned get_index(unsigned x, unsigned y){
+		return x + y * this->w;
+	}
+	unsigned char *get_pixel(unsigned x, unsigned y){
+		return this->pixels + y * this->pitch + x * this->advance + this->channel_offset;
+	}
+	void swap_dimensions(){
+		std::swap(this->w, this->h);
+		std::swap(this->advance, this->pitch);
+	}
+};
+
+void gauss_helper(unsigned char *dst_pixels, unsigned char *src_pixels, unsigned w, unsigned h, unsigned pitch, unsigned advance, int r, double iarr){
+	for(int i = 0; i < h; i++){
+		int ti = i * w,
+			li = ti,
+			ri = ti + r;
+		int fv = src_pixels[ti],
+			lv = src_pixels[ti + w - 1],
+			val = (r + 1) * fv;
+		for (int j = 0; j < r; j++)
+			val += src_pixels[ti + j];
+		for (int j = 0; j <= r; j++){
+			val += src_pixels[ri++] - fv;
+			dst_pixels[ti++] = (unsigned char)round(val * iarr);
+		}
+		for (int j = r + 1; j < w - r; j++){
+			val += src_pixels[ri++] - src_pixels[li++];
+			dst_pixels[ti++] = (unsigned char)round(val * iarr);
+		}
+		for (int j = w - r; j < w; j++) {
+			val += lv - src_pixels[li++];
+			dst_pixels[ti++] = (unsigned char)round(val * iarr);
+		}
+	}
+}
+
+surface_t apply_gaussian_blur2(surface_t src_surface, double sigma){
+	std::cout <<"apply_gaussian_blur2() started.\n";
+	auto t0 = clock();
+	sigma = abs(sigma);
+
+	surface_t src_surface2 = copy_surface(src_surface);
+	surface_t dst_surface = create_surface_without_copy(src_surface);
+	src_surface = src_surface2;
+	{
+		SurfaceLocker src_locker(src_surface);
+		SurfaceLocker dst_locker(dst_surface);
+
+		GaussSurface src_gsurface = src_surface;
+		GaussSurface dst_gsurface = dst_surface;
+
+		size_t byte_length = src_surface->pitch * src_surface->h;
+
+		int boxes[3];
+		gauss_boxes(boxes, 3, sigma);
+
+		for (int ii = 0; ii < 3; ii++){
+			int r = (boxes[ii] - 1) / 2;
+			memcpy(dst_gsurface[0], src_gsurface[0], byte_length);
+
+			const double iarr = 1.0 / (r * 2 + 1);
+			for (int jj = 0; jj < 2; jj++){
+				for (int channel = 0; channel < dst_gsurface.channel_count; channel++){
+					src_gsurface.set_channel_offset(channel);
+					dst_gsurface.set_channel_offset(channel);
+					for(int i = 0; i < dst_gsurface.h; i++){
+						int ti = dst_gsurface.get_index(0, i),
+							li = ti,
+							ri = ti + dst_gsurface.get_index(r, 0);
+						int fv = *src_gsurface[ti],
+							lv = *src_gsurface[ti + dst_gsurface.get_index(dst_gsurface.w - 1, 0)],
+							val = (r + 1) * fv;
+						for (int j = 0; j < r; j++)
+							val += *src_gsurface[ti + j];
+						for (int j = 0; j <= r; j++){
+							val += *src_gsurface[ri++] - fv;
+							*dst_gsurface[ti++] = (unsigned char)round(val * iarr);
+						}
+						for (int j = r + 1; j < dst_gsurface.w - r; j++){
+							val += *src_gsurface[ri++] - *src_gsurface[li++];
+							*dst_gsurface[ti++] = (unsigned char)round(val * iarr);
+						}
+						for (int j = dst_gsurface.w - r; j < dst_gsurface.w; j++) {
+							val += lv - *src_gsurface[li++];
+							*dst_gsurface[ti++] = (unsigned char)round(val * iarr);
+						}
+					}
+				}
+
+				std::swap(src_gsurface, dst_gsurface);
+				src_gsurface.swap_dimensions();
+				dst_gsurface.swap_dimensions();
+			}
+		}
+	}
+	auto t1 = clock();
+	std::cout <<"apply_gaussian_blur2() finished. "<<t1 - t0<<std::endl;
+	return src_surface;
 }
 
 Texture::Texture(boost::shared_ptr<SDL_Renderer> renderer, const std::wstring &path):
@@ -322,4 +666,10 @@ void Subtexture::draw(const SDL_Rect &_dst){
 	dst.w = int(this->region.w * this->scale);
 	dst.h = int(this->region.h * this->scale);
 	this->texture.draw(dst, &this->region);
+}
+
+void Texture::set_alpha(double alpha){
+	if (!*this)
+		return;
+	SDL_SetTextureAlphaMod(this->tex.get(), Uint8(alpha * 255.0));
 }

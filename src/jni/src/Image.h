@@ -57,6 +57,8 @@ struct SurfaceLocker{
 surface_t create_rgbq_surface(unsigned bits, unsigned w, unsigned h);
 surface_t create_rgb_surface(unsigned w, unsigned h);
 surface_t create_rgba_surface(unsigned w, unsigned h);
+surface_t create_surface_without_copy(surface_t);
+surface_t copy_surface(surface_t);
 
 surface_t scale_surface(surface_t src, unsigned dst_w, unsigned dst_h);
 surface_t bind_surface_to_square(surface_t src, unsigned size);
@@ -65,6 +67,10 @@ surface_t load_image_from_file(const char *path);
 surface_t load_image_from_file(const std::wstring &path);
 surface_t load_image_from_memory(const void *buffer, size_t length);
 void save_surface_compressed(const char *path, surface_t src);
+
+surface_t apply_gaussian_blur(surface_t, double sigma);
+surface_t apply_gaussian_blur_double(surface_t, double sigma);
+surface_t apply_gaussian_blur2(surface_t src_surface, double sigma);
 
 class Texture{
 	bool loaded;
@@ -100,6 +106,7 @@ public:
 		this->tex.reset();
 		this->loaded = 0;
 	}
+	void set_alpha(double alpha);
 };
 
 class Subtexture{

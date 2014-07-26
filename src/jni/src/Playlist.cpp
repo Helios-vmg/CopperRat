@@ -110,6 +110,7 @@ bool Playlist::toggle_shuffle(){
 		}
 	}
 	this->shuffle = !this->shuffle;
+	this->save_state();
 	return this->shuffle;
 }
 

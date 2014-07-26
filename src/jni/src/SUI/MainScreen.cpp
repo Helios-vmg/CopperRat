@@ -139,6 +139,7 @@ void MainScreen::prepare_buttons(){
 	}
 	this->tex_buttons.set_renderer(this->sui->get_renderer());
 	this->tex_buttons.load(new_surface);
+	this->tex_buttons.set_alpha(0.85);
 	for (i = 0; i < n; i++){
 		Subtexture st(this->tex_buttons, rects[i]);
 		boost::shared_ptr<GraphicButton> button(new GraphicButton(this->sui, this));

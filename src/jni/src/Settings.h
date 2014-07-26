@@ -4,6 +4,7 @@
 class Settings{
 	typedef Playlist::PlaybackMode Mode;
 	Mutex mutex;
+	bool no_changes;
 	Mode playback_mode;
 	bool shuffle;
 	std::wstring last_browse_directory;

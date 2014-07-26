@@ -147,6 +147,7 @@ unsigned FileBrowser::handle_event(const SDL_Event &e){
 				this->listviews.pop_back();
 				this->path.pop_back();
 				this->directory_list_stack.pop_back();
+				this->new_initial_directory = this->get_selection();
 				ret |= SUI::REDRAW;
 				break;
 			default:
@@ -159,12 +160,14 @@ unsigned FileBrowser::handle_event(const SDL_Event &e){
 }
 
 std::wstring FileBrowser::get_selection_internal(bool from_outside) const{
-	assert(this->directory_list_stack.size() == this->path.size());
 	std::wstring path;
 	size_t i = 0;
 	bool skip_last = from_outside && !this->select_file;
 	std::wstring ret;
+	auto n = std::min(this->directory_list_stack.size(), this->path.size());
 	for (auto &vector : this->directory_list_stack){
+		if (i == n)
+			break;
 		ret = path;
 		path += vector[this->path[i]].name;
 		i++;
