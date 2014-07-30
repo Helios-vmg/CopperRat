@@ -71,6 +71,7 @@ void save_surface_compressed(const char *path, surface_t src);
 surface_t apply_gaussian_blur(surface_t, double sigma);
 surface_t apply_gaussian_blur_double(surface_t, double sigma);
 surface_t apply_gaussian_blur2(surface_t src_surface, double sigma);
+surface_t apply_box_blur(surface_t src_surface, double radius);
 
 class Texture{
 	bool loaded;

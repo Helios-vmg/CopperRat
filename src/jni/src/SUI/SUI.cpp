@@ -282,7 +282,7 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 		case SDL_SCANCODE_AUDIOPREV:
 			this->player.request_previous();
 			break;
-#if defined WIN32 && 0
+#if defined WIN32
 		case SDL_SCANCODE_F12:
 			{
 				boost::shared_array<unsigned char> pixels;
@@ -308,7 +308,8 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 				//SDL_SaveBMP(new_s.get(), "screenshot1.bmp");
 				//new_s = apply_gaussian_blur_double(surface, 5);
 				//SDL_SaveBMP(new_s.get(), "screenshot2.bmp");
-				auto new_s = apply_gaussian_blur2(surface, 5);
+				//auto new_s = apply_box_blur(surface, 20);
+				auto new_s = apply_gaussian_blur2(surface, 15);
 				SDL_SaveBMP(new_s.get(), "screenshot3.bmp");
 			}
 			break;
@@ -386,7 +387,7 @@ void PictureDecodingJob::sui_perform(WorkerThread &wt){
 			auto rect = this->trim_rect;
 			rect.y = (new_surface2->clip_rect.h - rect.h) / 2;
 			rect.x = (new_surface2->clip_rect.w - rect.w) / 2;
-			SDL_BlitSurface(new_surface2.get(), 0, new_surface3.get(), 0);
+			SDL_BlitSurface(new_surface2.get(), &rect, new_surface3.get(), 0);
 			new_surface2 = new_surface3;
 			new_surface2 = apply_gaussian_blur2(new_surface2, 10);
 			this->secondary_picture = new_surface2;

@@ -408,6 +408,72 @@ surface_t apply_gaussian_blur(surface_t src_surface, double sigma){
 	return dst_surface;
 }
 
+surface_t apply_box_blur(surface_t src_surface, double radius){
+	auto t0 = clock();
+	radius = abs(radius);
+
+	auto radius2 = (unsigned)ceil(radius * radius);
+
+	surface_t dst_surface = create_surface_without_copy(src_surface);
+	{
+		SurfaceLocker src_locker(src_surface);
+		SurfaceLocker dst_locker(dst_surface);
+
+		auto src_pixels = (unsigned char *)src_surface->pixels;
+		auto pitch = src_surface->pitch;
+		auto advance = src_surface->format->BytesPerPixel;
+	
+		auto dst_pixels = (unsigned char *)dst_surface->pixels;
+
+		int w = src_surface->w;
+		int h = src_surface->h;
+
+		const unsigned nk = 12;
+		const double k = 1 << nk;
+
+		int max_d = (int)ceil(radius);
+
+		for (int dst_y = 0; dst_y < h; dst_y++){
+			int src_min_y = std::max(dst_y - max_d + 1, 0);
+			int src_max_y = std::min(dst_y + max_d, h);
+			for (int dst_x = 0; dst_x < w; dst_x++){
+				unsigned accum[4] = {0};
+				int src_min_x = std::max(dst_x - max_d + 1, 0);
+				int src_max_x = std::min(dst_x + max_d, w);
+				auto dst_pixel = dst_pixels + pitch * dst_y + advance * dst_x;
+				unsigned normalization = 0;
+				for (int src_y = src_min_y; src_y < src_max_y; src_y++){
+					int dy = src_y - dst_y;
+					auto mask = dy >> 31;
+					dy = (dy + mask) ^ mask;
+					for (int src_x = src_min_x; src_x < src_max_x; src_x++){
+						int dx = src_x - dst_x;
+						mask = dx >> 31;
+						dx = (dx + mask) ^ mask;
+
+						if (dx * dx + dy * dy > radius2)
+							continue;
+
+						auto src_pixel = src_pixels + pitch * src_y + advance * src_x;
+						normalization++;
+						accum[0] += src_pixel[0];
+						accum[1] += src_pixel[1];
+						accum[2] += src_pixel[2];
+						if (advance != 4)
+							continue;
+						accum[3] += src_pixel[3];
+					}
+				}
+				for (int i = 0; i < advance; i++)
+					dst_pixel[i] = (unsigned char)(accum[i] / normalization);
+			}
+		}
+	}
+	auto t1 = clock();
+	std::cout <<t1 - t0<<std::endl;
+	return dst_surface;
+}
+
 surface_t apply_gaussian_blur_double(surface_t src_surface, double sigma){
 	sigma = abs(sigma);
 
@@ -525,6 +591,7 @@ public:
 };
 
 surface_t apply_gaussian_blur2(surface_t src_surface, double sigma){
+	auto t0 = clock();
 	sigma = abs(sigma);
 
 	surface_t src_surface2 = copy_surface(src_surface);
@@ -580,6 +647,8 @@ surface_t apply_gaussian_blur2(surface_t src_surface, double sigma){
 			}
 		}
 	}
+	auto t1 = clock();
+	std::cout <<t1 - t0<<std::endl;
 	return src_surface;
 }
 
