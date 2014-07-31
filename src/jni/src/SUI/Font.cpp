@@ -70,7 +70,7 @@ void Font::initialize_offsets_table(Uint32 bitmap_offset, Uint32 offsets_table_o
 	this->offsets_table.back() = (Uint32)this->font_file.tellg();
 }
 
-Font::Font(boost::shared_ptr<SDL_Renderer> renderer): renderer(renderer){
+Font::Font(GPU_Target *target): target(target){
 	static const char *path = BASE_PATH "unifont.dat";
 	this->font_file.open(path, std::ios::binary);
 	if (!this->font_file)
@@ -160,10 +160,9 @@ void Font::load_page(unsigned page){
 		img = temp;
 	}
 	preprocess_image(img);
-	auto texture = SDL_CreateTextureFromSurface(this->renderer.get(), img);
-	SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+	auto texture = GPU_CopyImageFromSurface(img);
 	SDL_FreeSurface(img);
-	this->textures[page].reset(texture, [](SDL_Texture *t){ SDL_DestroyTexture(t); });
+	this->textures[page].reset(texture, GPU_Image_deleter());
 }
 
 void Font::compute_rendering_pairs(void (*f)(void *, const rendering_pair &), void *user, const std::string *text, const std::wstring *wtext, int x0, int y0, int wrap_at, double scale){
@@ -193,8 +192,9 @@ void Font::compute_rendering_pairs(void (*f)(void *, const rendering_pair &), vo
 			rp.src.h = fullwidth_size;
 			rp.dst.x = x;
 			rp.dst.y = y;
-			rp.dst.w = (int)ceil(rp.src.w * scale);
-			rp.dst.h = (int)ceil(rp.src.h * scale);
+			rp.dst.w = rp.src.w * scale;
+			rp.dst.h = rp.src.h * scale;
+			rp.scale = (float)scale;
 			x += rp.dst.w;
 			f(user, rp);
 		}
@@ -212,13 +212,13 @@ void Font::draw_text(const std::string *text, const std::wstring *wtext, int x0,
 
 	std::sort(pairs.begin(), pairs.end(), [](const rendering_pair &a, const rendering_pair &b){ return a.page < b.page; });
 	int last_page = -1;
-	boost::shared_ptr<SDL_Texture> page;
+	texture_t page;
 	for (auto &rp : pairs){
 		if (rp.page != last_page){
 			page = this->get_page(rp.page);
 			last_page = rp.page;
 		}
-		SDL_RenderCopy(this->renderer.get(), page.get(), &rp.src, &rp.dst);
+		GPU_BlitScale(page.get(), &rp.src, this->target, rp.dst.x, rp.dst.y, rp.scale, rp.scale);
 	}
 }
 
@@ -226,8 +226,8 @@ SDL_Rect Font::calculate_bounding_box(const std::wstring &text, int wrap_at, dou
 	SDL_Rect ret = {0, 0, 0, 0};
 	auto f = [](void *p, const rendering_pair &rp){
 		auto &ret = *(SDL_Rect *)p;
-		ret.w = std::max(ret.w, rp.dst.x + rp.dst.w);
-		ret.h = std::max(ret.h, rp.dst.y + rp.dst.h);
+		ret.w = std::max(ret.w, (int)ceil(rp.dst.x + rp.dst.w));
+		ret.h = std::max(ret.h, (int)ceil(rp.dst.y + rp.dst.h));
 	};
 	this->compute_rendering_pairs(f, &ret, nullptr, &text, 0, 0, wrap_at, scale);
 	return ret;

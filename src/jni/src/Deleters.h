@@ -72,4 +72,26 @@ struct SDL_Texture_deleter{
 	}
 };
 
+inline void GPU_Image_deleter_func(GPU_Image *t){
+	if (t)
+		GPU_FreeImage(t);
+}
+
+struct GPU_Image_deleter{
+	void operator()(GPU_Image *r) const{
+		GPU_Image_deleter_func(r);
+	}
+};
+
+inline void GPU_Target_deleter_func(GPU_Target *t){
+	if (t)
+		GPU_FreeTarget(t);
+}
+
+struct GPU_Target_deleter{
+	void operator()(GPU_Target *r) const{
+		GPU_Target_deleter_func(r);
+	}
+};
+
 #endif

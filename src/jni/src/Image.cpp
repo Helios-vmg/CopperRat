@@ -652,17 +652,17 @@ surface_t apply_gaussian_blur2(surface_t src_surface, double sigma){
 	return src_surface;
 }
 
-Texture::Texture(boost::shared_ptr<SDL_Renderer> renderer, const std::wstring &path):
-		renderer(renderer),
-		tex(nullptr, SDL_Texture_deleter()),
+Texture::Texture(GPU_Target *target, const std::wstring &path):
+		target(target),
+		tex(nullptr, GPU_Image_deleter()),
 		loaded(0),
 		rect(){
 	this->load(path);
 }
 
-Texture::Texture(boost::shared_ptr<SDL_Renderer> renderer, surface_t src):
-		renderer(renderer),
-		tex(nullptr, SDL_Texture_deleter()),
+Texture::Texture(GPU_Target *target, surface_t src):
+		target(target),
+		tex(nullptr, GPU_Image_deleter()),
 		loaded(0),
 		rect(){
 	this->load(src);
@@ -677,18 +677,24 @@ void Texture::from_surface(surface_t src){
 	this->rect.y = 0;
 	this->rect.w = src->w;
 	this->rect.h = src->h;
-	this->tex.reset(SDL_CreateTextureFromSurface(this->renderer.get(), src.get()), SDL_Texture_deleter());
+	this->tex.reset(GPU_CopyImageFromSurface(src.get()), GPU_Image_deleter());
 	this->loaded = !!tex.get();
 }
 
-void Texture::draw(const SDL_Rect &_dst, const SDL_Rect *_src){
+GPU_Rect to_GPU_Rect(const SDL_Rect &rect){
+	GPU_Rect ret;
+	ret.x = rect.x;
+	ret.y = rect.y;
+	ret.w = rect.w;
+	ret.h = rect.h;
+	return ret;
+}
+
+void Texture::draw(const SDL_Rect &dst, const SDL_Rect *_src){
 	if (!*this)
 		return;
-	SDL_Rect src = !_src ? this->rect : *_src;
-	SDL_Rect dst = _dst;
-	dst.w = src.w;
-	dst.h = src.h;
-	SDL_RenderCopy(this->renderer.get(), this->tex.get(), &src, &dst);
+	GPU_Rect src = !_src ? this->rect : to_GPU_Rect(*_src);
+	GPU_Blit(this->tex.get(), &src, this->target, dst.x, dst.y);
 }
 
 void Subtexture::draw(const SDL_Rect &_dst){
@@ -700,8 +706,40 @@ void Subtexture::draw(const SDL_Rect &_dst){
 	this->texture.draw(dst, &this->region);
 }
 
+void Texture::draw_with_fill(GPU_Target *target){
+	auto src_rect = this->rect;
+	auto dst_rect = target->clip_rect;
+
+	auto scale = std::max(dst_rect.w / src_rect.w, dst_rect.h / src_rect.h);
+
+	src_rect.w *= scale;
+	src_rect.h *= scale;
+
+	src_rect.x = (dst_rect.w - src_rect.w) / 2;
+	src_rect.y = (dst_rect.h - src_rect.h) / 2;
+
+	GPU_BlitScale(this->tex.get(), &this->rect, target, src_rect.x, src_rect.y, scale, scale);
+}
+
 void Texture::set_alpha(double alpha){
 	if (!*this)
 		return;
-	SDL_SetTextureAlphaMod(this->tex.get(), Uint8(alpha * 255.0));
+	SDL_Color color = { 0xFF, 0xFF, 0xFF, 0xFF };
+	color.a = Uint8(alpha * 255.0);
+	GPU_SetColor(this->tex.get(), &color);
+}
+
+RenderTarget::RenderTarget(unsigned w, unsigned h){
+	auto image = GPU_CreateImage(w, h, GPU_FORMAT_RGBA);
+	auto target = GPU_LoadTarget(image);
+	this->texture.reset(image, GPU_Image_deleter());
+	this->target.reset(target, GPU_Target_deleter());
+}
+
+texture_t RenderTarget::get_image(){
+	if (!this->target)
+		return texture_t();
+	if (!this->texture)
+		return to_texture_t(GPU_CopyImageFromTarget(this->target.get()));
+	return this->texture;
 }

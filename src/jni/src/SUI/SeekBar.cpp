@@ -45,15 +45,14 @@ void SeekBar::update(){
 	double current_time = player.get_current_time();
 
 	{
-		auto renderer = this->sui->get_renderer();
-		Uint8 red, green, blue, alpha;
-		SDL_GetRenderDrawColor(renderer.get(), &red, &green, &blue, &alpha);
-		SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0xFF, 0xFF, 0x80);
+		auto target = this->sui->get_target();
+		SDL_Color color;
+		color.r = color.g = color.b = 0xFF;
+		color.a = 0x80;
 		auto rect = this->region;
 		rect.w = int(rect.w * (!this->drag_started ? current_time / total_time : this->multiplier));
 		rect.y += rect.h / 4 * 3;
-		SDL_RenderFillRect(renderer.get(), &rect);
-		SDL_SetRenderDrawColor(renderer.get(), red, green, blue, alpha);
+		GPU_RectangleFilled(target, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, color);
 	}
 	{
 		std::wstringstream stream;

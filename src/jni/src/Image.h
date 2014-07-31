@@ -37,11 +37,28 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "Deleters.h"
 
 typedef boost::shared_ptr<SDL_Surface> surface_t;
-typedef boost::shared_ptr<SDL_Renderer> renderer_t;
-typedef boost::shared_ptr<SDL_Texture> texture_t;
+typedef boost::shared_ptr<GPU_Renderer> renderer_t;
+typedef boost::shared_ptr<GPU_Image> texture_t;
+	typedef boost::shared_ptr<GPU_Target> render_target_t;
+
+class RenderTarget{
+	texture_t texture;
+	render_target_t target;
+public:
+	RenderTarget(unsigned w, unsigned h);
+	//RenderTarget(surface_t);
+	GPU_Target *get_target(){
+		return this->target.get();
+	}
+	texture_t get_image();
+};
 
 inline surface_t to_surface_t(SDL_Surface *s){
 	return surface_t(s, SDL_Surface_deleter());
+}
+
+inline texture_t to_texture_t(GPU_Image *s){
+	return texture_t(s, GPU_Image_deleter());
 }
 
 struct SurfaceLocker{
@@ -75,33 +92,42 @@ surface_t apply_box_blur(surface_t src_surface, double radius);
 
 class Texture{
 	bool loaded;
-	renderer_t renderer;
+	GPU_Target *target;
 	texture_t tex;
-	SDL_Rect rect;
+	GPU_Rect rect;
 
 	void from_surface(surface_t src);
 public:
 	Texture(): loaded(0){}
-	Texture(renderer_t renderer): renderer(renderer), loaded(0){}
-	Texture(renderer_t renderer, const std::wstring &path);
-	Texture(renderer_t renderer, surface_t src);
-	void set_renderer(renderer_t renderer){
-		this->renderer = renderer;
+	Texture(GPU_Target *target): target(target), loaded(0){}
+	Texture(GPU_Target *target, const std::wstring &path);
+	Texture(GPU_Target *target, surface_t src);
+	void set_target(GPU_Target *target){
+		this->target = target;
 		this->tex.reset();
 		this->loaded = 0;
 	}
 	operator bool() const{
 		return this->loaded;
 	}
-	const SDL_Rect &get_rect() const{
+	const GPU_Rect &get_rect() const{
 		return this->rect;
 	}
 	void draw(const SDL_Rect &dst, const SDL_Rect *src = nullptr);
+	void draw_with_fill(GPU_Target *);
 	void load(const std::wstring &path){
 		this->from_surface(load_image_from_file(path));
 	}
 	void load(surface_t src){
 		this->from_surface(src);
+	}
+	void operator=(texture_t tex){
+		this->tex = tex;
+		this->rect.x = 0;
+		this->rect.y = 0;
+		this->rect.w = tex->w;
+		this->rect.h = tex->h;
+		this->loaded = 1;
 	}
 	void unload(){
 		this->tex.reset();

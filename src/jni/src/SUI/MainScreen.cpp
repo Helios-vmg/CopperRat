@@ -137,7 +137,7 @@ void MainScreen::prepare_buttons(){
 		SDL_BlitSurface(button_surfaces[i].get(), 0, new_surface.get(), &dst);
 		i++;
 	}
-	this->tex_buttons.set_renderer(this->sui->get_renderer());
+	this->tex_buttons.set_target(this->sui->get_target());
 	this->tex_buttons.load(new_surface);
 	this->tex_buttons.set_alpha(0.5);
 	for (i = 0; i < n; i++){

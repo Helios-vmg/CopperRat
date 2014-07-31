@@ -216,8 +216,6 @@ void GUIElement::update(){
 SUI::SUI():
 		GUIElement(this, nullptr),
 		player(*this),
-		window(nullptr, [](SDL_Window *w) { if (w) SDL_DestroyWindow(w); }),
-		renderer(nullptr, SDL_Renderer_deleter()),
 		current_total_time(-1),
 		bounding_square(-1),
 		max_square(-1),
@@ -227,24 +225,16 @@ SUI::SUI():
 		ui_in_foreground(1){
 	get_dots_per_millimeter();
 
-	this->window.reset(SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1080/2, 1920/2, 0));
-	if (!this->window)
+	this->screen = GPU_Init(1080/2, 1920/2, GPU_DEFAULT_INIT_FLAGS);
+	if (!this->screen)
 		throw UIInitializationException("Window creation failed.");
 
-	this->renderer.reset(SDL_CreateRenderer(this->window.get(), -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC), SDL_Renderer_deleter());
-	if (!this->renderer)
-		throw UIInitializationException("Renderer creation failed.");
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+	this->tex_picture.set_target(this->screen);
+	this->background_picture.set_target(this->screen);
 
-	this->tex_picture.set_renderer(this->renderer);
-	this->background_picture.set_renderer(this->renderer);
-
-	this->font.reset(new Font(this->renderer));
+	this->font.reset(new Font(this->screen));
 
 	this->scc.start();
-
-	SDL_SetRenderDrawColor(this->renderer.get(), 0, 0, 0, 0);
-	SDL_SetRenderDrawBlendMode(this->renderer.get(), SDL_BLENDMODE_BLEND);
 }
 
 SUI::~SUI(){
@@ -282,7 +272,7 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 		case SDL_SCANCODE_AUDIOPREV:
 			this->player.request_previous();
 			break;
-#if defined WIN32
+#if defined WIN32 && 0
 		case SDL_SCANCODE_F12:
 			{
 				boost::shared_array<unsigned char> pixels;
@@ -380,6 +370,7 @@ void PictureDecodingJob::sui_perform(WorkerThread &wt){
 		this->load_picture_from_filesystem();
 	if (this->picture){
 		auto new_surface1 = bind_surface_to_square(this->picture, this->target_square);
+		/*
 		if (application_settings.get_expensive_gfx()){
 			double scale = (double)this->secondary_square / (double)std::min(new_surface1->w, new_surface1->h);
 			auto new_surface2 = scale_surface(new_surface1, unsigned(new_surface1->w * scale), unsigned(new_surface1->h * scale));
@@ -392,6 +383,7 @@ void PictureDecodingJob::sui_perform(WorkerThread &wt){
 			new_surface2 = apply_gaussian_blur2(new_surface2, 10);
 			this->secondary_picture = new_surface2;
 		}
+		*/
 		this->picture = new_surface1;
 	}
 }
@@ -514,6 +506,125 @@ unsigned SUI::handle_out_events(){
 	return ret;
 }
 
+const char *vertex_shader = "#ifdef GL_ES\n"
+" #version 100\n"
+" precision mediump int;\n"
+" precision mediump float;\n"
+"#else\n"
+" #version 120\n"
+"#endif\n"
+"\n"
+"attribute vec3 gpu_Vertex;\n"
+"attribute vec2 gpu_TexCoord;\n"
+"attribute vec4 gpu_Color;\n"
+"uniform mat4 modelViewProjection;\n"
+"\n"
+"varying vec4 color;\n"
+"varying vec2 texCoord;\n"
+"\n"
+"void main(void)\n"
+"{\n"
+"	color = gpu_Color;\n"
+"	texCoord = vec2(gpu_TexCoord);\n"
+"	gl_Position = modelViewProjection * vec4(gpu_Vertex, 1.0);\n"
+"}\n";
+
+
+double gauss_kernel(double x, double sigma){
+	return exp((x * x) / -(2 * sigma * sigma)) / (9.4247779607693797153879301498385 * sigma * sigma);
+}
+
+std::string generate_fragment_shader(double sigma, double texture_w, double texture_h, bool vertical){
+	std::stringstream ret;
+	ret <<
+"#ifdef GL_ES\n"
+" #version 100\n"
+" precision mediump int;\n"
+" precision mediump float;\n"
+"#else\n"
+" #version 120\n"
+"#endif\n"
+"\n"
+"varying vec4 color;\n"
+"//varying vec2 v_texCoord;\n"
+"varying vec2 texCoord;\n"
+"\n"
+"uniform sampler2D tex;\n"
+"uniform float time;\n"
+"\n"
+"void main(void)\n"
+"{\n"
+"	vec4 accum = vec4(0, 0, 0, 0);\n";
+	double normalization = 0;
+	for (double x = -sigma * 3; x <= sigma * 3; x++){
+		double kernel = gauss_kernel(x, sigma);
+		normalization += kernel;
+		ret <<"	accum += texture2D(tex, texCoord + vec2(";
+		if (!vertical)
+			ret <<(x / texture_w)<<", 0";
+		else
+			ret <<"0, "<<(x / texture_h);
+		ret <<")) * "<<kernel<<";\n";
+	}
+	ret <<"	gl_FragColor = accum / "<<normalization<<";\n}\n";
+	return ret.str();
+}
+
+Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
+	RenderTarget target1(screen->w, screen->h);
+	RenderTarget target2(screen->w, screen->h);
+	Texture ret(screen);
+	auto renderer = GPU_GetCurrentRenderer();
+	auto vertex = GPU_CompileShader(GPU_VERTEX_SHADER, vertex_shader);
+	if (vertex){
+		auto rect = tex.get_rect();
+		auto fragment_shader1 = generate_fragment_shader(sigma, rect.w, rect.h, 0);
+		auto fragment_shader2 = generate_fragment_shader(sigma, rect.w, rect.h, 1);
+		auto fragment1 = GPU_CompileShader(GPU_FRAGMENT_SHADER, fragment_shader1.c_str());
+		if (fragment1){
+			auto fragment2 = GPU_CompileShader(GPU_FRAGMENT_SHADER, fragment_shader2.c_str());
+			if (fragment2){
+				auto program1 = GPU_LinkShaders(vertex, fragment1);
+				if (program1){
+					auto program2 = GPU_LinkShaders(vertex, fragment2);
+					if (program2){
+						GPU_ShaderBlock block1 = GPU_LoadShaderBlock(program1, "gpu_Vertex", "gpu_TexCoord", "gpu_Color", "modelViewProjection");
+						GPU_ShaderBlock block2 = GPU_LoadShaderBlock(program2, "gpu_Vertex", "gpu_TexCoord", "gpu_Color", "modelViewProjection");
+
+						GPU_Clear(target1.get_target());
+						tex.draw_with_fill(target1.get_target());
+
+						GPU_ActivateShaderProgram(program1, &block1);
+						auto uloc = GPU_GetUniformLocation(program1, "tex");
+						GPU_SetUniformi(uloc, 0);
+
+						GPU_Clear(target2.get_target());
+						GPU_Blit(target1.get_target()->image, nullptr, target2.get_target(), 0, 0);
+						
+						GPU_ActivateShaderProgram(program2, &block2);
+						uloc = GPU_GetUniformLocation(program2, "tex");
+						GPU_SetUniformi(uloc, 0);
+				
+						GPU_Clear(target1.get_target());
+						GPU_Blit(target2.get_target()->image, nullptr, target1.get_target(), 0, 0);
+
+						GPU_ActivateShaderProgram(0, nullptr);
+
+						ret = target1.get_image();
+					}else
+						std::cerr <<GPU_GetShaderMessage()<<std::endl;
+					GPU_FreeShaderProgram(program1);
+				}else
+					std::cerr <<GPU_GetShaderMessage()<<std::endl;
+				GPU_FreeShader(fragment2);
+			}
+			GPU_FreeShader(fragment1);
+		}
+		GPU_FreeShader(vertex);
+	}
+	return ret;
+}
+
 unsigned SUI::finish(PictureDecodingJob &job){
 	unsigned ret = NOTHING;
 	if (job.get_id() != this->picture_job->get_id())
@@ -532,11 +643,15 @@ unsigned SUI::finish(PictureDecodingJob &job){
 		}else{
 			this->tex_picture_source = job.get_source();
 			this->tex_picture.load(picture);
+			this->background_picture = blur_image(this->tex_picture, this->screen);
+			/*
 			auto secondary = job.get_secondary_picture();
 			if (secondary)
 				this->background_picture.load(secondary);
 			else
 				this->background_picture.unload();
+			*/
+
 			ret = REDRAW;
 		}
 	}else{
@@ -598,22 +713,22 @@ void SUI::draw_picture(){
 int SUI::get_bounding_square(){
 	if (this->bounding_square >= 0)
 		return this->bounding_square;
-	int w, h;
-	SDL_GetWindowSize(this->window.get(), &w, &h);
+	int w = this->screen->w,
+		h = this->screen->h;
 	return this->bounding_square = std::min(w, h);
 }
 
 int SUI::get_max_square(){
 	if (this->max_square >= 0)
 		return this->max_square;
-	int w, h;
-	SDL_GetWindowSize(this->window.get(), &w, &h);
+	int w = this->screen->w,
+		h = this->screen->h;
 	return this->max_square = std::max(w, h);
 }
 
 SDL_Rect SUI::get_visible_region(){
-	int w, h;
-	SDL_GetWindowSize(this->window.get(), &w, &h);
+	int w = this->screen->w,
+		h = this->screen->h;
 	SDL_Rect ret = { 0, 0, w, h, };
 	return ret;
 }
@@ -670,8 +785,8 @@ void SUI::loop(){
 		this->update_requested = 0;
 
 		last = now_ticks;
-		SDL_RenderClear(this->renderer.get());
+		GPU_Clear(this->screen);
 		this->current_element->update();
-		SDL_RenderPresent(this->renderer.get());
+		GPU_Flip(this->screen);
 	}
 }

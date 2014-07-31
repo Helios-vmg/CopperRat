@@ -53,6 +53,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <SDL_image.h>
 #include <SDL_stdinc.h>
 #include <SDL_system.h>
+extern "C"{
+#include <SDL_gpu.h>
+}
 #include <algorithm>
 #include <boost/coroutine/all.hpp>
 #include <boost/shared_ptr.hpp>

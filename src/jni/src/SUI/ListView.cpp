@@ -123,7 +123,7 @@ void ListView::gui_signal(const GuiSignal &s){
 
 void ListView::update(){
 update_restart:
-	auto renderer = this->sui->get_renderer();
+	auto target = this->sui->get_target();
 	if (this->movement_speed && !this->buttondown){
 		this->offset += this->movement_speed;
 		if (this->offset > 0){
@@ -146,28 +146,26 @@ update_restart:
 		this->sui->end_full_updating();
 		this->moving = 0;
 	}
-	Uint8 red, green, blue, alpha; 
-	SDL_GetRenderDrawColor(renderer.get(), &red, &green, &blue, &alpha);
-	SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0xFF, 0xFF, 0xFF);
 	int int_offset = (int)this->offset;
+	SDL_Color color = { 0xFF, 0xFF, 0xFF, 0xFF };
 	for (auto &b : this->items){
 		b->set_offset(0, int_offset);
 		b->update();
 		auto r = b->get_bounding_box();
 		auto h = r.y + r.h + int_offset;
-		SDL_RenderDrawLine(renderer.get(), r.x, h, r.x + r.w, h);
+
+		GPU_Line(target, r.x, h, r.x + r.w, h, color);
 	}
 	if (this->total_length > this->visible_region.h){
-		SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0xFF, 0xFF, 0x80);
+		color.a = 0x80;
 		SDL_Rect rect = {
 			this->visible_region.w - 5,
 			(int)(-this->offset / this->total_length * this->visible_region.h),
 			5,
 			this->visible_region.h * this->visible_region.h / this->total_length,
 		};
-		SDL_RenderFillRect(renderer.get(), &rect);
+		GPU_RectangleFilled(target, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, color);
 	}
-	SDL_SetRenderDrawColor(renderer.get(), red, green, blue, alpha);
 }
 
 bool ListView::get_input(unsigned &dst, ControlCoroutine &coroutine, boost::shared_ptr<ListView> self){

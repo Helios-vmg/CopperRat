@@ -30,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define FONT_H
 
 #include "../Exception.h"
+#include "../Image.h"
 
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <vector>
@@ -47,20 +48,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 struct rendering_pair{
 	Uint8 page;
-	SDL_Rect src;
-	SDL_Rect dst;
+	GPU_Rect src;
+	GPU_Rect dst;
+	float scale;
 };
 
 class Font{
 	std::ifstream font_file;
-	boost::shared_ptr<SDL_Renderer> renderer;
+	GPU_Target *target;
 	std::vector<bool> width_bitmap;
 	std::vector<Uint32> offsets_table;
-	std::vector<boost::shared_ptr<SDL_Texture> > textures;
+	std::vector<texture_t> textures;
 	void initialize_width_bitmap(Uint32 bitmap_offset, Uint32 offsets_table_offset);
 	void initialize_offsets_table(Uint32 bitmap_offset, Uint32 offsets_table_offset);
 	void load_page(unsigned page);
-	boost::shared_ptr<SDL_Texture> get_page(Uint8 page){
+	texture_t get_page(Uint8 page){
 		if (!this->textures[page])
 			this->load_page(page);
 		return this->textures[page];
@@ -68,7 +70,7 @@ class Font{
 	void draw_text(const std::string *, const std::wstring *, int, int, int, double);
 	void compute_rendering_pairs(void (*)(void *, const rendering_pair &), void *, const std::string *, const std::wstring *, int, int, int, double);
 public:
-	Font(boost::shared_ptr<SDL_Renderer> renderer);
+	Font(GPU_Target *target);
 	void draw_text(const std::string &text, int x0, int y0, int wrap_at = INT_MAX, double scale = 1.0){
 		this->draw_text(&text, nullptr, x0, y0, wrap_at, scale);
 	}

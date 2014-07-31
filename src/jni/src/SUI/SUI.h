@@ -198,8 +198,7 @@ public:
 private:
 	AudioPlayer player;
 	finished_jobs_queue_t finished_jobs_queue;
-	SDL_PTR_WRAPPER(SDL_Window) window;
-	renderer_t renderer;
+	GPU_Target *screen;
 	boost::shared_ptr<Font> font;
 	double current_total_time;
 	std::wstring metadata;
@@ -252,8 +251,8 @@ public:
 	boost::shared_ptr<Font> get_font() const{
 		return this->font;
 	}
-	renderer_t get_renderer() const{
-		return this->renderer;
+	GPU_Target *get_target() const{
+		return this->screen;
 	}
 	int get_bounding_square();
 	int get_max_square();
