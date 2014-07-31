@@ -571,6 +571,7 @@ std::string generate_fragment_shader(double sigma, double texture_w, double text
 }
 
 Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
+	auto t0 = clock();
 	RenderTarget target1(screen->w, screen->h);
 	RenderTarget target2(screen->w, screen->h);
 	Texture ret(screen);
@@ -622,6 +623,8 @@ Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
 		}
 		GPU_FreeShader(vertex);
 	}
+	auto t1 = clock();
+	__android_log_print(ANDROID_LOG_INFO, "C++Shader", "Blurring done in %f ms\n", (double)(t1 - t0) / (double)CLOCKS_PER_SEC * 1000.0);
 	return ret;
 }
 
@@ -643,7 +646,7 @@ unsigned SUI::finish(PictureDecodingJob &job){
 		}else{
 			this->tex_picture_source = job.get_source();
 			this->tex_picture.load(picture);
-			this->background_picture = blur_image(this->tex_picture, this->screen);
+			this->background_picture = blur_image(this->tex_picture, this->screen, 10);
 			/*
 			auto secondary = job.get_secondary_picture();
 			if (secondary)

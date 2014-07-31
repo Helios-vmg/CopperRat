@@ -6,9 +6,11 @@ LOCAL_MODULE := main
 
 SDL_PATH := ../SDL
 
-LOCAL_CFLAGS   += -O3 #-DPROFILING
-LOCAL_CXXFLAGS += -O3 -std=gnu++11 -fexceptions "-DBOOST_NOINLINE=" #-DPROFILING
+LOCAL_CFLAGS   += -O3 -DSDL_GPU_DISABLE_OPENGL #-DPROFILING
+LOCAL_CXXFLAGS += -O3 -std=gnu++11 -fexceptions "-DBOOST_NOINLINE=" -DSDL_GPU_DISABLE_OPENGL #-DPROFILING
 
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/SDL_gpu/
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/SDL_gpu/externals/glew/
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../include
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libogg-1.3.1/include/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libvorbis-1.3.4/include/
@@ -51,6 +53,13 @@ LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/coroutine/detail/coroutine_context.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/coroutine/detail/standard_stack_allocator_posix.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/boost/system/error_code.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/tinyxml2.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/SDL_gpu/SDL_gpu.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/SDL_gpu/SDL_gpu_Renderer.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/SDL_gpu/SDL_gpuShapes.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/SDL_gpu/GLES_1/SDL_gpu_GLES_1.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/SDL_gpu/GLES_2/SDL_gpu_GLES_2.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/SDL_gpu/GL_common/SDL_gpu_GL_matrix.c
+#LOCAL_SRC_FILES += $(LOCAL_PATH)/SDL_gpu/externals/glew/glew.c
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/Button.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/FileBrowser.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/Font.cpp
