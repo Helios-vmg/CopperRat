@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <string>
+#include <vector>
 #include <SDL.h>
 #include <boost/shared_ptr.hpp>
 #endif
@@ -150,6 +151,51 @@ public:
 		ret.w = (int)(ret.w * this->scale);
 		ret.h = (int)(ret.h * this->scale);
 		return ret;
+	}
+};
+
+class Shader;
+typedef boost::shared_ptr<Shader> shader_t;
+
+class Shader{
+	Uint32 shader;
+	std::string error_string;
+public:
+	Shader(const char *source, bool fragment_shader = 1);
+	~Shader();
+	operator bool(){
+		return !!this->shader;
+	}
+	Uint32 get_shader() const{
+		return this->shader;
+	}
+	const std::string &get_error_string() const{
+		return this->error_string;
+	}
+	static shader_t create(const char *source, bool fragment_shader = 1){
+		return shader_t(new Shader(source, fragment_shader));
+	}
+};
+
+class ShaderProgram{
+	Uint32 program;
+	std::vector<shader_t> shaders;
+	std::string error_string;
+public:
+	ShaderProgram(): program(0) {}
+	~ShaderProgram();
+	operator bool(){
+		return !!this->program;
+	}
+	void create_internal_object();
+	void add(shader_t shader){
+		if (!*shader)
+			return;
+		this->shaders.push_back(shader);
+	}
+	void activate();
+	const std::string &get_error_string() const{
+		return this->error_string;
 	}
 };
 

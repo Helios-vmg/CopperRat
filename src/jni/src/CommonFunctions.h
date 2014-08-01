@@ -365,4 +365,6 @@ void normalize_slashes(std::basic_string<T> &s){
 			c = '/';
 }
 
+std::string wide_to_narrow(const std::wstring &s);
+
 #endif

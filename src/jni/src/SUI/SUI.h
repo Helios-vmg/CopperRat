@@ -76,28 +76,28 @@ public:
 class PictureDecodingJob : public SUIJob{
 	boost::shared_ptr<GenericMetadata> metadata;
 	unsigned target_square;
-	unsigned secondary_square;
-	surface_t picture,
-		secondary_picture;
+	surface_t picture;
 	SDL_Rect trim_rect;
 	std::wstring current_source,
-		source;
-	bool skip_loading;
+		source,
+		cached_source;
+	std::string hash;
+	bool skip_loading,
+		skip_resize;
 	void sui_perform(WorkerThread &wt);
 	void load_picture_from_filesystem();
+	bool load_picture_from_cache(const std::wstring &);
 public:
 	std::string description;
 	PictureDecodingJob(
 			finished_jobs_queue_t &queue,
 			boost::shared_ptr<GenericMetadata> metadata,
 			unsigned target_square,
-			unsigned secondary_square,
 			const SDL_Rect &trim_rect,
 			const std::wstring &current_source):
 		SUIJob(queue),
 		metadata(metadata),
 		target_square(target_square),
-		secondary_square(secondary_square),
 		trim_rect(trim_rect),
 		picture(nullptr, SDL_Surface_deleter_func),
 		current_source(current_source),
@@ -106,14 +106,38 @@ public:
 	surface_t get_picture(){
 		return this->picture;
 	}
-	surface_t get_secondary_picture(){
-		return this->secondary_picture;
-	}
 	const std::wstring &get_source() const {
 		return this->source;
 	}
 	bool get_skip_loading() const{
 		return this->skip_loading;
+	}
+	const std::string &get_hash() const{
+		return this->hash;
+	}
+};
+
+class PictureBlurringJob : public SUIJob{
+	unsigned target_square;
+	surface_t picture;
+	SDL_Rect trim_rect;
+	std::wstring path;
+	void sui_perform(WorkerThread &wt);
+public:
+	PictureBlurringJob(
+			finished_jobs_queue_t &queue,
+			unsigned target_square,
+			const SDL_Rect &trim_rect,
+			surface_t picture,
+			const std::wstring &path):
+		SUIJob(queue),
+		target_square(target_square),
+		trim_rect(trim_rect),
+		picture(picture),
+		path(path){}
+	unsigned finish(SUI &);
+	surface_t get_picture(){
+		return this->picture;
 	}
 };
 
@@ -215,6 +239,8 @@ private:
 	bool update_requested;
 	bool ui_in_foreground;
 	boost::shared_ptr<DelayedPictureLoadAction> dpla;
+	bool apply_blur;
+	ShaderProgram blur_h, blur_v;
 
 	unsigned handle_event(const SDL_Event &e);
 	unsigned handle_keys(const SDL_Event &e);
@@ -225,6 +251,8 @@ private:
 	//file: true for file, false for directory
 	void load(bool load, bool file, const std::wstring &path);
 	void on_switch_to_foreground();
+	void create_shaders();
+	Texture blur_image(Texture tex);
 public:
 	SUI();
 	~SUI();
@@ -235,6 +263,7 @@ public:
 	unsigned receive(PlaybackStop &x);
 	unsigned receive(RTPCQueueElement &);
 	unsigned finish(PictureDecodingJob &);
+	unsigned finish(PictureBlurringJob &);
 	void draw_picture();
 	AudioPlayer &get_player(){
 		return this->player;
@@ -266,6 +295,9 @@ public:
 	void gui_signal(const GuiSignal &);
 	void request_update();
 	void start_picture_load(boost::shared_ptr<PictureDecodingJob>);
+	void start_picture_blurring(boost::shared_ptr<PictureBlurringJob>);
+	unsigned finish_picture_load(surface_t picture, const std::wstring &source, const std::string &hash, bool skip_loading);
+	unsigned finish_background_load(surface_t picture);
 	void perform(RemoteThreadProcedureCall *);
 	SDL_Rect get_seekbar_region();
 };

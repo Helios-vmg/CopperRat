@@ -102,3 +102,11 @@ double get_dots_per_millimeter(){
 bool is_inside(int x, int y, const SDL_Rect &region){
 	return x >= region.x && x < region.x + region.w && y >= region.y && y < region.y + region.h;
 }
+
+std::string wide_to_narrow(const std::wstring &s){
+	std::string ret;
+	ret.reserve(s.size());
+	for (auto wc : s)
+		ret.push_back(wc < 128 ? wc : '?');
+	return ret;
+}

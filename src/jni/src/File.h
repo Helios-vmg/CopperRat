@@ -56,4 +56,6 @@ void list_files(std::vector<DirectoryElement> &dst, const std::string &path, Fil
 void find_files_recursively(std::vector<std::wstring> &dst, const std::wstring &path, SortingType);
 
 void sort(std::vector<DirectoryElement> &, SortingType = SortingType::DIRECTORIES_FIRST);
+
+bool file_exists(const std::wstring &path);
 #endif

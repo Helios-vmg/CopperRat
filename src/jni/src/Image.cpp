@@ -241,7 +241,10 @@ surface_t bind_surface_to_square(surface_t src, unsigned size){
 }
 
 surface_t load_image_from_file(const char *path){
-	return normalize_surface(to_surface_t(IMG_Load(path)));
+	auto temp = to_surface_t(IMG_Load(path));
+	if (!temp)
+		return temp;
+	return normalize_surface(temp);
 }
 
 surface_t load_image_from_file(const std::wstring &path){
@@ -726,7 +729,7 @@ void Texture::draw_with_fill2(GPU_Target *target){
 	auto src_rect = this->rect;
 	auto dst_rect = target->clip_rect;
 
-	auto scale = std::max(dst_rect.w / src_rect.w, dst_rect.h / src_rect.h) * 1.05;
+	auto scale = std::max(dst_rect.w / src_rect.w, dst_rect.h / src_rect.h);
 
 	src_rect.w *= scale;
 	src_rect.h *= scale;
@@ -759,4 +762,48 @@ texture_t RenderTarget::get_image(){
 	if (!this->texture)
 		return to_texture_t(GPU_CopyImageFromTarget(this->target.get()));
 	return this->texture;
+}
+
+Shader::Shader(const char *source, bool fragment_shader){
+	this->shader = GPU_CompileShader(fragment_shader ? GPU_FRAGMENT_SHADER : GPU_VERTEX_SHADER, source);
+	if (!this->shader)
+		this->error_string = GPU_GetShaderMessage();
+}
+
+Shader::~Shader(){
+	if (!*this)
+		return;
+	GPU_FreeShader(this->shader);
+}
+
+ShaderProgram::~ShaderProgram(){
+	if (!*this)
+		return;
+	GPU_FreeShaderProgram(this->program);
+}
+
+void ShaderProgram::create_internal_object(){
+	if (*this)
+		return;
+	std::vector<Uint32> shaders;
+	shaders.reserve(this->shaders.size());
+	for (auto s : this->shaders)
+		shaders.push_back(s->get_shader());
+	this->program = GPU_LinkShadersEx(&shaders[0], shaders.size());
+	if (!this->program)
+		this->error_string = GPU_GetShaderMessage();
+	else{
+		auto uloc = GPU_GetUniformLocation(this->program, "tex");
+		GPU_SetUniformi(uloc, 0);
+	}
+}
+
+void ShaderProgram::activate(){
+	if (!*this){
+		this->create_internal_object();
+		if (!*this)
+			return;
+	}
+	GPU_ShaderBlock block = GPU_LoadShaderBlock(this->program, "gpu_Vertex", "gpu_TexCoord", "gpu_Color", "modelViewProjection");
+	GPU_ActivateShaderProgram(this->program, &block);
 }

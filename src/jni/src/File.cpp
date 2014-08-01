@@ -179,3 +179,16 @@ void sort(std::vector<DirectoryElement> &v, SortingType st){
 		};
 	std::sort(v.begin(), v.end(), f);
 }
+
+bool file_exists(const std::wstring &path){
+	FILE *file = 
+#ifdef WIN32
+		_wfopen(path.c_str(), L"rb");
+#else
+		fopen(string_to_utf8(path).c_str(), "rb");
+#endif
+	if (!file)
+		return 0;
+	fclose(file);
+	return 1;
+}
