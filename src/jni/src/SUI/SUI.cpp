@@ -609,6 +609,8 @@ std::string generate_fragment_shader2(double sigma, double texture_w, double tex
 Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
 	//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 1");
 	clock_t t0 = 0, t1 = 0;
+	RenderTarget target1(screen->w, screen->h);
+	RenderTarget target2(screen->w, screen->h);
 	Texture ret(screen);
 	auto renderer = GPU_GetCurrentRenderer();
 	auto vertex = GPU_CompileShader(GPU_VERTEX_SHADER, vertex_shader);
@@ -632,36 +634,32 @@ Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
 						GPU_ShaderBlock block1 = GPU_LoadShaderBlock(program1, "gpu_Vertex", "gpu_TexCoord", "gpu_Color", "modelViewProjection");
 						GPU_ShaderBlock block2 = GPU_LoadShaderBlock(program2, "gpu_Vertex", "gpu_TexCoord", "gpu_Color", "modelViewProjection");
 
+						GPU_Clear(target1.get_target());
+						tex.draw_with_fill(target1.get_target());
+
+						GPU_FlushBlitBuffer();
+
 						GPU_ActivateShaderProgram(program1, &block1);
 						auto uloc = GPU_GetUniformLocation(program1, "tex");
 						GPU_SetUniformi(uloc, 0);
 
-						GPU_Clear(screen);
-						tex.draw_with_fill(screen);
-						GPU_FlushBlitBuffer();
-
-#if 1
-						auto tex = GPU_CopyImageFromTarget(screen);
-
-						GPU_Blit(tex, nullptr, screen, 0, 0);
+						GPU_Clear(target2.get_target());
+						GPU_Blit(target1.get_target()->image, nullptr, target2.get_target(), 0, 0);
+						
 						GPU_FlushBlitBuffer();
 
 						GPU_ActivateShaderProgram(program2, &block2);
 						uloc = GPU_GetUniformLocation(program2, "tex");
 						GPU_SetUniformi(uloc, 0);
-
-						GPU_FreeImage(tex);
-						tex = GPU_CopyImageFromTarget(screen);
 				
-						GPU_Blit(tex, nullptr, screen, 0, 0);
-						GPU_FlushBlitBuffer();
+						GPU_Clear(target1.get_target());
+						GPU_Blit(target2.get_target()->image, nullptr, target1.get_target(), 0, 0);
 
-						GPU_FreeImage(tex);
-
-#endif
 						GPU_ActivateShaderProgram(0, nullptr);
 
-						ret = to_texture_t(GPU_CopyImageFromTarget(screen));
+						GPU_FlushBlitBuffer();
+
+						ret = target1.get_image();
 						GPU_FreeShaderProgram(program2);
 						t1 = clock();
 					}else{
