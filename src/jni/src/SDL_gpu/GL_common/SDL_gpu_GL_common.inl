@@ -143,17 +143,10 @@ static void init_features(GPU_Renderer* renderer)
     else
         renderer->enabled_features &= ~GPU_FEATURE_NON_POWER_OF_TWO;
 #elif defined(SDL_GPU_USE_GLES)
-	{
-	    char *p = (char *)glGetString(GL_EXTENSIONS);
-		__android_log_print(ANDROID_LOG_INFO, "C++Shader", "Renderer: %u", (unsigned)renderer);
-		__android_log_print(ANDROID_LOG_INFO, "C++Shader", "ext: %s", (unsigned)p);
-	}
     if(isExtensionSupported("GL_OES_texture_npot") || isExtensionSupported("GL_IMG_texture_npot")
        || isExtensionSupported("GL_APPLE_texture_2D_limited_npot") || isExtensionSupported("GL_ARB_texture_non_power_of_two")){
-		__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s\n", "GPU_FEATURE_NON_POWER_OF_TWO");
         renderer->enabled_features |= GPU_FEATURE_NON_POWER_OF_TWO;
 	}else{
-		__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s\n", "!GPU_FEATURE_NON_POWER_OF_TWO");
         renderer->enabled_features &= ~GPU_FEATURE_NON_POWER_OF_TWO;
 	}
 #endif
@@ -4324,8 +4317,6 @@ static void DoPartialFlush(GPU_CONTEXT_DATA* cdata, unsigned short num_vertices,
         float* vertex_pointer = blit_buffer + GPU_BLIT_BUFFER_VERTEX_OFFSET;
         float* texcoord_pointer = blit_buffer + GPU_BLIT_BUFFER_TEX_COORD_OFFSET;
         
-		//__android_log_print(ANDROID_LOG_INFO, "C++DoPartialFlush", "Vertices flushed: %d\n", (int)num_vertices);
-		
         glBegin(cdata->last_shape);
         for(i = 0; i < num_vertices; i++)
         {
@@ -4337,7 +4328,6 @@ static void DoPartialFlush(GPU_CONTEXT_DATA* cdata, unsigned short num_vertices,
         glEnd();
 #elif defined(SDL_GPU_USE_GL_TIER2)
 
-		//__android_log_print(ANDROID_LOG_INFO, "C++DoPartialFlush", "Vertices flushed: %d\n", (int)num_vertices);
         glEnableClientState(GL_VERTEX_ARRAY);
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);
         glVertexPointer(2, GL_FLOAT, GPU_BLIT_BUFFER_STRIDE, blit_buffer + GPU_BLIT_BUFFER_VERTEX_OFFSET);
@@ -4351,7 +4341,6 @@ static void DoPartialFlush(GPU_CONTEXT_DATA* cdata, unsigned short num_vertices,
 
 #elif defined(SDL_GPU_USE_GL_TIER3)
         
-		//__android_log_print(ANDROID_LOG_INFO, "C++DoPartialFlush", "Vertices flushed: %d\n", (int)num_vertices);
         // Upload our modelviewprojection matrix
         if(cdata->current_shader_block.modelViewProjection_loc >= 0)
         {
