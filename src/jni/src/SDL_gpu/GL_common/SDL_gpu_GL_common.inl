@@ -111,7 +111,7 @@ static void FreeFormat(SDL_PixelFormat* format);
 
 static Uint8 isExtensionSupported(const char* extension_str)
 {
-#ifdef SDL_GPU_USE_OPENGL
+#if defined SDL_GPU_USE_OPENGL
     return glewIsExtensionSupported(extension_str);
 #else
     // As suggested by Mesa3D.org
@@ -143,11 +143,19 @@ static void init_features(GPU_Renderer* renderer)
     else
         renderer->enabled_features &= ~GPU_FEATURE_NON_POWER_OF_TWO;
 #elif defined(SDL_GPU_USE_GLES)
+	{
+	    char *p = (char *)glGetString(GL_EXTENSIONS);
+		__android_log_print(ANDROID_LOG_INFO, "C++Shader", "Renderer: %u", (unsigned)renderer);
+		__android_log_print(ANDROID_LOG_INFO, "C++Shader", "ext: %s", (unsigned)p);
+	}
     if(isExtensionSupported("GL_OES_texture_npot") || isExtensionSupported("GL_IMG_texture_npot")
-       || isExtensionSupported("GL_APPLE_texture_2D_limited_npot") || isExtensionSupported("GL_ARB_texture_non_power_of_two"))
+       || isExtensionSupported("GL_APPLE_texture_2D_limited_npot") || isExtensionSupported("GL_ARB_texture_non_power_of_two")){
+		__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s\n", "GPU_FEATURE_NON_POWER_OF_TWO");
         renderer->enabled_features |= GPU_FEATURE_NON_POWER_OF_TWO;
-    else
+	}else{
+		__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s\n", "!GPU_FEATURE_NON_POWER_OF_TWO");
         renderer->enabled_features &= ~GPU_FEATURE_NON_POWER_OF_TWO;
+	}
 #endif
 
     // FBO
@@ -226,9 +234,9 @@ static void init_features(GPU_Renderer* renderer)
 	// Disable other texture formats for GLES.
 	// TODO: Add better (static) checking for format support.  Some GL versions do not report previously non-core features as extensions.
 	#ifdef SDL_GPU_USE_GLES
-		renderer->enabled_features &= !GPU_FEATURE_GL_BGR;
-		renderer->enabled_features &= !GPU_FEATURE_GL_BGRA;
-		renderer->enabled_features &= !GPU_FEATURE_GL_ABGR;
+		renderer->enabled_features &= ~GPU_FEATURE_GL_BGR;
+		renderer->enabled_features &= ~GPU_FEATURE_GL_BGRA;
+		renderer->enabled_features &= ~GPU_FEATURE_GL_ABGR;
 	#endif
 
     if(isExtensionSupported("GL_ARB_fragment_shader"))
@@ -241,9 +249,7 @@ static void init_features(GPU_Renderer* renderer)
 
 static void extBindFramebuffer(GPU_Renderer* renderer, GLuint handle)
 {
-#if !defined SDL_GPU_USE_GLES || SDL_GPU_GL_TIER < 3
     if(renderer->enabled_features & GPU_FEATURE_RENDER_TARGETS)
-#endif
         glBindFramebuffer(GL_FRAMEBUFFER, handle);
 }
 
@@ -288,10 +294,8 @@ static_inline void flushAndBindTexture(GPU_Renderer* renderer, GLuint handle)
 // Returns false if it can't be bound
 static Uint8 bindFramebuffer(GPU_Renderer* renderer, GPU_Target* target)
 {
-#if !defined SDL_GPU_USE_GLES || SDL_GPU_GL_TIER < 3
     if(renderer->enabled_features & GPU_FEATURE_RENDER_TARGETS)
     {
-#endif
         // Bind the FBO
         if(target != ((GPU_CONTEXT_DATA*)renderer->current_context_target->context->data)->last_target)
         {
@@ -305,14 +309,12 @@ static Uint8 bindFramebuffer(GPU_Renderer* renderer, GPU_Target* target)
             ((GPU_CONTEXT_DATA*)renderer->current_context_target->context->data)->last_target = target;
         }
         return 1;
-#if !defined SDL_GPU_USE_GLES || SDL_GPU_GL_TIER < 3
     }
     else
     {
         ((GPU_CONTEXT_DATA*)renderer->current_context_target->context->data)->last_target = target;
         return (target != NULL && ((GPU_TARGET_DATA*)target->data)->handle == 0);
     }
-#endif
 }
 
 static_inline void flushAndBindFramebuffer(GPU_Renderer* renderer, GLuint handle)
@@ -2829,12 +2831,10 @@ static GPU_Target* LoadTarget(GPU_Renderer* renderer, GPU_Image* image)
         return image->target;
     }
 
-#if !defined SDL_GPU_USE_GLES || SDL_GPU_GL_TIER < 3
 
     if(!(renderer->enabled_features & GPU_FEATURE_RENDER_TARGETS)){
         return NULL;
 	}
-#endif
 
     // Create framebuffer object
     glGenFramebuffers(1, &handle);
@@ -2942,9 +2942,7 @@ static void FreeTarget(GPU_Renderer* renderer, GPU_Target* target)
         return;
     }
     
-#if !defined SDL_GPU_USE_GLES || SDL_GPU_GL_TIER < 3
     if(renderer->enabled_features & GPU_FEATURE_RENDER_TARGETS)
-#endif
     {
         if(renderer->current_context_target != NULL)
             flushAndClearBlitBufferIfCurrentFramebuffer(renderer, target);

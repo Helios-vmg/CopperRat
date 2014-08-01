@@ -614,6 +614,9 @@ Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
 	Texture ret(screen);
 	auto renderer = GPU_GetCurrentRenderer();
 	auto vertex = GPU_CompileShader(GPU_VERTEX_SHADER, vertex_shader);
+
+	__android_log_print(ANDROID_LOG_INFO, "C++Shader", "Renderer: %u", renderer);
+	__android_log_print(ANDROID_LOG_INFO, "C++Shader", "GPU_FEATURE_NON_POWER_OF_TWO : %s", GPU_IsFeatureEnabled(GPU_FEATURE_NON_POWER_OF_TWO) ? "true" : "false");
 	if (vertex){
 		//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 2");
 		auto rect = tex.get_rect();
@@ -633,35 +636,29 @@ Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
 						t0 = clock();
 						GPU_ShaderBlock block1 = GPU_LoadShaderBlock(program1, "gpu_Vertex", "gpu_TexCoord", "gpu_Color", "modelViewProjection");
 						GPU_ShaderBlock block2 = GPU_LoadShaderBlock(program2, "gpu_Vertex", "gpu_TexCoord", "gpu_Color", "modelViewProjection");
-
-						GPU_Clear(target1.get_target());
-						tex.draw_with_fill(target1.get_target());
-
-						GPU_FlushBlitBuffer();
-
+						
 						GPU_ActivateShaderProgram(program1, &block1);
 						auto uloc = GPU_GetUniformLocation(program1, "tex");
 						GPU_SetUniformi(uloc, 0);
 
-						GPU_Clear(target2.get_target());
-						GPU_Blit(target1.get_target()->image, nullptr, target2.get_target(), 0, 0);
-						
+						GPU_Clear(target1.get_target());
+						tex.draw_with_fill2(target1.get_target());
 						GPU_FlushBlitBuffer();
 
 						GPU_ActivateShaderProgram(program2, &block2);
 						uloc = GPU_GetUniformLocation(program2, "tex");
 						GPU_SetUniformi(uloc, 0);
 				
-						GPU_Clear(target1.get_target());
-						GPU_Blit(target2.get_target()->image, nullptr, target1.get_target(), 0, 0);
+						GPU_Clear(target2.get_target());
+						GPU_Blit(target1.get_target()->image, nullptr, target2.get_target(), 0, 0);
 
 						GPU_ActivateShaderProgram(0, nullptr);
 
 						GPU_FlushBlitBuffer();
 
-						ret = target1.get_image();
-						GPU_FreeShaderProgram(program2);
+						ret = target2.get_image();
 						t1 = clock();
+						GPU_FreeShaderProgram(program2);
 					}else{
 						__android_log_print(ANDROID_LOG_ERROR, "C++Shader", "%s", GPU_GetShaderMessage());
 					}

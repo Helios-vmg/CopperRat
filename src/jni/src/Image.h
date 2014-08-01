@@ -115,6 +115,7 @@ public:
 	}
 	void draw(const SDL_Rect &dst, const SDL_Rect *src = nullptr);
 	void draw_with_fill(GPU_Target *);
+	void draw_with_fill2(GPU_Target *);
 	void load(const std::wstring &path){
 		this->from_surface(load_image_from_file(path));
 	}

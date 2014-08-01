@@ -722,6 +722,22 @@ void Texture::draw_with_fill(GPU_Target *target){
 	GPU_BlitScale(tex, &this->rect, target, src_rect.x, src_rect.y, scale, scale);
 }
 
+void Texture::draw_with_fill2(GPU_Target *target){
+	auto src_rect = this->rect;
+	auto dst_rect = target->clip_rect;
+
+	auto scale = std::max(dst_rect.w / src_rect.w, dst_rect.h / src_rect.h) * 1.05;
+
+	src_rect.w *= scale;
+	src_rect.h *= scale;
+
+	src_rect.x = (dst_rect.w - src_rect.w) / 2;
+	src_rect.y = (dst_rect.h - src_rect.h) / 2;
+
+	auto tex = this->tex.get();
+	GPU_BlitScale(tex, &this->rect, target, src_rect.x, src_rect.y, scale, scale);
+}
+
 void Texture::set_alpha(double alpha){
 	if (!*this)
 		return;
