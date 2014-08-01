@@ -506,13 +506,14 @@ unsigned SUI::handle_out_events(){
 	return ret;
 }
 
-const char *vertex_shader = "#ifdef GL_ES\n"
-" #version 100\n"
-" precision mediump int;\n"
-" precision mediump float;\n"
-"#else\n"
-" #version 120\n"
-"#endif\n"
+const char *vertex_shader =
+#ifndef __ANDROID__
+"#version 120\n"
+#else
+"#version 100\n"
+"precision mediump int;\n"
+"precision mediump float;\n"
+#endif
 "\n"
 "attribute vec3 gpu_Vertex;\n"
 "attribute vec2 gpu_TexCoord;\n"
@@ -537,13 +538,13 @@ double gauss_kernel(double x, double sigma){
 std::string generate_fragment_shader(double sigma, double texture_w, double texture_h, bool vertical){
 	std::stringstream ret;
 	ret <<
-"#ifdef GL_ES\n"
-" #version 100\n"
-" precision mediump int;\n"
-" precision mediump float;\n"
-"#else\n"
-" #version 120\n"
-"#endif\n"
+#ifndef __ANDROID__
+"#version 120\n"
+#else
+"#version 100\n"
+"precision mediump int;\n"
+"precision mediump float;\n"
+#endif
 "\n"
 "varying vec4 color;\n"
 "//varying vec2 v_texCoord;\n"
@@ -571,6 +572,7 @@ std::string generate_fragment_shader(double sigma, double texture_w, double text
 }
 
 Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
+	//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 1");
 	auto t0 = clock();
 	RenderTarget target1(screen->w, screen->h);
 	RenderTarget target2(screen->w, screen->h);
@@ -578,22 +580,33 @@ Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
 	auto renderer = GPU_GetCurrentRenderer();
 	auto vertex = GPU_CompileShader(GPU_VERTEX_SHADER, vertex_shader);
 	if (vertex){
+		//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 2");
 		auto rect = tex.get_rect();
 		auto fragment_shader1 = generate_fragment_shader(sigma, rect.w, rect.h, 0);
 		auto fragment_shader2 = generate_fragment_shader(sigma, rect.w, rect.h, 1);
 		auto fragment1 = GPU_CompileShader(GPU_FRAGMENT_SHADER, fragment_shader1.c_str());
 		if (fragment1){
+			//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 3");
 			auto fragment2 = GPU_CompileShader(GPU_FRAGMENT_SHADER, fragment_shader2.c_str());
 			if (fragment2){
+				//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 4");
 				auto program1 = GPU_LinkShaders(vertex, fragment1);
 				if (program1){
+					//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 5");
 					auto program2 = GPU_LinkShaders(vertex, fragment2);
 					if (program2){
+						//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 6");
 						GPU_ShaderBlock block1 = GPU_LoadShaderBlock(program1, "gpu_Vertex", "gpu_TexCoord", "gpu_Color", "modelViewProjection");
 						GPU_ShaderBlock block2 = GPU_LoadShaderBlock(program2, "gpu_Vertex", "gpu_TexCoord", "gpu_Color", "modelViewProjection");
+						//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 7");
 
 						GPU_Clear(target1.get_target());
+						//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 8");
 						tex.draw_with_fill(target1.get_target());
+						//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 9");
+
+						GPU_FlushBlitBuffer();
+						//__android_log_print(ANDROID_LOG_INFO, "C++Shader", "%s", "Step 10");
 
 						GPU_ActivateShaderProgram(program1, &block1);
 						auto uloc = GPU_GetUniformLocation(program1, "tex");
@@ -602,6 +615,8 @@ Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
 						GPU_Clear(target2.get_target());
 						GPU_Blit(target1.get_target()->image, nullptr, target2.get_target(), 0, 0);
 						
+						GPU_FlushBlitBuffer();
+
 						GPU_ActivateShaderProgram(program2, &block2);
 						uloc = GPU_GetUniformLocation(program2, "tex");
 						GPU_SetUniformi(uloc, 0);
@@ -611,17 +626,28 @@ Texture blur_image(Texture tex, GPU_Target *screen, double sigma = 15){
 
 						GPU_ActivateShaderProgram(0, nullptr);
 
+						GPU_FlushBlitBuffer();
+
 						ret = target1.get_image();
-					}else
-						std::cerr <<GPU_GetShaderMessage()<<std::endl;
+						GPU_FreeShaderProgram(program2);
+					}else{
+						__android_log_print(ANDROID_LOG_ERROR, "C++Shader", "%s", GPU_GetShaderMessage());
+					}
 					GPU_FreeShaderProgram(program1);
-				}else
-					std::cerr <<GPU_GetShaderMessage()<<std::endl;
+				}else{
+					__android_log_print(ANDROID_LOG_ERROR, "C++Shader", "%s", GPU_GetShaderMessage());
+				}
 				GPU_FreeShader(fragment2);
+			}else{
+				__android_log_print(ANDROID_LOG_ERROR, "C++Shader", "%s", GPU_GetShaderMessage());
 			}
 			GPU_FreeShader(fragment1);
+		}else{
+			__android_log_print(ANDROID_LOG_ERROR, "C++Shader", "%s", GPU_GetShaderMessage());
 		}
 		GPU_FreeShader(vertex);
+	}else{
+		__android_log_print(ANDROID_LOG_ERROR, "C++Shader", "%s", GPU_GetShaderMessage());
 	}
 	auto t1 = clock();
 	__android_log_print(ANDROID_LOG_INFO, "C++Shader", "Blurring done in %f ms\n", (double)(t1 - t0) / (double)CLOCKS_PER_SEC * 1000.0);
@@ -647,6 +673,7 @@ unsigned SUI::finish(PictureDecodingJob &job){
 			this->tex_picture_source = job.get_source();
 			this->tex_picture.load(picture);
 			this->background_picture = blur_image(this->tex_picture, this->screen, 10);
+			this->background_picture.set_target(this->screen);
 			/*
 			auto secondary = job.get_secondary_picture();
 			if (secondary)

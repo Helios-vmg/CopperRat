@@ -4,6 +4,12 @@
 
 #ifdef __ANDROID__
 #include <android/log.h>
+#else
+#define __android_log_print(x, y, ...) printf(__VA_ARGS__)
+#endif
+
+#ifdef __ANDROID__
+#include <android/log.h>
 #endif
 
 #ifdef _MSC_VER
@@ -757,8 +763,15 @@ GPU_Target* GPU_GetContextTarget(void)
 
 GPU_Target* GPU_LoadTarget(GPU_Image* image)
 {
-	if(current_renderer == NULL || current_renderer->current_context_target == NULL || current_renderer->LoadTarget == NULL)
+	if(current_renderer == NULL || current_renderer->current_context_target == NULL || current_renderer->LoadTarget == NULL){
+		__android_log_print(ANDROID_LOG_INFO, "GPU_LoadTarget", "current_renderer == %u || current_renderer->current_context_target == %u || current_renderer->LoadTarget == %u",
+			(unsigned)current_renderer,
+			(unsigned)current_renderer->current_context_target,
+			(unsigned)current_renderer->LoadTarget
+		);
+
 		return NULL;
+	}
 	
 	return current_renderer->LoadTarget(current_renderer, image);
 }
@@ -772,8 +785,6 @@ void GPU_FreeTarget(GPU_Target* target)
 	
 	current_renderer->FreeTarget(current_renderer, target);
 }
-
-
 
 void GPU_Blit(GPU_Image* image, GPU_Rect* src_rect, GPU_Target* target, float x, float y)
 {

@@ -1,6 +1,13 @@
 /* This is an implementation file to be included after certain #defines have been set.
 See a particular renderer's *.c file for specifics. */
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#else
+#define __android_log_print(x, y, ...) printf(__VA_ARGS__)
+#endif
+
+
 
 // Visual C does not support static inline
 #ifndef static_inline
@@ -145,18 +152,18 @@ static void init_features(GPU_Renderer* renderer)
 
     // FBO
 #ifdef SDL_GPU_USE_OPENGL
-    if(isExtensionSupported("GL_EXT_framebuffer_object"))
+    if(isExtensionSupported("GL_EXT_framebuffer_object") || isExtensionSupported("GL_IMG_multisampled_render_to_texture"))
         renderer->enabled_features |= GPU_FEATURE_RENDER_TARGETS;
     else
         renderer->enabled_features &= ~GPU_FEATURE_RENDER_TARGETS;
 #elif defined(SDL_GPU_USE_GLES)
     #if SDL_GPU_GL_TIER < 3
-        if(isExtensionSupported("GL_OES_framebuffer_object"))
+        if(isExtensionSupported("GL_OES_framebuffer_object") || isExtensionSupported("GL_IMG_multisampled_render_to_texture"))
             renderer->enabled_features |= GPU_FEATURE_RENDER_TARGETS;
         else
             renderer->enabled_features &= ~GPU_FEATURE_RENDER_TARGETS;
     #else
-            renderer->enabled_features |= GPU_FEATURE_RENDER_TARGETS;
+    renderer->enabled_features |= GPU_FEATURE_RENDER_TARGETS;
     #endif
 #endif
 
@@ -234,7 +241,9 @@ static void init_features(GPU_Renderer* renderer)
 
 static void extBindFramebuffer(GPU_Renderer* renderer, GLuint handle)
 {
+#if !defined SDL_GPU_USE_GLES || SDL_GPU_GL_TIER < 3
     if(renderer->enabled_features & GPU_FEATURE_RENDER_TARGETS)
+#endif
         glBindFramebuffer(GL_FRAMEBUFFER, handle);
 }
 
@@ -279,8 +288,10 @@ static_inline void flushAndBindTexture(GPU_Renderer* renderer, GLuint handle)
 // Returns false if it can't be bound
 static Uint8 bindFramebuffer(GPU_Renderer* renderer, GPU_Target* target)
 {
+#if !defined SDL_GPU_USE_GLES || SDL_GPU_GL_TIER < 3
     if(renderer->enabled_features & GPU_FEATURE_RENDER_TARGETS)
     {
+#endif
         // Bind the FBO
         if(target != ((GPU_CONTEXT_DATA*)renderer->current_context_target->context->data)->last_target)
         {
@@ -290,14 +301,18 @@ static Uint8 bindFramebuffer(GPU_Renderer* renderer, GPU_Target* target)
             renderer->FlushBlitBuffer(renderer);
 
             extBindFramebuffer(renderer, handle);
+
             ((GPU_CONTEXT_DATA*)renderer->current_context_target->context->data)->last_target = target;
         }
         return 1;
+#if !defined SDL_GPU_USE_GLES || SDL_GPU_GL_TIER < 3
     }
     else
     {
+        ((GPU_CONTEXT_DATA*)renderer->current_context_target->context->data)->last_target = target;
         return (target != NULL && ((GPU_TARGET_DATA*)target->data)->handle == 0);
     }
+#endif
 }
 
 static_inline void flushAndBindFramebuffer(GPU_Renderer* renderer, GLuint handle)
@@ -2803,8 +2818,9 @@ static GPU_Target* LoadTarget(GPU_Renderer* renderer, GPU_Image* image)
 	GPU_Target* result;
 	GPU_TARGET_DATA* data;
 
-    if(image == NULL)
+    if(image == NULL){
         return NULL;
+	}
 
     if(image->target != NULL)
     {
@@ -2813,8 +2829,12 @@ static GPU_Target* LoadTarget(GPU_Renderer* renderer, GPU_Image* image)
         return image->target;
     }
 
-    if(!(renderer->enabled_features & GPU_FEATURE_RENDER_TARGETS))
+#if !defined SDL_GPU_USE_GLES || SDL_GPU_GL_TIER < 3
+
+    if(!(renderer->enabled_features & GPU_FEATURE_RENDER_TARGETS)){
         return NULL;
+	}
+#endif
 
     // Create framebuffer object
     glGenFramebuffers(1, &handle);
@@ -2824,8 +2844,9 @@ static GPU_Target* LoadTarget(GPU_Renderer* renderer, GPU_Image* image)
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ((GPU_IMAGE_DATA*)image->data)->handle, 0);
 
     status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if(status != GL_FRAMEBUFFER_COMPLETE)
+    if(status != GL_FRAMEBUFFER_COMPLETE){
         return NULL;
+	}
 
     result = (GPU_Target*)malloc(sizeof(GPU_Target));
     memset(result, 0, sizeof(GPU_Target));
@@ -2921,7 +2942,9 @@ static void FreeTarget(GPU_Renderer* renderer, GPU_Target* target)
         return;
     }
     
+#if !defined SDL_GPU_USE_GLES || SDL_GPU_GL_TIER < 3
     if(renderer->enabled_features & GPU_FEATURE_RENDER_TARGETS)
+#endif
     {
         if(renderer->current_context_target != NULL)
             flushAndClearBlitBufferIfCurrentFramebuffer(renderer, target);
@@ -3015,7 +3038,6 @@ static void FreeTarget(GPU_Renderer* renderer, GPU_Target* target)
 
 #define SET_INDEXED_VERTEX(offset) \
     index_buffer[cdata->index_buffer_num_vertices++] = blit_buffer_starting_index + (offset);
-
 
 
 static void Blit(GPU_Renderer* renderer, GPU_Image* image, GPU_Rect* src_rect, GPU_Target* target, float x, float y)
@@ -4298,7 +4320,7 @@ static void ClearRGBA(GPU_Renderer* renderer, GPU_Target* target, Uint8 r, Uint8
 
 static void DoPartialFlush(GPU_CONTEXT_DATA* cdata, unsigned short num_vertices, float* blit_buffer, unsigned int num_indices, unsigned short* index_buffer)
 {
-#ifdef SDL_GPU_USE_GL_TIER1
+#if defined SDL_GPU_USE_GL_TIER1
 
         unsigned short i;
         float* vertex_pointer = blit_buffer + GPU_BLIT_BUFFER_VERTEX_OFFSET;
@@ -4324,6 +4346,7 @@ static void DoPartialFlush(GPU_CONTEXT_DATA* cdata, unsigned short num_vertices,
 
         glDisableClientState(GL_TEXTURE_COORD_ARRAY);
         glDisableClientState(GL_VERTEX_ARRAY);
+
 
 #elif defined(SDL_GPU_USE_GL_TIER3)
         
@@ -4524,11 +4547,13 @@ static void FlushBlitBuffer(GPU_Renderer* renderer)
         cdata->index_buffer_num_vertices = 0;
 
         unsetClipRect(renderer, dest);
-    }
+    }else{
+	}
 }
 
 static void Flip(GPU_Renderer* renderer, GPU_Target* target)
 {
+
     renderer->FlushBlitBuffer(renderer);
     
     makeContextCurrent(renderer, target);

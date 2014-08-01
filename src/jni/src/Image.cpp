@@ -718,7 +718,8 @@ void Texture::draw_with_fill(GPU_Target *target){
 	src_rect.x = (dst_rect.w - src_rect.w) / 2;
 	src_rect.y = (dst_rect.h - src_rect.h) / 2;
 
-	GPU_BlitScale(this->tex.get(), &this->rect, target, src_rect.x, src_rect.y, scale, scale);
+	auto tex = this->tex.get();
+	GPU_BlitScale(tex, &this->rect, target, src_rect.x, src_rect.y, scale, scale);
 }
 
 void Texture::set_alpha(double alpha){
