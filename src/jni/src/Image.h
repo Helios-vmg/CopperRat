@@ -104,8 +104,8 @@ public:
 	Texture(GPU_Target *target, surface_t src);
 	void set_target(GPU_Target *target){
 		this->target = target;
-		this->tex.reset();
-		this->loaded = 0;
+		//this->tex.reset();
+		//this->loaded = 0;
 	}
 	operator bool() const{
 		return this->loaded;
