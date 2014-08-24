@@ -102,66 +102,59 @@ void parse_into_hms(std::basic_ostream<T> &stream, double total_seconds){
 template <typename T>
 void utf8_to_string(std::basic_string<T> &dst, const unsigned char *buffer, size_t n){
 	static const unsigned char utf8_lengths[] = {
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-		3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-		4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 1, 1
+		3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 0, 0,
+		0xFF, 0x1F, 0x0F, 0x07, 0x03, 0x01
 	};
 	static const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
-	static const unsigned char masks[] = { 0x00, 0xFF, 0x1F, 0x0F, 0x07, 0x03, 0x01 };
+	static const unsigned char *masks = utf8_lengths + 0x100;
 	if (n >= 3 && !memcmp(buffer, bom, 3)){
 		buffer += 3;
 		n -= 3;
 	}
-	size_t truncated_length = 0,
-		size = 0;
-	for (truncated_length = 0; truncated_length < n;){
-		auto l = utf8_lengths[buffer[truncated_length]];
-		if (truncated_length + l > n)
-			break;
-		size++;
-		truncated_length += l;
-	}
-	dst.resize(size);
+	boost::shared_array<T> temp(new T[n]);
+	T *temp_pointer = temp.get();
 	size_t writer = 0;
-	T *pointer = &dst[0];
-	for (size_t i = 0; i != truncated_length;){
+	for (size_t i = 0; i != n;){
 		unsigned char byte = buffer[i++];
-		if (i == 7563)
-			byte = byte;
-		auto length = utf8_lengths[byte];
+		unsigned char length = utf8_lengths[byte];
+		if (length > n - i)
+			break;
 		unsigned wc = byte & masks[length];
-		while (--length){
+		for (;length; length--){
 			wc <<= 6;
 			wc |= (T)(buffer[i++] & 0x3F);
 		}
-		pointer[writer++] = wc;
+		temp_pointer[writer++] = wc;
 	}
+	dst.assign(temp_pointer, temp_pointer + writer);
 }
 
 inline unsigned utf8_bytes(unsigned c){
-	if (c < 0x00000080)
-		return 1;
-	if (c < 0x00000800)
-		return 2;
-	if (c < 0x00010000)
-		return 3;
-	if (c < 0x00200000)
-		return 4;
-	if (c < 0x04000000)
-		return 5;
+	static const unsigned masks[] = {
+		0x0000007F,
+		0x000007FF,
+		0x0000FFFF,
+		0x001FFFFF,
+		0x03FFFFFF,
+	};
+	for (unsigned i = 0; i != sizeof(masks) / sizeof(*masks); i++)
+		if ((c & masks[i]) == c)
+			return i + 1;
 	return 6;
 }
 
@@ -175,25 +168,27 @@ size_t utf8_size(const std::basic_string<T> &s){
 
 template <typename T>
 void string_to_utf8(std::vector<unsigned char> &dst, const std::basic_string<T> &src){
-	static const unsigned char masks[] = { 0, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
+	static const unsigned char masks[] = { 0, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE };
 	dst.resize(utf8_size(src));
 	unsigned char *pointer = &dst[0];
 	const T *src_pointer = &src[0];
 	size_t writer = 0;
 	for (size_t i = 0, n = src.size(); i != n; i++){
 		unsigned c = src_pointer[i];
+		unsigned size = utf8_bytes(c) - 1;
 
-		if (c < 0x80){
+		if (!size){
 			*(pointer++) = (unsigned char)c;
 			continue;
 		}
 
-		unsigned char temp[6];
+		unsigned char temp[10];
 		unsigned temp_size = 0;
+
 		do{
 			temp[temp_size++] = c & 0x3F | 0x80;
 			c >>= 6;
-		}while (c & ~0x3F);
+		}while (temp_size != size);
 		*(pointer++) = c | masks[temp_size];
 		while (temp_size)
 			*(pointer++) = temp[--temp_size];
