@@ -103,11 +103,9 @@ void SUIControlCoroutine::options_menu(){
 		auto &playlist = this->sui->get_player().get_playlist();
 		auto playback_mode = playlist.get_playback_mode();
 		bool shuffling = playlist.get_shuffle();
-		bool expensive_gfx = application_settings.get_expensive_gfx();
 		std::vector<std::wstring> strings;
 		strings.push_back(L"Playback mode: " + to_string(playback_mode));
 		strings.push_back(std::wstring(L"Shuffling: O") + (shuffling ? L"N" : L"FF"));
-		strings.push_back(std::wstring(L"Expensive graphical operations: O") + (expensive_gfx ? L"N" : L"FF"));
 		boost::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
 		unsigned button;
 		if (!lv->get_input(button, *this, lv))
@@ -118,9 +116,6 @@ void SUIControlCoroutine::options_menu(){
 				break;
 			case 1:
 				application_settings.set_shuffle(playlist.toggle_shuffle());
-				break;
-			case 2:
-				application_settings.set_expensive_gfx(!expensive_gfx);
 				break;
 		}
 	}
