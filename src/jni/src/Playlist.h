@@ -70,6 +70,11 @@ public:
 		return this->shuffle;
 	}
 	bool get_current_track(std::wstring &dst);
+	int get_current_track_index(){
+		if (this->at_null_position())
+			return -1;
+		return this->current_track;
+	}
 	bool next();
 	bool back();
 	bool is_back_possible() const;

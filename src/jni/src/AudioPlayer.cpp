@@ -119,7 +119,6 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 AudioPlayer::AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp):
 		device(*this, rtpcp),
 		overriding_current_time(-1){
-	this->jumped_this_loop = 0;
 	this->internal_queue.max_size = 100;
 	this->last_position_seen = 0;
 	this->last_freq_seen = 0;
@@ -127,10 +126,25 @@ AudioPlayer::AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp):
 	double time = application_settings.get_current_time();
 	if (time >= 0){
 		this->state = PlayState::PAUSED;
-		this->initialize_stream();
-		time = std::max(time - 5, 0.0);
-		this->execute_absolute_seek(time, 0);
-		this->overriding_current_time = time;
+		int success = 0;
+		int index = this->playlist.get_current_track_index();
+		while (success == 0){
+			try{
+				this->initialize_stream();
+				success = 1;
+			}catch (DecoderInitializationException &){
+				if (!this->playlist.next() || this->playlist.get_current_track_index() == index)
+					success = -1;
+				time = 0;
+			}
+		}
+		if (success > 0){
+			time = std::max(time - 5, 0.0);
+			this->execute_absolute_seek(time, 0);
+			this->overriding_current_time = time;
+		}else{
+			this->playlist.clear();
+		}
 	}
 #ifndef PROFILING
 	this->sdl_thread = SDL_CreateThread(_thread, "AudioPlayerThread", this);
@@ -256,7 +270,6 @@ void AudioPlayer::thread_loop(){
 		if (b_continue)
 			continue;
 
-		this->jumped_this_loop = 0;
 		//std::cout <<"Outputting "<<buffer.samples()<<" samples.\n";
 #if !defined PROFILING
 		this->push_to_internal_queue(new BufferQueueElement(buffer, this->now_playing->get_stream_format()));
@@ -466,7 +479,7 @@ bool AudioPlayer::execute_stop(){
 
 bool AudioPlayer::execute_absolute_seek(double param, bool scaling){
 	//TODO: Find some way to merge this code with AudioPlayer::execute_relative_seek().
-	if (!this->now_playing || this->jumped_this_loop)
+	if (!this->now_playing)
 		return 1;
 	AudioLocker al(*this);
 	audio_position_t pos = invalid_audio_position;
@@ -483,7 +496,7 @@ bool AudioPlayer::execute_absolute_seek(double param, bool scaling){
 }
 
 bool AudioPlayer::execute_relative_seek(double seconds){
-	if (!this->now_playing || this->jumped_this_loop)
+	if (!this->now_playing)
 		return 1;
 	AudioLocker al(*this);
 	audio_position_t pos = invalid_audio_position;

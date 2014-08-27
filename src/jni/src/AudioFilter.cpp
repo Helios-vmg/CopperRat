@@ -122,7 +122,7 @@ void AudioFilterManager::add_multiplication_filter(double factor){
 			return;
 		if (this->filters[j].first > i)
 			break;
-		index = j;
+		index = (int)j;
 	}
 	AudioFormat format = index < 0 ? this->decoder.get_audio_format() : this->filters[index].second->get_src_format();
 	this->filters.insert(this->filters.begin() + (index + 1), std::make_pair(i, MultiplicationFilter::create(format, factor)));

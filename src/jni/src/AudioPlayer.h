@@ -201,7 +201,6 @@ class AudioPlayer{
 	audio_position_t last_position_seen;
 	double overriding_current_time;
 	double current_total_time;
-	bool jumped_this_loop;
 	unsigned time_of_last_pause;
 
 	void thread();

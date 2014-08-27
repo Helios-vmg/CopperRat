@@ -454,7 +454,7 @@ surface_t apply_box_blur(surface_t src_surface, double radius){
 						mask = dx >> 31;
 						dx = (dx + mask) ^ mask;
 
-						if (dx * dx + dy * dy > radius2)
+						if (unsigned(dx * dx + dy * dy) > radius2)
 							continue;
 
 						auto src_pixel = src_pixels + pitch * src_y + advance * src_x;
@@ -678,18 +678,18 @@ void Texture::from_surface(surface_t src){
 	this->tex.reset();
 	this->rect.x = 0;
 	this->rect.y = 0;
-	this->rect.w = src->w;
-	this->rect.h = src->h;
+	this->rect.w = (float)src->w;
+	this->rect.h = (float)src->h;
 	this->tex.reset(GPU_CopyImageFromSurface(src.get()), GPU_Image_deleter());
 	this->loaded = !!tex.get();
 }
 
 GPU_Rect to_GPU_Rect(const SDL_Rect &rect){
 	GPU_Rect ret;
-	ret.x = rect.x;
-	ret.y = rect.y;
-	ret.w = rect.w;
-	ret.h = rect.h;
+	ret.x = (float)rect.x;
+	ret.y = (float)rect.y;
+	ret.w = (float)rect.w;
+	ret.h = (float)rect.h;
 	return ret;
 }
 
@@ -697,7 +697,7 @@ void Texture::draw(const SDL_Rect &dst, const SDL_Rect *_src){
 	if (!*this)
 		return;
 	GPU_Rect src = !_src ? this->rect : to_GPU_Rect(*_src);
-	GPU_Blit(this->tex.get(), &src, this->target, dst.x, dst.y);
+	GPU_Blit(this->tex.get(), &src, this->target, (float)dst.x, (float)dst.y);
 }
 
 void Subtexture::draw(const SDL_Rect &_dst){

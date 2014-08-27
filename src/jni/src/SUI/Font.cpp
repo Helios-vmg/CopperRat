@@ -186,16 +186,16 @@ void Font::compute_rendering_pairs(void (*f)(void *, const rendering_pair &), vo
 		}else{
 			rendering_pair rp;
 			rp.page = (unsigned)c >> 8;
-			rp.src.x = int(c & 0x0F) * fullwidth_size;
-			rp.src.y = c & 0xF0;
-			rp.src.w = halfwidth_size * character_width;
-			rp.src.h = fullwidth_size;
-			rp.dst.x = x;
-			rp.dst.y = y;
-			rp.dst.w = rp.src.w * scale;
-			rp.dst.h = rp.src.h * scale;
+			rp.src.x = float(int(c & 0x0F) * fullwidth_size);
+			rp.src.y = float(c & 0xF0);
+			rp.src.w = float(halfwidth_size * character_width);
+			rp.src.h = (float)fullwidth_size;
+			rp.dst.x = (float)x;
+			rp.dst.y = (float)y;
+			rp.dst.w = float(rp.src.w * scale);
+			rp.dst.h = float(rp.src.h * scale);
 			rp.scale = (float)scale;
-			x += rp.dst.w;
+			x += (int)rp.dst.w;
 			f(user, rp);
 		}
 		i++;
