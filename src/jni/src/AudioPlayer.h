@@ -48,19 +48,25 @@ public:
 	virtual bool execute() = 0;
 };
 
+#define AudioCallback_switch_SIGNATURE2(x)              \
+	bool x AudioCallback_switch(                        \
+		AudioPlayer *player,                            \
+		Uint8 *stream,                                  \
+		int len,                                        \
+		unsigned bytes_per_sample,                      \
+		memory_sample_count_t &samples_written,         \
+		audio_position_t &last_position,                \
+		unsigned &sample_rate,                          \
+		boost::shared_ptr<InternalQueueElement> pointer \
+	)
+
+#define NULL_MACRO
+#define AudioCallback_switch_SIGNATURE AudioCallback_switch_SIGNATURE2(NULL_MACRO)
+
 class InternalQueueElement{
 public:
 	virtual ~InternalQueueElement(){}
-	virtual bool AudioCallback_switch(
-		AudioPlayer *player,
-		Uint8 *stream,
-		int len,
-		unsigned bytes_per_sample,
-		memory_sample_count_t &samples_written,
-		audio_position_t &last_position,
-		unsigned &sample_rate,
-		boost::shared_ptr<InternalQueueElement> pointer
-	) = 0;
+	virtual AudioCallback_switch_SIGNATURE = 0;
 	virtual bool is_buffer() const = 0;
 };
 
@@ -72,18 +78,17 @@ public:
 	audio_buffer_t get_buffer(){
 		return this->buffer;
 	}
-	bool AudioCallback_switch(
-		AudioPlayer *player,
-		Uint8 *stream,
-		int len,
-		unsigned bytes_per_sample,
-		memory_sample_count_t &samples_written,
-		audio_position_t &last_position,
-		unsigned &sample_rate,
-		boost::shared_ptr<InternalQueueElement> pointer
-	);
+	AudioCallback_switch_SIGNATURE;
 	bool is_buffer() const{
 		return 1;
+	}
+};
+
+class PlaybackEnd: public InternalQueueElement{
+public:
+	AudioCallback_switch_SIGNATURE;
+	bool is_buffer() const{
+		return 0;
 	}
 };
 
@@ -91,16 +96,7 @@ class ExternalQueueElement : public InternalQueueElement{
 public:
 	virtual ~ExternalQueueElement(){}
 	void push(AudioPlayer *player, boost::shared_ptr<InternalQueueElement> pointer);
-	virtual bool AudioCallback_switch(
-		AudioPlayer *player,
-		Uint8 *stream,
-		int len,
-		unsigned bytes_per_sample,
-		memory_sample_count_t &samples_written,
-		audio_position_t &last_position,
-		unsigned &sample_rate,
-		boost::shared_ptr<InternalQueueElement> pointer
-	){
+	virtual AudioCallback_switch_SIGNATURE{
 		this->push(player, pointer);
 		return 1;
 	}
@@ -223,6 +219,7 @@ class AudioPlayer{
 	void eliminate_buffers(audio_position_t * = 0);
 	bool handle_requests();
 	void on_stop();
+	void on_end();
 	void on_pause();
 public:
 	external_queue_out_t external_queue_out;
@@ -245,6 +242,9 @@ public:
 	void request_load(bool load, bool file, const std::wstring &path);
 	double get_current_time();
 
+	//nodify_* functions are designed to be called from the audio output thread.
+	void notify_playback_end();
+
 	//execute_* functions run in the internal thread!
 	bool execute_hardplay();
 	bool execute_playpause();
@@ -260,6 +260,7 @@ public:
 		return 0;
 	}
 	bool execute_metadata_update(boost::shared_ptr<GenericMetadata>);
+	bool execute_playback_end();
 	Playlist &get_playlist(){
 		return this->playlist;
 	}
@@ -356,6 +357,14 @@ public:
 	AsyncCommandLoad(AudioPlayer *player, bool load, bool file, const std::wstring &path): AudioPlayerAsyncCommand(player), load(load), file(file), path(path){}
 	bool execute(){
 		return this->player->execute_load(this->load, this->file, this->path);
+	}
+};
+
+class AsyncCommandPlaybackEnd : public AudioPlayerAsyncCommand{
+public:
+	AsyncCommandPlaybackEnd(AudioPlayer *player): AudioPlayerAsyncCommand(player){}
+	bool execute(){
+		return this->player->execute_playback_end();
 	}
 };
 

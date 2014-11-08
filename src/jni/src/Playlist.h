@@ -75,7 +75,7 @@ public:
 			return -1;
 		return this->current_track;
 	}
-	bool next();
+	bool next(bool by_user = 0);
 	bool back();
 	bool is_back_possible() const;
 	PlaybackMode cycle_mode();

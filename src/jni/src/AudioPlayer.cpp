@@ -46,16 +46,7 @@ void ExternalQueueElement::push(AudioPlayer *player, boost::shared_ptr<InternalQ
 	player->external_queue_out.push(boost::static_pointer_cast<ExternalQueueElement>(pointer));
 }
 
-bool BufferQueueElement::AudioCallback_switch(
-	AudioPlayer *player,
-	Uint8 *stream,
-	int len,
-	unsigned bytes_per_sample,
-	memory_sample_count_t &samples_written,
-	audio_position_t &last_position,
-	unsigned &sample_rate,
-	boost::shared_ptr<InternalQueueElement> pointer
-){
+AudioCallback_switch_SIGNATURE2(BufferQueueElement::){
 	const size_t bytes_written = samples_written * bytes_per_sample;
 	auto &buffer = this->buffer;
 	last_position = buffer.position;
@@ -63,6 +54,11 @@ bool BufferQueueElement::AudioCallback_switch(
 	size_t ctb_res = buffer.copy_to_buffer<Sint16, 2>(stream + bytes_written, len - samples_written * bytes_per_sample);
 	samples_written += (memory_sample_count_t)(ctb_res / bytes_per_sample);
 	return !buffer.samples();
+}
+
+AudioCallback_switch_SIGNATURE2(PlaybackEnd::){
+	player->notify_playback_end();
+	return 1;
 }
 
 void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
@@ -187,7 +183,7 @@ bool AudioPlayer::initialize_stream(){
 		return 1;
 	std::wstring next;
 	if (!this->playlist.get_current_track(next)){
-		this->on_stop();
+		this->on_end();
 		return 0;
 	}
 	auto &filename = next;
@@ -220,6 +216,10 @@ void AudioPlayer::on_stop(){
 	application_settings.set_current_time(-1);
 	this->device.close();
 	this->external_queue_out.push(eqe_t(new PlaybackStop));
+}
+
+void AudioPlayer::on_end(){
+	this->push_to_internal_queue(new PlaybackEnd);
 }
 
 void AudioPlayer::on_pause(){
@@ -545,6 +545,11 @@ bool AudioPlayer::execute_metadata_update(boost::shared_ptr<GenericMetadata> met
 	return 1;
 }
 
+bool AudioPlayer::execute_playback_end(){
+	this->on_stop();
+	return 1;
+}
+
 double AudioPlayer::get_current_time(){
 	AutoMutex am(this->position_mutex);
 	if (!this->last_freq_seen){
@@ -562,4 +567,8 @@ void AudioPlayer::try_update_total_time(){
 	if (this->current_total_time < 0)
 		return;
 	this->push_maybe_to_internal_queue(new TotalTimeUpdate(this->current_total_time));
+}
+
+void AudioPlayer::notify_playback_end(){
+	this->push_to_command_queue(new AsyncCommandPlaybackEnd(this));
 }

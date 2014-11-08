@@ -126,10 +126,13 @@ bool Playlist::get_current_track(std::wstring &dst){
 	return 1;
 }
 
-bool Playlist::next(){
+bool Playlist::next(bool by_user){
 	if (this->at_null_position())
 		return 0;
-	switch (this->mode){
+	auto mode = this->mode;
+	if (by_user && mode == PlaybackMode::REPEAT_TRACK)
+		mode = PlaybackMode::REPEAT_LIST;
+	switch (mode){
 		case PlaybackMode::SINGLE:
 			this->current_track++;
 			break;

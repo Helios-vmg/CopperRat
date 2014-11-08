@@ -218,3 +218,8 @@ src/obj/
 src/jni/SDL/test/
 src/jni/include/boost/
 *.so
+
+src/libs/armeabi/gdb.setup
+src/libs/armeabi/gdbserver
+src/libs/armeabi-v7a/gdb.setup
+src/libs/armeabi-v7a/gdbserver
