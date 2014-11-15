@@ -609,7 +609,7 @@ class SDLMain implements Runnable {
 	    		file.write(buffer, 0, bytesRead);
 	    		bytes += bytesRead;
 	    	}
-	    	Log.i("Resources", "Written " + bytes + "bytes.");
+	    	Log.i("Resources", "Written " + bytes + " bytes.");
     	}catch (Exception e){
     		Log.e("Resources", "There was an exception! " + e.toString());
     	}

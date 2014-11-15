@@ -255,15 +255,15 @@ surface_t load_image_from_memory(const void *buffer, size_t length){
 	return normalize_surface(to_surface_t(IMG_Load_RW(SDL_RWFromConstMem(buffer, (int)length), 1)));
 }
 
-void save_surface_compressed(const char *path, surface_t src){
+void save_surface_compressed(const char *path, surface_t src, int quality){
 	uint8_t *buffer;
 	size_t buffer_size;
 	if (src->format->BytesPerPixel == 3){
 		SurfaceLocker sl(src);
-		buffer_size = WebPEncodeRGB((const uint8_t *)src->pixels, src->w, src->h, src->pitch, 75, &buffer);
+		buffer_size = WebPEncodeRGB((const uint8_t *)src->pixels, src->w, src->h, src->pitch, quality, &buffer);
 	}else{
 		SurfaceLocker sl(src);
-		buffer_size = WebPEncodeRGBA((const uint8_t *)src->pixels, src->w, src->h, src->pitch, 75, &buffer);
+		buffer_size = WebPEncodeRGBA((const uint8_t *)src->pixels, src->w, src->h, src->pitch, quality, &buffer);
 	}
 	{
 		std::ofstream file(path, std::ios::binary);

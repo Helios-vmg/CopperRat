@@ -460,7 +460,7 @@ void PictureBlurringJob::sui_perform(WorkerThread &wt){
 		SDL_BlitSurface(this->picture.get(), &src_rect, temp.get(), nullptr);
 		this->picture = temp;
 		this->picture = apply_gaussian_blur2(this->picture, 15);
-		save_surface_compressed(string_to_utf8(this->path).c_str(), this->picture);
+		save_surface_compressed(string_to_utf8(this->path).c_str(), this->picture, 100);
 	}
 	auto t1 = clock();
 	double t = double(t1 - t0);

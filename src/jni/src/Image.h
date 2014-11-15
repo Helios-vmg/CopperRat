@@ -84,7 +84,7 @@ surface_t bind_surface_to_square(surface_t src, unsigned size);
 surface_t load_image_from_file(const char *path);
 surface_t load_image_from_file(const std::wstring &path);
 surface_t load_image_from_memory(const void *buffer, size_t length);
-void save_surface_compressed(const char *path, surface_t src);
+void save_surface_compressed(const char *path, surface_t src, int quality = 75);
 
 surface_t apply_gaussian_blur(surface_t, double sigma);
 surface_t apply_gaussian_blur_double(surface_t, double sigma);
