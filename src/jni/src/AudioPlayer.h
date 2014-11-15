@@ -156,6 +156,47 @@ public:
 
 struct NotImplementedException{};
 
+class PlayState{
+public:
+	enum Value{
+		STOPPED = 0,
+		PLAYING,
+		ENDING,
+		PAUSED,
+	};
+private:
+	Value state;
+	static const char *strings[];
+public:
+	PlayState(): state(STOPPED){}
+	PlayState(const PlayState &b): state(b.state){}
+	PlayState(const Value &v): state(v){}
+	const PlayState &operator=(const PlayState &b){
+		return *this = b.state;
+	}
+	const PlayState &operator=(Value v){
+		if (this->state != v)
+			__android_log_print(ANDROID_LOG_INFO, "C++Playback", "State change: %s => %s\n", this->strings[(int)this->state], this->strings[(int)v]);
+		this->state = v;
+		return *this;
+	}
+	bool operator==(const PlayState &b) const{
+		return this->state == b.state;
+	}
+	bool operator!=(const PlayState &b) const{
+		return this->state != b.state;
+	}
+	bool operator==(Value v) const{
+		return this->state == v;
+	}
+	bool operator!=(Value v) const{
+		return this->state != v;
+	}
+	operator Value() const{
+		return this->state;
+	}
+};
+
 class AudioPlayer{
 	friend class AudioDevice;
 	typedef boost::shared_ptr<InternalQueueElement> iqe_t;
@@ -178,11 +219,7 @@ class AudioPlayer{
 		}
 	};
 
-	enum class PlayState{
-		STOPPED,
-		PLAYING,
-		PAUSED,
-	} state;
+	PlayState state;
 
 	AudioDevice device;
 	internal_queue_t internal_queue;

@@ -42,6 +42,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #endif
 
+const char *PlayState::strings[] = {
+	"STOPPED",
+	"PLAYING",
+	"ENDING",
+	"PAUSED",
+};
+
 void ExternalQueueElement::push(AudioPlayer *player, boost::shared_ptr<InternalQueueElement> pointer){
 	player->external_queue_out.push(boost::static_pointer_cast<ExternalQueueElement>(pointer));
 }
@@ -206,6 +213,8 @@ void AudioPlayer::push_maybe_to_internal_queue(ExternalQueueElement *p){
 }
 
 void AudioPlayer::on_stop(){
+	if (this->state == PlayState::STOPPED)
+		return;
 	this->state = PlayState::STOPPED;
 	this->current_total_time = 0;
 	{
@@ -219,6 +228,9 @@ void AudioPlayer::on_stop(){
 }
 
 void AudioPlayer::on_end(){
+	if (this->state == PlayState::ENDING)
+		return;
+	this->state = PlayState::ENDING;
 	this->push_to_internal_queue(new PlaybackEnd);
 }
 

@@ -75,7 +75,7 @@ void Settings::commit(){
 void Settings::set_default_values(){
 	this->shuffle = 0;
 	this->playback_mode = Mode::REPEAT_LIST;
-	this->current_time = 0;
+	this->current_time = -1;
 	this->current_track = -1;
 }
 
