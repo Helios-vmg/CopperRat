@@ -8,6 +8,44 @@ Settings application_settings;
 
 #define SAVE_PATH (BASE_PATH "settings.xml")
 
+bool query(int &dst, tinyxml2::XMLElement *element){
+	return element->QueryIntText(&dst) == tinyxml2::XML_NO_ERROR;
+}
+
+bool query(bool &dst, tinyxml2::XMLElement *element){
+	return element->QueryBoolText(&dst) == tinyxml2::XML_NO_ERROR;
+}
+
+bool query(double &dst, tinyxml2::XMLElement *element){
+	return element->QueryDoubleText(&dst) == tinyxml2::XML_NO_ERROR;
+}
+
+bool query(std::wstring &dst, tinyxml2::XMLElement *element){
+	const char *s = element->GetText();
+	if (!s)
+		return 0;
+	dst = utf8_to_string(s);
+	return 1;
+}
+
+template <typename T>
+T query(tinyxml2::XMLElement *element){
+	T ret;
+	if (query(ret, element))
+		return ret;
+	return T();
+}
+
+template <typename T>
+void read_list(std::vector<T> &dst, tinyxml2::XMLElement *element){
+	dst.clear();
+	for (auto *el = element->FirstChildElement(); el; el = el->NextSiblingElement()){
+		if (strcmp(el->Name(), "item"))
+			continue;
+		dst.push_back(query<T>(el));
+	}
+}
+
 Settings::Settings(): no_changes(1){
 	this->set_default_values();
 	tinyxml2::XMLDocument doc;
@@ -22,26 +60,35 @@ Settings::Settings(): no_changes(1){
 	if (!settings)
 		return;
 
-	for (auto *el = settings->FirstAttribute(); el; el = el->Next()){
-		auto name = el->Name();
-		if (!strcmp(name, "playback_mode"))
-			this->playback_mode = (Mode)el->IntValue();
-		else if (!strcmp(name, "shuffle"))
-			this->shuffle = el->BoolValue();
-		else if (!strcmp(name, "last_browse_directory"))
-			this->last_browse_directory = utf8_to_string(el->Value());
-		else if (!strcmp(name, "current_track"))
-			this->current_track = el->IntValue();
-		else if (!strcmp(name, "current_time"))
-			this->current_time = el->DoubleValue();
-	}
 	for (auto *el = settings->FirstChildElement(); el; el = el->NextSiblingElement()){
 		auto name = el->Name();
-		if (!strcmp(name, "playlist_item"))
-			this->playlist_items.push_back(utf8_to_string(el->Attribute("value")));
-		else if (!strcmp(name, "shuffle_item"))
-			this->shuffle_items.push_back(el->IntAttribute("value"));
+		if (!strcmp(name, "playback_mode"))
+			this->playback_mode = (Mode)query<int>(el);
+		else if (!strcmp(name, "shuffle"))
+			this->shuffle = query<bool>(el);
+		else if (!strcmp(name, "last_browse_directory"))
+			this->last_browse_directory = query<std::wstring>(el);
+		else if (!strcmp(name, "current_track"))
+			this->current_track = query<int>(el);
+		else if (!strcmp(name, "current_time"))
+			this->current_time = query<double>(el);
+		else if (!strcmp(name, "playlist"))
+			read_list(this->playlist_items, el);
+		else if (!strcmp(name, "shuffle_list"))
+			read_list(this->shuffle_items, el);
 	}
+}
+
+tinyxml2::XMLElement *generate_element(tinyxml2::XMLDocument &doc, tinyxml2::XMLElement *parent, const char *name){
+	auto ret = doc.NewElement(name);
+	parent->LinkEndChild(ret);
+	return ret;
+}
+
+template <typename T>
+void generate_element(tinyxml2::XMLDocument &doc, tinyxml2::XMLElement *parent, const char *name, const T &value){
+	auto element = generate_element(doc, parent, name);
+	element->SetText(value);
 }
 
 void Settings::commit(){
@@ -52,21 +99,21 @@ void Settings::commit(){
 	tinyxml2::XMLDocument doc;
 	auto settings = doc.NewElement("settings");
 	doc.LinkEndChild(settings);
-	settings->SetAttribute("playback_mode", (int)this->playback_mode);
-	settings->SetAttribute("shuffle", this->shuffle);
+	generate_element(doc, settings, "playback_mode", (int)this->playback_mode);
+	generate_element(doc, settings, "shuffle", this->shuffle);
 	if (this->last_browse_directory.size())
-		settings->SetAttribute("last_browse_directory", string_to_utf8(this->last_browse_directory).c_str());
-	settings->SetAttribute("current_track", this->current_track);
-	settings->SetAttribute("current_time", this->current_time);
-	for (auto &s : this->playlist_items){
-		auto playlist_item = doc.NewElement("playlist_item");
-		settings->LinkEndChild(playlist_item);
-		playlist_item->SetAttribute("value", string_to_utf8(s).c_str());
+		generate_element(doc, settings, "last_browse_directory", string_to_utf8(this->last_browse_directory).c_str());
+	generate_element(doc, settings, "current_track", this->current_track);
+	generate_element(doc, settings, "current_time", this->current_time);
+	{
+		auto playlist = generate_element(doc, settings, "playlist");
+		for (auto &s : this->playlist_items)
+			generate_element(doc, playlist, "item", string_to_utf8(s).c_str());
 	}
-	for (auto i : this->shuffle_items){
-		auto shuffle_item = doc.NewElement("shuffle_item");
-		settings->LinkEndChild(shuffle_item);
-		shuffle_item->SetAttribute("value", i);
+	{
+		auto shuffle = generate_element(doc, settings, "shuffle_list");
+		for (auto i : this->shuffle_items)
+			generate_element(doc, shuffle, "item", i);
 	}
 	doc.SaveFile(SAVE_PATH);
 	this->no_changes = 1;

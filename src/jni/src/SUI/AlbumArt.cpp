@@ -193,7 +193,7 @@ template <typename Iterator>
 size_t generalized_hash(Iterator begin, const Iterator &end){
 	assert(sizeof(size_t) == 4 || sizeof(size_t) == 8);
 	size_t ret = 0xF00BA8;
-	const size_t factor = sizeof(size_t) == 4 ? 0xDEADBEEF : (sizeof(size_t) == 8 ? 0xDEADBEEF : 0x8BADF00DDEADBEEF);
+	const size_t factor = sizeof(size_t) != 8 ? 0xDEADBEEF : 0x8BADF00DDEADBEEF;
 	for (; begin != end; ++begin){
 		ret *= factor;
 		ret ^= *begin;
@@ -206,9 +206,16 @@ size_t hash_string(const std::string &s){
 }
 
 static std::string get_hash(const std::wstring &s){
+	const char *digits = "0123456789ABCDEF";
 	auto string_to_hash = string_to_utf8(s);
-	char hash[50];
-	sprintf(hash, "%016X", hash_string(string_to_hash));
+	size_t digest = hash_string(string_to_hash),
+		copy = digest;
+	char hash[sizeof(digest) * 2 + 1];
+	for (int i = 0; i < sizeof(digest) * 2; i++){
+		hash[sizeof(digest) * 2 - 1 - i] = digits[copy & 0x0F];
+		copy >>= 4;
+	}
+	hash[sizeof(digest) * 2] = 0;
 	return hash;
 }
 
