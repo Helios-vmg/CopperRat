@@ -191,7 +191,7 @@ SUI::SUI():
 		apply_blur(0){
 	get_dots_per_millimeter();
 
-	this->screen = GPU_Init(1080/2, 1920/2, GPU_DEFAULT_INIT_FLAGS);
+	this->screen = GPU_Init(1080 / 2, 1920 / 2, GPU_DEFAULT_INIT_FLAGS | GPU_INIT_ENABLE_VSYNC);
 	if (!this->screen)
 		throw UIInitializationException("Window creation failed.");
 
@@ -443,6 +443,7 @@ SDL_Rect SUI::get_seekbar_region(){
 void SUI::loop(){
 	Uint32 last = 0;
 	unsigned status;
+	const auto min_time = (Uint32)(1000.0 / 60.0);
 	while (!check_flag(status = this->handle_in_events(), QUIT)){
 		try{
 			status |= this->handle_out_events();
@@ -458,14 +459,15 @@ void SUI::loop(){
 		Uint32 now_ticks = 0;
 		if (this->ui_in_foreground){
 			now_ticks = SDL_GetTicks();
+			auto delta_t = now_ticks - last;
 			do_redraw = do_redraw || this->update_requested;
-			do_redraw = do_redraw || now_ticks - last >= 500;
+			do_redraw = do_redraw || delta_t >= 500;
 			do_redraw = do_redraw || check_flag(status, REDRAW);
 			do_redraw = do_redraw || this->full_update_count > 0;
-			do_redraw = do_redraw || this->player.get_state() == PlayState::PLAYING;
+			do_redraw = do_redraw || this->player.get_state() == PlayState::PLAYING && delta_t >= min_time;
 		}
 		if (!do_redraw){
-			SDL_Delay((Uint32)(1000.0/60.0));
+			SDL_Delay(min_time / 2);
 			continue;
 		}
 		this->update_requested = 0;

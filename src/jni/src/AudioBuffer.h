@@ -143,6 +143,8 @@ public:
 	}
 	void advance_data_offset(memory_sample_count_t count){
 		this->data_offset += count;
+		if (this->data_offset > this->sample_count)
+			this->data_offset = this->sample_count;
 	}
 };
 

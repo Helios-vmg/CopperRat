@@ -63,12 +63,14 @@ unsigned MainScreen::handle_event(const SDL_Event &event){
 }
 
 void MainScreen::update(){
+	Uint32 time = SDL_GetTicks();
 	this->sui->draw_picture();
 	GUIElement::update();
-	this->draw_oscilloscope();
+	this->draw_oscilloscope(time);
+	this->last_draw = time;
 }
 
-void MainScreen::draw_oscilloscope(){
+void MainScreen::draw_oscilloscope(Uint32 time){
 	auto player_state = this->player.get_state();
 	if (player_state == PlayState::STOPPED){
 		this->last_buffer.unref();
@@ -81,11 +83,16 @@ void MainScreen::draw_oscilloscope(){
 	if (buffer)
 		this->last_buffer = buffer;
 	else{
-		if (player_state != PlayState::PAUSED){
+		if (player_state != PlayState::PAUSED && this->last_draw){
+			//this->last_buffer.advance_data_offset((time - this->last_draw) * 44100 / 1000);
 			this->last_buffer.advance_data_offset(length);
+			length = this->last_buffer.samples();
+			length = std::min(length, (memory_sample_count_t)visible_region.w);
 		}
 	}
-	if (!this->last_buffer || this->last_buffer.bytes_per_sample() != 2 * this->last_buffer.channels() || !this->last_buffer.samples())
+	if (!this->last_buffer)
+		return;
+	if (this->last_buffer.bytes_per_sample() != 2 * this->last_buffer.channels() || !this->last_buffer.samples())
 		return;
 	unsigned last = 0;
 	const float middle = visible_region.w / 2;

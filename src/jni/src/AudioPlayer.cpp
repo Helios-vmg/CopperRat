@@ -106,8 +106,9 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 		player->last_freq_seen = last_sample_rate;
 		player->last_position_seen = last_position;
 		if (last_buffer){
-			last_buffer.reset_offset();
-			player->last_buffer_played = last_buffer;
+			player->last_buffer_played = audio_buffer_t(last_buffer.bytes_per_sample() / last_buffer.channels(), last_buffer.channels(), samples_written);
+			memcpy(player->last_buffer_played.raw_pointer(0), stream, samples_written * bytes_per_sample);
+			player->last_buffer_played.reset_offset();
 		}
 	}
 	if (!perform_final_pops)
