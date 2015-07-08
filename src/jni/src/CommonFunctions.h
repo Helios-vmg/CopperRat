@@ -213,7 +213,7 @@ void read_32_big_bits(Uint32 &dst, const void *buf);
 bool read_32_big_bits(Uint32 &dst, const std::vector<unsigned char> &src, size_t offset);
 
 template <typename T, typename F>
-bool glob(const T *pattern, const T *string, F f = F()){
+bool glob_implementation(const T *pattern, const T *string, F f, bool ignore_f){
 glob_start:
 	if (!*pattern && !*string)
 		return 1;
@@ -231,13 +231,23 @@ glob_start:
 			string++;
 			goto glob_start;
 		default:
-			if (!f && *pattern == *string || f && f(*pattern) == f(*string)){
+			if (ignore_f && *pattern == *string || !ignore_f && f(*pattern) == f(*string)){
 				pattern++;
 				string++;
 				goto glob_start;
 			}
 			return 0;
 	}
+}
+
+template <typename T, typename F>
+bool glob(const T *pattern, const T *string){
+	return glob_implementation(pattern, string, nullptr, 1);
+}
+
+template <typename T, typename F>
+bool glob(const T *pattern, const T *string, F f){
+	return glob_implementation(pattern, string, f, 0);
 }
 
 template <typename T>
