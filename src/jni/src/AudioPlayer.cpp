@@ -537,7 +537,7 @@ bool AudioPlayer::execute_next(){
 	AudioLocker al(*this);
 	this->eliminate_buffers();
 	this->now_playing.reset();
-	if (this->playlist.next())
+	if (this->playlist.next(true))
 		this->initialize_stream();
 	return 1;
 }
