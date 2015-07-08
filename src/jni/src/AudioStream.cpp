@@ -71,8 +71,14 @@ void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audi
 	audio_position_t target;
 	if (scaling)
 		target = audio_position_t(this->decoder->get_pcm_length() * param);
-	else
-		target = audio_position_t(param * (double)this->decoder->get_audio_format().freq);
+	else{
+		auto freq = this->decoder->get_audio_format().freq;
+		if (!freq){
+			new_position = this->position;
+			return;
+		}
+		target = audio_position_t(param * (double)freq);
+	}
 	if (target >= this->decoder->get_pcm_length()){
 		player->execute_next();
 		return;

@@ -75,6 +75,7 @@ FlacDecoder::FlacDecoder(AudioStream &parent, const std::wstring &path):
 	auto status = this->init();
 	if (status != FLAC__STREAM_DECODER_INIT_STATUS_OK)
 		throw DecoderInitializationException(std::string("FLAC initialization failed: ") + to_string(status));
+	this->declared_af.freq = 0;
 	this->process_until_end_of_metadata();
 }
 
@@ -137,11 +138,7 @@ double FlacDecoder::get_seconds_length_internal(){
 
 FLAC__StreamDecoderWriteStatus FlacDecoder::write_callback(const FLAC__Frame *frame, const FLAC__int32 * const *buffer){
 	this->buffers.push_back(allocator_functions[frame->header.bits_per_sample / 8](frame, buffer));
-	this->declared_af.bytes_per_channel = this->get_bits_per_sample() / 8;
-	this->declared_af.channels = this->get_channels();
-	this->declared_af.freq = this->get_sample_rate();
-	this->declared_af.is_signed = 1;
-	this->declared_af_set = 1;
+	this->set_af();
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
@@ -187,6 +184,16 @@ void FlacDecoder::metadata_callback(const FLAC__StreamMetadata *metadata){
 		case FLAC__METADATA_TYPE_VORBIS_COMMENT:
 			this->read_vorbis_comments(metadata->data.vorbis_comment);
 			break;
+		case FLAC__METADATA_TYPE_STREAMINFO:
+			{
+				const auto &stream_info = metadata->data.stream_info;
+				this->declared_af.bytes_per_channel = stream_info.bits_per_sample / 8;
+				this->declared_af.channels = stream_info.channels;
+				this->declared_af.freq = stream_info.sample_rate;
+				this->declared_af.is_signed = 1;
+				this->declared_af_set = !!this->declared_af.freq;
+			}
+			break;
 	}
 }
 
@@ -194,4 +201,13 @@ void FlacDecoder::read_vorbis_comments(const FLAC__StreamMetadata_VorbisComment 
 	for (auto i = comments.num_comments; i--;)
 		this->metadata.add_vorbis_comment(comments.comments[i].entry, comments.comments[i].length);
 	this->parent.metadata_update(this->metadata.clone());
+}
+
+void FlacDecoder::set_af(){
+	this->declared_af.bytes_per_channel = this->get_bits_per_sample() / 8;
+	this->declared_af.channels = this->get_channels();
+	this->declared_af.freq = this->get_sample_rate();
+	this->declared_af.is_signed = 1;
+	this->declared_af_set = !!this->declared_af.freq;
+
 }

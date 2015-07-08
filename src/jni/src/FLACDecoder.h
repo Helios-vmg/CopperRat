@@ -73,6 +73,8 @@ class FlacDecoder: public Decoder, public FLAC::Decoder::Stream{
 	void free_buffers();
 	void read_vorbis_comments(const FLAC__StreamMetadata_VorbisComment &comments);
 
+	void set_af();
+
 public:
 	FlacDecoder(AudioStream &parent, const std::wstring &path);
 	~FlacDecoder(){
