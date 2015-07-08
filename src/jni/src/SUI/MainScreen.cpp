@@ -65,6 +65,42 @@ unsigned MainScreen::handle_event(const SDL_Event &event){
 void MainScreen::update(){
 	this->sui->draw_picture();
 	GUIElement::update();
+	this->draw_oscilloscope();
+}
+
+void MainScreen::draw_oscilloscope(){
+	auto player_state = this->player.get_state();
+	if (player_state == PlayState::STOPPED){
+		this->last_buffer.unref();
+		return;
+	}
+	auto buffer = this->player.get_last_buffer_played();
+	auto visible_region = this->sui->get_visible_region();
+	memory_sample_count_t length = this->last_buffer.samples();
+	length = std::min(length, (memory_sample_count_t)visible_region.w);
+	if (buffer)
+		this->last_buffer = buffer;
+	else{
+		if (player_state != PlayState::PAUSED){
+			this->last_buffer.advance_data_offset(length);
+		}
+	}
+	if (!this->last_buffer || this->last_buffer.bytes_per_sample() != 2 * this->last_buffer.channels() || !this->last_buffer.samples())
+		return;
+	unsigned last = 0;
+	const float middle = visible_region.w / 2;
+	auto channels = this->last_buffer.channels();
+	for (memory_audio_position_t i = 0; i != length; i++){
+		float value = 0;
+		auto sample = this->last_buffer.get_sample_use_channels<Sint16>(i);
+		for (int i = 0; i < channels; i++)
+			value += s16_to_float(sample->values[i]);
+		value /= channels;
+		auto y = value * middle + middle;
+		if (i)
+			GPU_Line(this->sui->get_target(), i - 1, last, i, y, { 255, 255, 255, 255 });
+		last = y;
+	}
 }
 
 void MainScreen::gui_signal(const GuiSignal &signal){

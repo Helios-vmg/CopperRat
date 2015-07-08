@@ -462,6 +462,7 @@ void SUI::loop(){
 			do_redraw = do_redraw || now_ticks - last >= 500;
 			do_redraw = do_redraw || check_flag(status, REDRAW);
 			do_redraw = do_redraw || this->full_update_count > 0;
+			do_redraw = do_redraw || this->player.get_state() == PlayState::PLAYING;
 		}
 		if (!do_redraw){
 			SDL_Delay((Uint32)(1000.0/60.0));

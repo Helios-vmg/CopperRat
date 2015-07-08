@@ -235,6 +235,7 @@ class AudioPlayer{
 	double overriding_current_time;
 	double current_total_time;
 	unsigned time_of_last_pause;
+	audio_buffer_t last_buffer_played;
 
 	void thread();
 	void thread_loop();
@@ -300,6 +301,20 @@ public:
 	bool execute_playback_end();
 	Playlist &get_playlist(){
 		return this->playlist;
+	}
+	audio_buffer_t get_last_buffer_played(){
+		audio_buffer_t ret;
+		{
+			AutoMutex am(this->position_mutex);
+			if (this->last_buffer_played){
+				ret = this->last_buffer_played;
+				this->last_buffer_played.unref();
+			}
+		}
+		return ret;
+	}
+	PlayState::Value get_state() const{
+		return this->state;
 	}
 };
 

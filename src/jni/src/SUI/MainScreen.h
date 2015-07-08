@@ -41,9 +41,11 @@ class MainScreen : public GUIElement{
 	double current_total_time;
 	AudioPlayer &player;
 	Texture tex_buttons;
+	audio_buffer_t last_buffer;
 
 	void prepare_buttons();
 	void gui_signal(const GuiSignal &);
+	void draw_oscilloscope();
 public:
 	MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player);
 	unsigned handle_event(const SDL_Event &);
