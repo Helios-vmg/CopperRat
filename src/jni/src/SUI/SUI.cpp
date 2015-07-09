@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "FileBrowser.h"
 #include "ListView.h"
 #include "../Settings.h"
+#include "../AudioBuffer.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL_image.h>
 #include <iostream>
@@ -43,6 +44,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sstream>
 #include <boost/shared_array.hpp>
 #endif
+
+#define FPS_DISPLAY
+//#define LIMIT_FPS
 
 ControlCoroutine::ControlCoroutine():
 	co([this](co_t::pull_type &pt){ this->antico = &pt; this->entry_point(); }){}
@@ -438,10 +442,11 @@ SDL_Rect SUI::get_seekbar_region(){
 	return ret;
 }
 
-#include "../AudioBuffer.h"
-
 void SUI::loop(){
 	Uint32 last = 0;
+#ifdef FPS_DISPLAY
+	std::deque<Uint32> fps_queue;
+#endif
 	unsigned status;
 	const auto min_time = (Uint32)(1000.0 / 60.0);
 	while (!check_flag(status = this->handle_in_events(), QUIT)){
@@ -464,7 +469,11 @@ void SUI::loop(){
 			do_redraw = do_redraw || delta_t >= 500;
 			do_redraw = do_redraw || check_flag(status, REDRAW);
 			do_redraw = do_redraw || this->full_update_count > 0;
-			do_redraw = do_redraw || this->player.get_state() == PlayState::PLAYING && delta_t >= min_time;
+			do_redraw = do_redraw || this->player.get_state() == PlayState::PLAYING 
+#ifdef LIMIT_FPS
+				&& delta_t >= min_time
+#endif
+				;
 		}
 		if (!do_redraw){
 			SDL_Delay(min_time / 2);
@@ -475,6 +484,16 @@ void SUI::loop(){
 		last = now_ticks;
 		GPU_Clear(this->screen);
 		this->current_element->update();
+#ifdef FPS_DISPLAY
+		fps_queue.push_back(now_ticks);
+		while (now_ticks - fps_queue.front() > 1000)
+			fps_queue.pop_front();
+		if (fps_queue.size() > 1){
+			std::stringstream stream;
+			stream << std::setprecision(3) << std::setw(4) << std::setfill(' ') << (double)fps_queue.size() * 1000 / (now_ticks - fps_queue.front()) << " fps";
+			this->font->draw_text(stream.str(), 0, 0, INT_MAX, 2.0);
+		}
+#endif
 		GPU_Flip(this->screen);
 	}
 }
