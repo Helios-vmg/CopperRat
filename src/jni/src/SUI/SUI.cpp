@@ -481,19 +481,29 @@ void SUI::loop(){
 		}
 		this->update_requested = 0;
 
-		last = now_ticks;
-		GPU_Clear(this->screen);
-		this->current_element->update();
 #ifdef FPS_DISPLAY
+		std::string display_string;
+#endif
 		fps_queue.push_back(now_ticks);
 		while (now_ticks - fps_queue.front() > 1000)
 			fps_queue.pop_front();
 		if (fps_queue.size() > 1){
+			this->current_framerate = (float)fps_queue.size() * 1000.f / (float)(now_ticks - fps_queue.front());
+#ifdef FPS_DISPLAY
 			std::stringstream stream;
-			stream << std::setprecision(3) << std::setw(4) << std::setfill(' ') << (double)fps_queue.size() * 1000 / (now_ticks - fps_queue.front()) << " fps";
-			this->font->draw_text(stream.str(), 0, 0, INT_MAX, 2.0);
-		}
+			stream << std::setprecision(3) << std::setw(4) << std::setfill(' ') << this->current_framerate << " fps";
+			display_string = stream.str();
+#endif
+		}else
+			this->current_framerate = -1;
+
+		GPU_Clear(this->screen);
+		this->current_element->update();
+#ifdef FPS_DISPLAY
+		if (display_string.size())
+			this->font->draw_text(display_string, 0, 0, INT_MAX, 2.0);
 #endif
 		GPU_Flip(this->screen);
+		last = now_ticks;
 	}
 }

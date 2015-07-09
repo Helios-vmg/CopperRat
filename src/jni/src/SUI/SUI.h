@@ -241,6 +241,7 @@ private:
 	boost::shared_ptr<DelayedPictureLoadAction> dpla;
 	bool apply_blur;
 	ShaderProgram blur_h, blur_v;
+	float current_framerate;
 
 	unsigned handle_event(const SDL_Event &e);
 	unsigned handle_keys(const SDL_Event &e);
@@ -300,6 +301,9 @@ public:
 	unsigned finish_background_load(surface_t picture);
 	void perform(RemoteThreadProcedureCall *);
 	SDL_Rect get_seekbar_region();
+	float get_current_framerate() const{
+		return this->current_framerate;
+	}
 };
 
 #endif

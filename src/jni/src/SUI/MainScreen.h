@@ -42,10 +42,12 @@ class MainScreen : public GUIElement{
 	AudioPlayer &player;
 	Texture tex_buttons;
 	audio_buffer_t last_buffer;
+	unsigned last_length;
 
 	void prepare_buttons();
 	void gui_signal(const GuiSignal &);
 	void draw_oscilloscope(Uint32 time);
+	void draw_spectrum(Uint32 time);
 	Uint32 last_draw;
 public:
 	MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player);

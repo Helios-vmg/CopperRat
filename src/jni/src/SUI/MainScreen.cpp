@@ -66,7 +66,8 @@ void MainScreen::update(){
 	Uint32 time = SDL_GetTicks();
 	this->sui->draw_picture();
 	GUIElement::update();
-	this->draw_oscilloscope(time);
+	//this->draw_oscilloscope(time);
+	this->draw_spectrum(time);
 	this->last_draw = time;
 }
 
@@ -107,6 +108,128 @@ void MainScreen::draw_oscilloscope(Uint32 time){
 		if (i)
 			GPU_Line(this->sui->get_target(), (float)i - 1, last, (float)i, y, { 255, 255, 255, 255 });
 		last = y;
+	}
+}
+
+const double pi = 3.1415926535897932384626433832795;
+
+void compute_dct(float *dst, float *time_domain, size_t n){
+	for (size_t i = n; i--;){
+		double sum = 0;
+		for (size_t j = n; j--;)
+			sum += time_domain[j] * cos(pi / (double)n * (j + 0.5) * i);
+		dst[i] = sum < 0 ? -sum : sum;
+	}
+}
+
+class dct_calculator{
+	std::vector<float> dct_matrix;
+public:
+	std::vector<float> result_store;
+	dct_calculator(unsigned short size) :
+			dct_matrix(size * size),
+			result_store(size){
+		auto n = this->result_store.size();
+		auto matrix = &this->dct_matrix[0];
+		for (auto i = this->dct_matrix.size(); i--;){
+			auto x = i % n;
+			auto y = i / n;
+			matrix[x + y * n] = cos(pi / (float)n * ((float)x + 0.5f) * (float)y);
+		}
+	}
+	void compute_native_size_dct(float *time_domain){
+		auto n = this->result_store.size();
+		auto matrix = &this->dct_matrix[0];
+		auto res = &this->result_store[0];
+		for (size_t i = n; i--;){
+			float sum = 0;
+			auto base = matrix + i * n;
+			for (size_t j = n; j--;)
+				sum += time_domain[j] * base[j];
+			res[i] = sum < 0 ? -sum : sum;
+		}
+	}
+	void compute_arbitrary_size_dct(float *time_domain, size_t size){
+		if (size == this->result_store.size()){
+			this->compute_native_size_dct(time_domain);
+			return;
+		}
+		size_t n = this->result_store.size();
+		auto matrix = &this->dct_matrix[0];
+		auto res = &this->result_store[0];
+		float multiplier = 1; // 1.f / (float)((size + n - 1) / n);
+		for (size_t i = 0; i < size; i += n){
+			auto end = std::min(i + n, size);
+			float conditional_multiplier = !i ? 0.f : 1.f;
+			for (size_t j = n; j--;){
+				float sum = res[j] * conditional_multiplier;
+				auto base = matrix + j * n - i;
+				for (size_t k = i; k != end; k++)
+					sum += time_domain[k] * base[k];
+				res[j] = sum * multiplier;
+			}
+		}
+		for (auto &f : this->result_store)
+			f = f < 0 ? -f : f;
+	}
+};
+
+static dct_calculator dct(540);
+
+void MainScreen::draw_spectrum(Uint32 time){
+	auto player_state = this->player.get_state();
+	auto framerate = this->sui->get_current_framerate();
+	if (player_state == PlayState::STOPPED || framerate <= 0){
+		this->last_buffer.unref();
+		return;
+	}
+	auto buffer = this->player.get_last_buffer_played();
+	auto visible_region = this->sui->get_visible_region();
+	memory_sample_count_t length = this->last_buffer.samples();
+	length = std::min(length, (memory_sample_count_t)visible_region.w);
+	if (buffer){
+		this->last_buffer = buffer;
+		// (samples/buffer) / (samples/sec) * (frames/sec) = 
+		// (1/buffer) / (1/sec) * (frames/sec) = 
+		// (sec/buffer) * (frames/sec) = 
+		// (1/buffer) * frames = 
+		// frames/buffer 
+		float frames_per_buffer = (float)this->last_buffer.samples() / 44100.f * framerate;
+		this->last_length = (unsigned)(this->last_buffer.samples() / frames_per_buffer);
+	}else{
+		if (player_state != PlayState::PAUSED && this->last_draw){
+			this->last_buffer.advance_data_offset(this->last_length);
+		}
+	}
+	length = std::min(this->last_length, this->last_buffer.samples());
+	if (!this->last_buffer || !length){
+		//std::cerr << "Out of buffer!\n";
+		return;
+	}
+	if (this->last_buffer.bytes_per_sample() != 2 * this->last_buffer.channels())
+		return;
+	auto channels = this->last_buffer.channels();
+	std::vector<float> time_domain(length);
+	float *aux = &time_domain[0];
+	for (memory_audio_position_t i = length; i--;){
+		float value = 0;
+		auto sample = this->last_buffer.get_sample_use_channels<Sint16>(i);
+		for (unsigned j = 0; j < channels; j++)
+			value += s16_to_float(sample->values[j]);
+		value /= channels;
+		aux[i] = value;
+	}
+	dct.compute_arbitrary_size_dct(&time_domain[0], time_domain.size());
+	const auto &frequency_domain = dct.result_store;
+	float mul = (float)visible_region.w / (float)frequency_domain.size();
+	float x0 = 0;
+	for (auto val : frequency_domain){
+		float value = val * (1.f / 10.f);
+		float y0 = -value * visible_region.w + visible_region.w;
+		float x1 = x0 + mul;
+		float y1 = 0 * visible_region.w + visible_region.w;
+		GPU_RectangleFilled(this->sui->get_target(), x0, y0, x1, y1, { 255, 255, 255, 255 });
+		x0 = x1;
 	}
 }
 
