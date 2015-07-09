@@ -94,18 +94,18 @@ void MainScreen::draw_oscilloscope(Uint32 time){
 		return;
 	if (this->last_buffer.bytes_per_sample() != 2 * this->last_buffer.channels() || !this->last_buffer.samples())
 		return;
-	unsigned last = 0;
-	const float middle = visible_region.w / 2;
+	float last = 0;
+	const float middle = (float)visible_region.w / 2;
 	auto channels = this->last_buffer.channels();
 	for (memory_audio_position_t i = 0; i != length; i++){
 		float value = 0;
 		auto sample = this->last_buffer.get_sample_use_channels<Sint16>(i);
-		for (int i = 0; i < channels; i++)
-			value += s16_to_float(sample->values[i]);
+		for (unsigned j = 0; j < channels; j++)
+			value += s16_to_float(sample->values[j]);
 		value /= channels;
 		auto y = value * middle + middle;
 		if (i)
-			GPU_Line(this->sui->get_target(), i - 1, last, i, y, { 255, 255, 255, 255 });
+			GPU_Line(this->sui->get_target(), (float)i - 1, last, (float)i, y, { 255, 255, 255, 255 });
 		last = y;
 	}
 }
