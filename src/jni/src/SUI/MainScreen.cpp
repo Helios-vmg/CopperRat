@@ -69,8 +69,27 @@ void MainScreen::update(){
 	Uint32 time = SDL_GetTicks();
 	this->sui->draw_picture();
 	GUIElement::update();
-	//this->draw_oscilloscope(time);
-	this->draw_spectrum(time, false);
+	switch (this->sui->get_visualization_mode()){
+		case VisualizationMode::NONE:
+			break;
+		case VisualizationMode::OSCILLOSCOPE:
+			this->draw_oscilloscope(time);
+			break;
+		case VisualizationMode::SPECTRUM_LOW:
+			this->draw_spectrum(time, SpectrumQuality::Low, false);
+			break;
+		case VisualizationMode::SPECTRUM_MID:
+			this->draw_spectrum(time, SpectrumQuality::Mid, false);
+			break;
+		case VisualizationMode::SPECTRUM_HIGH:
+			this->draw_spectrum(time, SpectrumQuality::High, false);
+			break;
+		case VisualizationMode::SPECTRUM_MAX:
+			this->draw_spectrum(time, SpectrumQuality::Max, false);
+			break;
+		default:
+			assert(0);
+	}
 	this->last_draw = time;
 }
 
@@ -101,16 +120,24 @@ void MainScreen::draw_oscilloscope(Uint32 time){
 	float last = 0;
 	const float middle = (float)visible_region.w / 2;
 	auto channels = this->last_buffer.channels();
-	for (memory_audio_position_t i = 0; i != length; i++){
-		float value = 0;
-		auto sample = this->last_buffer.get_sample_use_channels<Sint16>(i);
-		for (unsigned j = 0; j < channels; j++)
-			value += s16_to_float(sample->values[j]);
-		value /= channels;
-		auto y = value * middle + middle;
-		if (i)
-			GPU_Line(this->sui->get_target(), (float)i - 1, last, (float)i, y, { 255, 255, 255, 255 });
-		last = y;
+
+	static std::pair<float, SDL_Color> times[] = {
+		{ 3, { 0, 0, 0, 255 } },
+		{ 1, { 255, 255, 255, 255 } },
+	};
+	for (auto &pair : times){
+		GPU_SetLineThickness(pair.first);
+		for (memory_audio_position_t i = 0; i != length; i++){
+			float value = 0;
+			auto sample = this->last_buffer.get_sample_use_channels<Sint16>(i);
+			for (unsigned j = 0; j < channels; j++)
+				value += s16_to_float(sample->values[j]);
+			value /= channels;
+			auto y = value * middle + middle;
+			if (i)
+				GPU_Line(this->sui->get_target(), (float)i - 1, last, (float)i, y, pair.second);
+			last = y;
+		}
 	}
 }
 
@@ -181,10 +208,10 @@ dct_calculator::dct_calculator(unsigned short size) :
 	float freq = 0;
 	for (auto &f : this->extra_multipliers){
 		auto middle = freq + freq_fractional * 0.5f;
-		//f = m *equal_loudness_curve(middle);
+		//f = m * equal_loudness_curve(middle);
 		//f = m * 2 * (middle / 22050);
-		f = m * exponential_function2(middle / 22050.f, 1e+6);
-		//f = m;
+		//f = m * exponential_function2(middle / 22050.f, 1e+1);
+		f = m;
 		freq += freq_fractional;
 	}
 }
@@ -221,14 +248,15 @@ void dct_calculator::compute_arbitrary_size_dct(float *time_domain, size_t size)
 			auto base = matrix + j * n - i;
 			for (size_t k = i; k != end; k++)
 				sum += time_domain[k] * base[k];
-			res[j] = sum * multipliers[j];
+			res[j] = sum;
 		}
 	}
+	size_t i = 0;
 	for (auto &f : this->result_store)
-		f = f < 0 ? -f : f;
+		f = (f < 0 ? -f : f) * multipliers[i++];
 }
 
-void MainScreen::draw_spectrum(Uint32 time, bool spectrogram){
+void MainScreen::draw_spectrum(Uint32 time, SpectrumQuality quality, bool spectrogram){
 	auto player_state = this->player.get_state();
 	auto framerate = this->sui->get_current_framerate();
 	if (player_state == PlayState::STOPPED || framerate <= 0){
@@ -268,8 +296,27 @@ void MainScreen::draw_spectrum(Uint32 time, bool spectrogram){
 			value /= channels;
 			aux[i] = value;
 		}
-		if (!dct || dct->result_store.size() > visible_region.w)
-			dct.reset(new dct_calculator(std::min(visible_region.w, 540/4)));
+		int bands;
+		switch (quality){
+			case SpectrumQuality::Low:
+				bands = 16;
+				break;
+			case SpectrumQuality::Mid:
+				bands = 64;
+				break;
+			case SpectrumQuality::High:
+				bands = 128;
+				break;
+			case SpectrumQuality::Max:
+				bands = visible_region.w;
+				break;
+			default:
+				assert(0);
+		}
+		bands = std::min(visible_region.w, bands);
+		if (!dct || bands != dct->result_store.size()){
+			dct.reset(new dct_calculator(bands));
+		}
 		dct->compute_arbitrary_size_dct(&time_domain[0], time_domain.size());
 	}
 	if (!dct)
@@ -280,9 +327,12 @@ void MainScreen::draw_spectrum(Uint32 time, bool spectrogram){
 	if (!spectrogram){
 		float x0 = 0;
 		for (auto val : frequency_domain){
+			//float value = (log10(val) + 5) / 7;
 			float value = val;
 			if (value < 0)
 				value = 0;
+			//else if (value > 1)
+			//	value = 1;
 			float y0 = -value * visible_region.w + visible_region.w;
 			float x1 = x0 + mul;
 			float y1 = (float)visible_region.w;

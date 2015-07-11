@@ -47,6 +47,13 @@ public:
 	void compute_arbitrary_size_dct(float *time_domain, size_t size);
 };
 
+enum class SpectrumQuality{
+	Low,
+	Mid,
+	High,
+	Max,
+};
+
 class MainScreen : public GUIElement{
 	double current_total_time;
 	AudioPlayer &player;
@@ -62,7 +69,7 @@ class MainScreen : public GUIElement{
 	void prepare_buttons();
 	void gui_signal(const GuiSignal &);
 	void draw_oscilloscope(Uint32 time);
-	void draw_spectrum(Uint32 time, bool spectrogram);
+	void draw_spectrum(Uint32 time, SpectrumQuality, bool spectrogram);
 	Uint32 last_draw;
 public:
 	MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player);

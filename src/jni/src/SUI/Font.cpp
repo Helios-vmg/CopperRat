@@ -142,6 +142,7 @@ void preprocess_image(SDL_Surface *img){
 }
 
 void Font::load_page(unsigned page){
+	__android_log_print(ANDROID_LOG_INFO, "C++Font", "Loading page: %u\n", page);
 	auto offset = this->offsets_table[page];
 	auto size = this->offsets_table[page + 1] - offset;
 	std::vector<Uint8> temp(size);

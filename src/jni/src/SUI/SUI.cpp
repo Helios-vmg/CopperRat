@@ -45,7 +45,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_array.hpp>
 #endif
 
-#define FPS_DISPLAY
 //#define LIMIT_FPS
 
 ControlCoroutine::ControlCoroutine():
@@ -107,9 +106,13 @@ void SUIControlCoroutine::options_menu(){
 		auto &playlist = this->sui->get_player().get_playlist();
 		auto playback_mode = playlist.get_playback_mode();
 		bool shuffling = playlist.get_shuffle();
+		auto visualization_mode = application_settings.get_visualization_mode();
+		auto display_fps = application_settings.get_display_fps();
 		std::vector<std::wstring> strings;
 		strings.push_back(L"Playback mode: " + to_string(playback_mode));
 		strings.push_back(std::wstring(L"Shuffling: O") + (shuffling ? L"N" : L"FF"));
+		strings.push_back(L"Visualization mode: " + to_string(visualization_mode));
+		strings.push_back(std::wstring(L"Display framerate: O") + (display_fps ? L"N" : L"FF"));
 		boost::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
 		unsigned button;
 		if (!lv->get_input(button, *this, lv))
@@ -120,6 +123,16 @@ void SUIControlCoroutine::options_menu(){
 				break;
 			case 1:
 				application_settings.set_shuffle(playlist.toggle_shuffle());
+				break;
+			case 2:
+				visualization_mode = (VisualizationMode)(((int)visualization_mode + 1) % (int)VisualizationMode::END);
+				application_settings.set_visualization_mode(visualization_mode);
+				this->sui->set_visualization_mode(visualization_mode);
+				break;
+			case 3:
+				display_fps = !display_fps;
+				application_settings.set_display_fps(display_fps);
+				this->sui->set_display_fps(display_fps);
 				break;
 		}
 	}
@@ -193,6 +206,8 @@ SUI::SUI():
 		update_requested(0),
 		ui_in_foreground(1),
 		apply_blur(0){
+	this->set_visualization_mode(application_settings.get_visualization_mode());
+	this->set_display_fps(application_settings.get_display_fps());
 	get_dots_per_millimeter();
 
 	this->screen = GPU_Init(1080 / 2, 1920 / 2, GPU_DEFAULT_INIT_FLAGS | GPU_INIT_ENABLE_VSYNC);
@@ -442,11 +457,17 @@ SDL_Rect SUI::get_seekbar_region(){
 	return ret;
 }
 
+void SUI::set_visualization_mode(VisualizationMode mode){
+	this->visualization_mode = mode;
+}
+
+void SUI::set_display_fps(bool dfps){
+	this->display_fps = dfps;
+}
+
 void SUI::loop(){
 	Uint32 last = 0;
-#ifdef FPS_DISPLAY
 	std::deque<Uint32> fps_queue;
-#endif
 	unsigned status;
 	const auto min_time = (Uint32)(1000.0 / 60.0);
 	while (!check_flag(status = this->handle_in_events(), QUIT)){
@@ -469,7 +490,7 @@ void SUI::loop(){
 			do_redraw = do_redraw || delta_t >= 500;
 			do_redraw = do_redraw || check_flag(status, REDRAW);
 			do_redraw = do_redraw || this->full_update_count > 0;
-			do_redraw = do_redraw || this->player.get_state() == PlayState::PLAYING 
+			do_redraw = do_redraw || this->player.get_state() == PlayState::PLAYING && this->visualization_mode != VisualizationMode::NONE
 #ifdef LIMIT_FPS
 				&& delta_t >= min_time
 #endif
@@ -481,28 +502,24 @@ void SUI::loop(){
 		}
 		this->update_requested = 0;
 
-#ifdef FPS_DISPLAY
 		std::string display_string;
-#endif
 		fps_queue.push_back(now_ticks);
 		while (now_ticks - fps_queue.front() > 1000)
 			fps_queue.pop_front();
 		if (fps_queue.size() > 1){
 			this->current_framerate = (float)fps_queue.size() * 1000.f / (float)(now_ticks - fps_queue.front());
-#ifdef FPS_DISPLAY
-			std::stringstream stream;
-			stream << std::setprecision(3) << std::setw(4) << std::setfill(' ') << this->current_framerate << " fps";
-			display_string = stream.str();
-#endif
+			if (this->display_fps){
+				std::stringstream stream;
+				stream << std::setprecision(3) << std::setw(4) << std::setfill(' ') << this->current_framerate << " fps";
+				display_string = stream.str();
+			}
 		}else
 			this->current_framerate = -1;
 
 		GPU_Clear(this->screen);
 		this->current_element->update();
-#ifdef FPS_DISPLAY
 		if (display_string.size())
 			this->font->draw_text(display_string, 0, 0, INT_MAX, 2.0);
-#endif
 		GPU_Flip(this->screen);
 		last = now_ticks;
 	}
