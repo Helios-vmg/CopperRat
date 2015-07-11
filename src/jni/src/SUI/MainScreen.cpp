@@ -157,6 +157,14 @@ float equal_loudness_curve(float hz){
 
 const float pi = 3.1415926535897932384626433832795f;
 
+float exponential_function(float x, float n){
+	return 1 - powf(n, -x);
+}
+
+float exponential_function2(float x, float n){
+	return exponential_function(x, n) / exponential_function(1, n);
+}
+
 dct_calculator::dct_calculator(unsigned short size) :
 		dct_matrix(size * size),
 		result_store(size),
@@ -173,8 +181,10 @@ dct_calculator::dct_calculator(unsigned short size) :
 	float freq = 0;
 	for (auto &f : this->extra_multipliers){
 		auto middle = freq + freq_fractional * 0.5f;
-		//f = m * equal_loudness_curve(middle);
-		f = m * 4 * (middle / 22050);
+		//f = m *equal_loudness_curve(middle);
+		//f = m * 2 * (middle / 22050);
+		f = m * exponential_function2(middle / 22050.f, 1e+6);
+		//f = m;
 		freq += freq_fractional;
 	}
 }
