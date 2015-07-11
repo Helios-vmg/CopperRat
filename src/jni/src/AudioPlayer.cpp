@@ -77,6 +77,7 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 	audio_position_t last_position;
 	bool perform_final_pops = 0;
 	unsigned last_sample_rate;
+	audio_buffer_t last_buffer;
 	while ((unsigned)len > samples_written * bytes_per_sample){
 		const size_t bytes_written = samples_written * bytes_per_sample;
 		auto element = player->internal_queue.unlocked_try_peek();
@@ -94,6 +95,8 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 			last_sample_rate,
 			*element
 		);
+		if ((*element)->is_buffer())
+			last_buffer = static_cast<BufferQueueElement &>(**element).get_buffer();
 		if (action)
 			player->internal_queue.unlocked_simple_pop();
 		perform_final_pops = action;
@@ -102,6 +105,11 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 		AutoMutex am(player->position_mutex);
 		player->last_freq_seen = last_sample_rate;
 		player->last_position_seen = last_position;
+		if (last_buffer){
+			player->last_buffer_played = audio_buffer_t(last_buffer.bytes_per_sample() / last_buffer.channels(), last_buffer.channels(), samples_written);
+			memcpy(player->last_buffer_played.raw_pointer(0), stream, samples_written * bytes_per_sample);
+			player->last_buffer_played.reset_offset();
+		}
 	}
 	if (!perform_final_pops)
 		return;

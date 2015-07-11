@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../Deleters.h"
 #include "../Threads.h"
 #include "../Image.h"
+#include "../Settings.h"
 #include "Font.h"
 #include "Signal.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
@@ -241,6 +242,9 @@ private:
 	boost::shared_ptr<DelayedPictureLoadAction> dpla;
 	bool apply_blur;
 	ShaderProgram blur_h, blur_v;
+	float current_framerate;
+	VisualizationMode visualization_mode;
+	bool display_fps;
 
 	unsigned handle_event(const SDL_Event &e);
 	unsigned handle_keys(const SDL_Event &e);
@@ -300,6 +304,14 @@ public:
 	unsigned finish_background_load(surface_t picture);
 	void perform(RemoteThreadProcedureCall *);
 	SDL_Rect get_seekbar_region();
+	float get_current_framerate() const{
+		return this->current_framerate;
+	}
+	void set_visualization_mode(VisualizationMode mode);
+	void set_display_fps(bool);
+	VisualizationMode get_visualization_mode() const{
+		return this->visualization_mode;
+	}
 };
 
 #endif

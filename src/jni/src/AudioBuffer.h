@@ -138,6 +138,14 @@ public:
 		this->data_offset += (memory_audio_position_t)advance;
 		return bytes_to_copy;
 	}
+	void reset_offset(){
+		this->data_offset = 0;
+	}
+	void advance_data_offset(memory_sample_count_t count){
+		this->data_offset += count;
+		if (this->data_offset > this->sample_count)
+			this->data_offset = this->sample_count;
+	}
 };
 
 #endif

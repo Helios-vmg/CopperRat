@@ -37,13 +37,40 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class SeekBar;
 
+class dct_calculator{
+	std::vector<float> dct_matrix;
+	std::vector<float> extra_multipliers;
+public:
+	std::vector<float> result_store;
+	dct_calculator(unsigned short size);
+	void compute_native_size_dct(float *time_domain);
+	void compute_arbitrary_size_dct(float *time_domain, size_t size);
+};
+
+enum class SpectrumQuality{
+	Low,
+	Mid,
+	High,
+	Max,
+};
+
 class MainScreen : public GUIElement{
 	double current_total_time;
 	AudioPlayer &player;
 	Texture tex_buttons;
+	audio_buffer_t last_buffer;
+	unsigned last_length;
+	boost::shared_ptr<dct_calculator> dct;
+	std::vector<float> spectrogram_data;
+	unsigned spectrogram_data_w,
+		spectrogram_data_h;
+	size_t spectrogram_data_head;
 
 	void prepare_buttons();
 	void gui_signal(const GuiSignal &);
+	void draw_oscilloscope(Uint32 time);
+	void draw_spectrum(Uint32 time, SpectrumQuality, bool spectrogram);
+	Uint32 last_draw;
 public:
 	MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player);
 	unsigned handle_event(const SDL_Event &);

@@ -82,4 +82,6 @@ extern "C"{
 #include <vector>
 #include <vorbis/vorbisfile.h>
 #include <webp/encode.h>
+#else
+namespace std { typedef decltype(nullptr) nullptr_t; }
 #endif

@@ -8,6 +8,22 @@ Settings application_settings;
 
 #define SAVE_PATH (BASE_PATH "settings.xml")
 
+std::wstring to_string(VisualizationMode mode){
+	switch (mode){
+#define CHECK_MODE(x)               \
+	case VisualizationMode::x: \
+		return L###x
+		CHECK_MODE(NONE);
+		CHECK_MODE(OSCILLOSCOPE);
+		CHECK_MODE(SPECTRUM_LOW);
+		CHECK_MODE(SPECTRUM_MID);
+		CHECK_MODE(SPECTRUM_HIGH);
+		CHECK_MODE(SPECTRUM_MAX);
+	}
+	assert(0);
+	return L"";
+}
+
 bool query(int &dst, tinyxml2::XMLElement *element){
 	return element->QueryIntText(&dst) == tinyxml2::XML_NO_ERROR;
 }
@@ -76,6 +92,10 @@ Settings::Settings(): no_changes(1){
 			read_list(this->playlist_items, el);
 		else if (!strcmp(name, "shuffle_list"))
 			read_list(this->shuffle_items, el);
+		else if (!strcmp(name, "visualization_mode"))
+			this->visualization_mode = (VisualizationMode)query<int>(el);
+		else if (!strcmp(name, "display_fps"))
+			this->display_fps = query<bool>(el);
 	}
 }
 
@@ -115,6 +135,8 @@ void Settings::commit(){
 		for (auto i : this->shuffle_items)
 			generate_element(doc, shuffle, "item", i);
 	}
+	generate_element(doc, settings, "visualization_mode", (int)this->visualization_mode);
+	generate_element(doc, settings, "display_fps", this->display_fps);
 	doc.SaveFile(SAVE_PATH);
 	this->no_changes = 1;
 }
@@ -124,6 +146,8 @@ void Settings::set_default_values(){
 	this->playback_mode = Mode::REPEAT_LIST;
 	this->current_time = -1;
 	this->current_track = -1;
+	this->visualization_mode = VisualizationMode::NONE;
+	this->display_fps = 0;
 }
 
 void Settings::set_playback_mode(Mode mode){
@@ -171,6 +195,18 @@ void Settings::set_shuffle_items(const std::vector<int> &shuffle_items){
 	this->no_changes = 0;
 }
 
+void Settings::set_visualization_mode(VisualizationMode vm){
+	AutoMutex am(this->mutex);
+	this->visualization_mode = vm;
+	this->no_changes = 0;
+}
+
+void Settings::set_display_fps(bool dfps){
+	AutoMutex am(this->mutex);
+	this->display_fps = dfps;
+	this->no_changes = 0;
+}
+
 Settings::Mode Settings::get_playback_mode(){
 	AutoMutex am(this->mutex);
 	return this->playback_mode;
@@ -204,4 +240,14 @@ void Settings::get_playlist_items(std::vector<std::wstring> &playlist_items){
 void Settings::get_shuffle_items(std::vector<int> &shuffle_items){
 	AutoMutex am(this->mutex);
 	shuffle_items = this->shuffle_items;
+}
+
+VisualizationMode Settings::get_visualization_mode(){
+	AutoMutex am(this->mutex);
+	return this->visualization_mode;
+}
+
+bool Settings::get_display_fps(){
+	AutoMutex am(this->mutex);
+	return this->display_fps;
 }
