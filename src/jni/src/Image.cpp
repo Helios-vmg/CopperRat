@@ -697,7 +697,7 @@ void Texture::draw(const SDL_Rect &dst, const SDL_Rect *_src){
 	if (!*this)
 		return;
 	GPU_Rect src = !_src ? this->rect : to_GPU_Rect(*_src);
-	GPU_Blit(this->tex.get(), &src, this->target, (float)dst.x, (float)dst.y);
+	GPU_Blit(this->tex.get(), &src, this->target, (float)dst.x + src.w * 0.5f, (float)dst.y + src.h * 0.5f);
 }
 
 void Subtexture::draw(const SDL_Rect &_dst){
@@ -746,7 +746,7 @@ void Texture::set_alpha(double alpha){
 		return;
 	SDL_Color color = { 0xFF, 0xFF, 0xFF, 0xFF };
 	color.a = Uint8(alpha * 255.0);
-	GPU_SetColor(this->tex.get(), &color);
+	GPU_SetColor(this->tex.get(), color);
 }
 
 RenderTarget::RenderTarget(unsigned w, unsigned h){
@@ -789,7 +789,7 @@ void ShaderProgram::create_internal_object(){
 	shaders.reserve(this->shaders.size());
 	for (auto s : this->shaders)
 		shaders.push_back(s->get_shader());
-	this->program = GPU_LinkShadersEx(&shaders[0], shaders.size());
+	this->program = GPU_LinkManyShaders(&shaders[0], shaders.size());
 	if (!this->program)
 		this->error_string = GPU_GetShaderMessage();
 	else{

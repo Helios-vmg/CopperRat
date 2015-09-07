@@ -31,7 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL.h>
 extern "C"{
-#include "SDL_gpu/SDL_gpu.h"
+#include <SDL_gpu.h>
 }
 #endif
 

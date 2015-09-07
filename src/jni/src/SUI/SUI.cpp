@@ -210,9 +210,10 @@ SUI::SUI():
 	this->set_display_fps(application_settings.get_display_fps());
 	get_dots_per_millimeter();
 
-	this->screen = GPU_Init(1080 / 2, 1920 / 2, GPU_DEFAULT_INIT_FLAGS | GPU_INIT_ENABLE_VSYNC);
+	this->screen = GPU_Init(1080 / 2, 1920 / 2, GPU_DEFAULT_INIT_FLAGS);
 	if (!this->screen)
 		throw UIInitializationException("Window creation failed.");
+	GPU_SetFullscreen(false, false);
 
 	this->tex_picture.set_target(this->screen);
 	this->background_picture.set_target(this->screen);
