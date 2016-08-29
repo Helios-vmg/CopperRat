@@ -1,7 +1,7 @@
 #ifndef _SDL_GPU_GLES_1_H__
 #define _SDL_GPU_GLES_1_H__
 
-#include "SDL_gpu.h"
+#include "../SDL_gpu.h"
 #include "SDL_platform.h"
 
 #if !defined(SDL_GPU_DISABLE_GLES) && !defined(SDL_GPU_DISABLE_GLES_1)
@@ -27,19 +27,9 @@
     #define GL_COLOR_ATTACHMENT0 GL_COLOR_ATTACHMENT0_OES
     #define GL_FRAMEBUFFER_COMPLETE GL_FRAMEBUFFER_COMPLETE_OES
 
-/* It looks like on Raspberry Pi 2/Raspbian, the 
-	symbols in library are missing the OES suffix,
-	even though the headers seem to be named right.
-*/
-#ifdef SDL_GPU_USE_BROADCOM_RASPBERRYPI_WORKAROUND
-	extern void glBlendEquation(GLenum mode);
-	extern void glBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha);
-	extern void glBlendFuncSeparate(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
-#else
     #define glBlendEquation glBlendEquationOES
     #define glBlendEquationSeparate glBlendEquationSeparateOES
     #define glBlendFuncSeparate glBlendFuncSeparateOES
-#endif
 
     #define GL_FUNC_ADD GL_FUNC_ADD_OES
     #define GL_FUNC_SUBTRACT GL_FUNC_SUBTRACT_OES
@@ -80,7 +70,6 @@ typedef struct ContextData_GLES_1
 typedef struct ImageData_GLES_1
 {
     int refcount;
-    Uint8 owns_handle;
 	Uint32 handle;
 	Uint32 format;
 } ImageData_GLES_1;
