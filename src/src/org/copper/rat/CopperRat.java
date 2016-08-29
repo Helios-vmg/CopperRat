@@ -518,6 +518,7 @@ public class CopperRat extends Activity {
 	        mRemoteControlClient.setTransportControlFlags(flags);
         }
         
+        
         if(Build.VERSION.SDK_INT >= 12) {
             mJoystickHandler = new SDLJoystickHandler_API12();
         }
@@ -539,6 +540,20 @@ public class CopperRat extends Activity {
     	return ret;
     }
     
+    public int getScreenWidth(){
+    	Display display = getWindowManager().getDefaultDisplay();
+    	Point size = new Point();
+    	display.getSize(size);
+    	return size.x;
+    }
+
+    public int getScreenHeight(){
+    	Display display = getWindowManager().getDefaultDisplay();
+    	Point size = new Point();
+    	display.getSize(size);
+    	return size.y;
+    }
+    
 }
 
 class ResourceTuple{
@@ -555,6 +570,7 @@ class ResourceTuple{
 */
 class SDLMain implements Runnable {
 	private Application application;
+    
 	public SDLMain(Application app){
 		super();
 		application = app;

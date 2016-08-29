@@ -99,6 +99,42 @@ double get_dots_per_millimeter(){
 #endif
 }
 
+int get_screen_width(){
+#ifndef __ANDROID__
+	return 540;
+#else
+	static int ret = -1;
+	if (ret >= 0)
+		return ret;
+	JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
+	jobject activity = (jobject)SDL_AndroidGetActivity();
+	jclass clazz = env->FindClass("org/copper/rat/CopperRat");
+	jmethodID getScreenWidth = env->GetMethodID(clazz, "getScreenWidth", "()I");
+	ret = env->CallIntMethod(activity, getScreenWidth);
+	env->DeleteLocalRef(activity);
+	env->DeleteLocalRef(clazz);
+	return ret;
+#endif
+}
+
+int get_screen_height(){
+#ifndef __ANDROID__
+	return 960;
+#else
+	static int ret = -1;
+	if (ret >= 0)
+		return ret;
+	JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
+	jobject activity = (jobject)SDL_AndroidGetActivity();
+	jclass clazz = env->FindClass("org/copper/rat/CopperRat");
+	jmethodID getScreenHeight = env->GetMethodID(clazz, "getScreenHeight", "()I");
+	ret = env->CallIntMethod(activity, getScreenHeight);
+	env->DeleteLocalRef(activity);
+	env->DeleteLocalRef(clazz);
+	return ret;
+#endif
+}
+
 bool is_inside(int x, int y, const SDL_Rect &region){
 	return x >= region.x && x < region.x + region.w && y >= region.y && y < region.y + region.h;
 }

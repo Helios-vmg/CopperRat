@@ -74,27 +74,32 @@ unsigned ListView::handle_event(const SDL_Event &event){
 			}
 			break;
 		case SDL_MOUSEBUTTONDOWN:
-			this->mousedown_y = event.button.y;
-			this->buttondown = 1;
-			this->movement_speed = 0;
+			{
+				this->mousedown_y = this->sui->transform_mouse_y(event.button.y);
+				this->buttondown = 1;
+				this->movement_speed = 0;
+			}
 			break;
 		case SDL_MOUSEMOTION:
-			if (this->drag_started)
-				relay = 0;
-			if (this->buttondown){
-				int d = event.motion.y - this->mousedown_y;
-				if (abs(d) >= 10)
-					this->drag_started = 1;
-				if (this->drag_started){
-					d = event.motion.yrel;
-					if (this->offset + d > 0)
-						this->offset = 0;
-					else if (this->offset + d < this->min_offset)
-						this->offset = this->min_offset;
-					else
-						this->offset += d;
-					this->movement_speed = d * 1.5;
-					ret |= SUI::REDRAW;
+			{
+				if (this->drag_started)
+					relay = 0;
+				if (this->buttondown){
+					auto y = this->sui->transform_mouse_y(event.motion.y);
+					int d = y - this->mousedown_y;
+					if (abs(d) >= 10)
+						this->drag_started = 1;
+					if (this->drag_started){
+						d = this->sui->transform_mouse_y(event.motion.yrel);
+						if (this->offset + d > 0)
+							this->offset = 0;
+						else if (this->offset + d < this->min_offset)
+							this->offset = this->min_offset;
+						else
+							this->offset += d;
+						this->movement_speed = d * 1.5;
+						ret |= SUI::REDRAW;
+					}
 				}
 			}
 			break;

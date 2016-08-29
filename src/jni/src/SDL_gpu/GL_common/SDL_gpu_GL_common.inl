@@ -2577,7 +2577,7 @@ static void UpdateSubImage(GPU_Renderer* renderer, GPU_Image* image, const GPU_R
     alignment = 1;
     if(newSurface->format->BytesPerPixel == 4)
         alignment = 4;
-    glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     #ifdef SDL_GPU_USE_OPENGL
     glPixelStorei(GL_UNPACK_ROW_LENGTH, (newSurface->pitch / newSurface->format->BytesPerPixel));
     #endif

@@ -245,6 +245,7 @@ private:
 	float current_framerate;
 	VisualizationMode visualization_mode;
 	bool display_fps;
+	SDL_Rect true_resolution;
 
 	unsigned handle_event(const SDL_Event &e);
 	unsigned handle_keys(const SDL_Event &e);
@@ -289,7 +290,7 @@ public:
 	}
 	int get_bounding_square();
 	int get_max_square();
-	SDL_Rect get_visible_region();
+	SDL_Rect get_visible_region() const;
 	void start_full_updating(){
 		this->full_update_count++;
 	}
@@ -312,6 +313,9 @@ public:
 	VisualizationMode get_visualization_mode() const{
 		return this->visualization_mode;
 	}
+	int transform_mouse_x(int x) const;
+	int transform_mouse_y(int y) const;
+	double get_dots_per_millimeter() const;
 };
 
 #endif

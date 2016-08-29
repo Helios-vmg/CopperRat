@@ -33,8 +33,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 unsigned Button::handle_event(const SDL_Event &event){
 	if (event.type != SDL_MOUSEBUTTONUP)
 		return SUI::NOTHING;
-	auto x = event.button.x - this->offset_x;
-	auto y = event.button.y - this->offset_y;
+	auto x = this->sui->transform_mouse_x(event.button.x) - this->offset_x;
+	auto y = this->sui->transform_mouse_y(event.button.y) - this->offset_y;
+	__android_log_print(ANDROID_LOG_INFO, "C++Button", "Mouse click: (%d, %d)\n", x, y);
 	const auto &bb = this->bounding_box;
 	if (is_inside(x, y, bb))
 		this->on_click();
@@ -53,7 +54,7 @@ void TextButton::calculate_bounding_box(){
 }
 
 void TextButton::set_minimum_height(double millimeters){
-	auto dpm = get_dots_per_millimeter();
+	auto dpm = this->sui->get_dots_per_millimeter();
 	int height = (int)ceil(dpm * millimeters);
 	if (this->bounding_box.h >= height)
 		return;
@@ -63,7 +64,7 @@ void TextButton::set_minimum_height(double millimeters){
 
 void TextButton::set_text_size_mm(double millimeters){
 	auto font = this->sui->get_font();
-	auto font_size = font->get_font_height() / get_dots_per_millimeter();
+	auto font_size = font->get_font_height() / this->sui->get_dots_per_millimeter();
 	this->scale = millimeters / font_size;
 	if (this->scale < 1)
 		this->scale = 1;

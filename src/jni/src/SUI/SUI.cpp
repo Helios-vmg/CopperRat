@@ -208,7 +208,13 @@ SUI::SUI():
 		apply_blur(0){
 	this->set_visualization_mode(application_settings.get_visualization_mode());
 	this->set_display_fps(application_settings.get_display_fps());
-	get_dots_per_millimeter();
+	::get_dots_per_millimeter();
+	this->true_resolution.x = 0;
+	this->true_resolution.y = 0;
+	this->true_resolution.w = get_screen_width();
+	this->true_resolution.h = get_screen_height();
+
+	__android_log_print(ANDROID_LOG_INFO, "C++SUI", "Determined resolution: %dx%d\n", this->true_resolution.w, this->true_resolution.h);
 
 	this->screen = GPU_Init(1080 / 2, 1920 / 2, GPU_DEFAULT_INIT_FLAGS | GPU_INIT_ENABLE_VSYNC);
 	if (!this->screen)
@@ -430,7 +436,7 @@ int SUI::get_max_square(){
 	return this->max_square = std::max(w, h);
 }
 
-SDL_Rect SUI::get_visible_region(){
+SDL_Rect SUI::get_visible_region() const{
 	int w = this->screen->w,
 		h = this->screen->h;
 	SDL_Rect ret = { 0, 0, w, h, };
@@ -463,6 +469,21 @@ void SUI::set_visualization_mode(VisualizationMode mode){
 
 void SUI::set_display_fps(bool dfps){
 	this->display_fps = dfps;
+}
+
+int SUI::transform_mouse_x(int x) const{
+	auto r = this->get_visible_region();
+	return x * r.w / this->true_resolution.w;
+}
+
+int SUI::transform_mouse_y(int y) const{
+	auto r = this->get_visible_region();
+	return y * r.h / this->true_resolution.h;
+}
+
+double SUI::get_dots_per_millimeter() const{
+	auto r = this->get_visible_region();
+	return ::get_dots_per_millimeter() * r.w / this->true_resolution.w;
 }
 
 void SUI::loop(){

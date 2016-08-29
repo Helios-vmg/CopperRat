@@ -282,6 +282,8 @@ inline T max_possible_value(T x){
 }
 
 double get_dots_per_millimeter();
+int get_screen_width();
+int get_screen_height();
 
 inline std::string to_string(const std::string &s){
 	return s;

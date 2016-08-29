@@ -74,6 +74,7 @@ public:
 		this->global_button = global_button;
 	}
 	void on_click(){
+		__android_log_print(ANDROID_LOG_INFO, "IntegerSignalButton", "on_click(%u)\n", this->signal.data.button_signal);
 		(this->global_button ? this->sui : this->parent)->gui_signal(this->signal);
 	}
 };
@@ -84,6 +85,7 @@ protected:
 public:
 	GraphicButton(SUI *sui, GUIElement *parent): IntegerSignalButton(sui, parent), graphic(){}
 	void set_position(int x, int y){
+		__android_log_print(ANDROID_LOG_INFO, "GraphicButton", "set_position(%d, %d)\n", x, y);
 		this->bounding_box.x = x;
 		this->bounding_box.y = y;
 	}

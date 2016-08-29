@@ -440,6 +440,7 @@ void MainScreen::prepare_buttons(){
 	for (auto &surface : button_surfaces){
 		SDL_Rect dst = { w * (i % 4), h * (i / 4), w, h, };
 		rects[i] = dst;
+		SDL_SetSurfaceBlendMode(button_surfaces[i].get(), SDL_BLENDMODE_NONE);
 		SDL_BlitSurface(button_surfaces[i].get(), 0, new_surface.get(), &dst);
 		i++;
 	}

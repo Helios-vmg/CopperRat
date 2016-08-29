@@ -69,25 +69,36 @@ unsigned SeekBar::handle_event(const SDL_Event &event){
 	unsigned ret = SUI::NOTHING;
 	switch (event.type){
 		case SDL_MOUSEBUTTONDOWN:
-			if (!is_inside(event.button.x, event.button.y, this->region))
-				break;
-			this->drag_started = 1;
-			this->multiplier = (double)event.button.x / (double)this->region.w;
-			ret |= SUI::REDRAW;
+			{
+				auto x = this->sui->transform_mouse_x(event.button.x),
+					y = this->sui->transform_mouse_y(event.button.y);
+				__android_log_print(ANDROID_LOG_INFO, "C++Button", "Mouse click: (%d, %d)\n", x, y);
+				if (!is_inside(x, y, this->region))
+					break;
+				this->drag_started = 1;
+				this->multiplier = (double)x / (double)this->region.w;
+				ret |= SUI::REDRAW;
+			}
 			break;
 		case SDL_MOUSEMOTION:
-			if (!this->drag_started)
-				break;
-			this->multiplier = (double)event.motion.x / (double)this->region.w;
-			ret |= SUI::REDRAW;
+			{
+				if (!this->drag_started)
+					break;
+				auto x = this->sui->transform_mouse_x(event.motion.x);
+				this->multiplier = (double)x / (double)this->region.w;
+				ret |= SUI::REDRAW;
+			}
 			break;
 		case SDL_MOUSEBUTTONUP:
-			if (!this->drag_started)
-				break;
-			this->sui->request_update();
-			this->sui->get_player().request_absolute_scaling_seek((double)event.motion.x / (double)this->region.w);
-			this->drag_started = 0;
-			ret |= SUI::REDRAW;
+			{
+				if (!this->drag_started)
+					break;
+				this->sui->request_update();
+				auto x = this->sui->transform_mouse_x(event.motion.x);
+				this->sui->get_player().request_absolute_scaling_seek((double)x / (double)this->region.w);
+				this->drag_started = 0;
+				ret |= SUI::REDRAW;
+			}
 			break;
 		default:
 			break;
