@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include "AudioFilterPrivate.h"
 #include "TypeList.h"
+#include <type_traits>
 
 #define NODE(x) TypeCons<TypeNil, x>()
 
@@ -68,14 +69,16 @@ public:
 	void read(audio_buffer_t *buffers, size_t size){
 		audio_buffer_t &buffer = buffers[0];
 		const SrcT *src_array = (const SrcT *)buffer.raw_pointer(0);
-		const size_t array_size = buffer.byte_length() / sizeof(SrcT);
+		const size_t array_size = buffer.samples() * buffer.channels();
 		DstT *dst_array = (DstT *)src_array;
-		if (sizeof(DstT) > sizeof(SrcT)){
+
+		int shift = (this->dst_format.bytes_per_channel - this->src_format.bytes_per_channel) * CHAR_BIT;
+		if (shift > 0){
 			for (size_t i = array_size; i--;)
-				dst_array[i] = Converter<DstT, SrcT>::convert(src_array[i]);
-		}else if (sizeof(DstT) < sizeof(SrcT)){
+				dst_array[i] = (DstT)src_array[i] << shift;
+		}else if (shift < 0){
 			for (size_t i = 0; i != array_size; i++)
-				dst_array[i] = Converter<DstT, SrcT>::convert(src_array[i]);
+				dst_array[i] = (DstT)(src_array[i] >> -shift);
 		}
 	}
 };
@@ -100,6 +103,19 @@ inline size_t alternate_sizeof(const T &){
 struct BitShiftingTest{
 	template <typename T>
 	bool operator()(const T &, const AudioFormat &af) const{
+		switch (af.bytes_per_channel){
+			case 1:
+			case 2:
+			case 4:
+			case 8:
+				return sizeof(T) == af.bytes_per_channel;
+			case 3:
+				return sizeof(T) == 4;
+			case 5:
+			case 6:
+			case 7:
+				return sizeof(T) == 8;
+		}
 		return sizeof(T) == af.bytes_per_channel;
 	}
 };
