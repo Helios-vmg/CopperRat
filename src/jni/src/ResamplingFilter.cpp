@@ -41,8 +41,9 @@ public:
 };
 
 class DownsamplingFilter : public ResamplingFilter{
+	double position;
 public:
-	DownsamplingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): ResamplingFilter(src_format, dst_format){}
+	DownsamplingFilter(const AudioFormat &src_format, const AudioFormat &dst_format): ResamplingFilter(src_format, dst_format), position(0){}
 	void read(audio_buffer_t *buffers, size_t size);
 };
 
@@ -307,34 +308,37 @@ UpsamplingFilter *UpsamplingFilter::create(const AudioFormat &src_format, const 
 void DownsamplingFilter::read(audio_buffer_t *buffers, size_t size){
 	audio_buffer_t &buffer = buffers[0];
 	sample_count_t samples_to_process = buffer.samples();
+	double samples_to_process_f = (double)samples_to_process;
 	memory_sample_count_t samples_written = 0;
 	const unsigned src_rate = this->src_format.freq;
 	const unsigned dst_rate = this->dst_format.freq;
-	sample_t<Sint16, 1> *dst_sample = buffer.get_sample_use_channels<Sint16>(0);
 	const unsigned channel_count = this->dst_format.channels;
 	double fraction = double(src_rate) / double(dst_rate);
-	for (; samples_written != samples_to_process; samples_written++){
-		double src_sample0 = samples_written * fraction;
-		double src_sample1 = (samples_written + 1) * fraction;
-		double accumulators[256] = {0};
-		double count=0;
-		bool end = 0;
-		for (double j = src_sample0; j < src_sample1;){
-			double next = floor(j + 1);
-			const sample_t<Sint16, 1> *sample = buffer.get_sample_use_channels<Sint16>((memory_audio_position_t)j);
-			double limit = (next < src_sample1) ? next : src_sample1;
-			for (unsigned channel = 0; channel < channel_count; channel++){
-				double value = s16_to_double(sample->values[channel]);
-				accumulators[channel] += (limit - j) * value;
+
+	while (this->position < samples_to_process_f){
+		unsigned src_sample0 = (unsigned)floor(this->position);
+		unsigned src_sample1 = (unsigned)ceil(this->position);
+		double accumulators[256] = { 0 };
+		if (src_sample0 == src_sample1 || src_sample1 >= samples_to_process){
+			const sample_t<Sint16, 1> *sample = buffer.get_sample_use_channels<Sint16>((memory_audio_position_t)src_sample0);
+			for (unsigned channel = channel_count; channel--;)
+				accumulators[channel] = s16_to_double(sample->values[channel]);
+		}else{
+			const sample_t<Sint16, 1> *sample0 = buffer.get_sample_use_channels<Sint16>((memory_audio_position_t)src_sample0);
+			const sample_t<Sint16, 1> *sample1 = buffer.get_sample_use_channels<Sint16>((memory_audio_position_t)src_sample1);
+			for (unsigned channel = channel_count; channel--;){
+				accumulators[channel] = s16_to_double(sample0->values[channel]) * (this->position - src_sample0);
+				accumulators[channel] += s16_to_double(sample1->values[channel]) * (src_sample1 - this->position);
 			}
-			count += limit - j;
-			j = next;
 		}
-		assert(count);
-		if (count){
-			for (unsigned channel = 0; channel < channel_count; channel++)
-				dst_sample->values[0] = double_to_s16(accumulators[channel] / count);
-		}
+
+		this->position += fraction;
+
+		sample_t<Sint16, 1> *dst_sample = buffer.get_sample_use_channels<Sint16>(samples_written++);
+		for (unsigned channel = channel_count; channel--;)
+			dst_sample->values[channel] = double_to_s16(accumulators[channel]);
 	}
-	buffer.set_sample_count(samples_written);
+	
+	buffers->set_sample_count(samples_written);
+	this->position -= samples_to_process_f;
 }

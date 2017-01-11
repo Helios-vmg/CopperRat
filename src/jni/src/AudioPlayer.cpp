@@ -191,7 +191,10 @@ int AudioPlayer::_thread(void *p){
 	return 0;
 }
 
-//#define OUTPUT_TO_FILE
+#define OUTPUT_TO_FILE
+#ifdef OUTPUT_TO_FILE
+std::ofstream raw_file;
+#endif
 
 bool AudioPlayer::initialize_stream(){
 	if (this->now_playing || this->state == PlayState::STOPPED)
@@ -306,7 +309,7 @@ void AudioPlayer::thread(){
 	Uint32 t0 = SDL_GetTicks();
 #endif
 #ifdef OUTPUT_TO_FILE
-	std::ofstream raw_file("output.raw", std::ios::binary);
+	raw_file.open("output.raw", std::ios::binary|std::ios::trunc);
 #endif
 	bool fatal_error = 0;
 	while (!fatal_error){
