@@ -191,7 +191,7 @@ int AudioPlayer::_thread(void *p){
 	return 0;
 }
 
-#define OUTPUT_TO_FILE
+//#define OUTPUT_TO_FILE
 #ifdef OUTPUT_TO_FILE
 std::ofstream raw_file;
 #endif
