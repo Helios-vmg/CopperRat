@@ -7,7 +7,8 @@ LOCAL_MODULE := main
 SDL_PATH := ../SDL
 
 LOCAL_CFLAGS   += -O3 -DSDL_GPU_DISABLE_OPENGL #-DPROFILING
-LOCAL_CXXFLAGS += -O3 -std=gnu++11 -fexceptions "-DBOOST_NOINLINE=" -DSDL_GPU_DISABLE_OPENGL #-DPROFILING
+LOCAL_CXXFLAGS += -O3 -std=gnu++11 -fexceptions -frtti "-DBOOST_NOINLINE=" -DSDL_GPU_DISABLE_OPENGL #-DPROFILING
+LOCAL_CXXFLAGS += -Wbitwise-op-parentheses -Wlogical-op-parentheses
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/SDL_gpu/
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/SDL_gpu/externals/glew/
@@ -74,5 +75,6 @@ LOCAL_SHARED_LIBRARIES := SDL2
 LOCAL_STATIC_LIBRARIES := libflacpp tremolo libmpg123 SDL2_image
 
 LOCAL_LDLIBS := -lGLESv1_CM -lGLESv2 -llog
+LOCAL_LDLIBS += -Wl,--no-warn-shared-textrel
 
 include $(BUILD_SHARED_LIBRARY)
