@@ -41,7 +41,7 @@ class ControlCoroutine;
 
 class ListView : public GUIElement{
 	GuiSignal signal;
-	std::vector<boost::shared_ptr<TextButton> > items;
+	std::vector<std::shared_ptr<TextButton> > items;
 	SDL_Rect visible_region;
 	bool buttondown,
 		drag_started,
@@ -56,7 +56,7 @@ public:
 	unsigned handle_event(const SDL_Event &);
 	void update();
 	void gui_signal(const GuiSignal &);
-	bool get_input(unsigned &dst, ControlCoroutine &, boost::shared_ptr<ListView> self);
+	bool get_input(unsigned &dst, ControlCoroutine &, std::shared_ptr<ListView> self);
 };
 
 #endif

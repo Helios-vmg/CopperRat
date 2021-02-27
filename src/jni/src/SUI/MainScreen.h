@@ -60,8 +60,9 @@ class MainScreen : public GUIElement{
 	Texture tex_buttons;
 	audio_buffer_t last_buffer;
 	unsigned last_length;
-	boost::shared_ptr<dct_calculator> dct;
+	std::shared_ptr<dct_calculator> dct;
 	std::vector<float> spectrogram_data;
+	std::vector<float> spectrum_state;
 	unsigned spectrogram_data_w,
 		spectrogram_data_h;
 	size_t spectrogram_data_head;

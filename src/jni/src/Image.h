@@ -37,10 +37,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #include "Deleters.h"
 
-typedef boost::shared_ptr<SDL_Surface> surface_t;
-typedef boost::shared_ptr<GPU_Renderer> renderer_t;
-typedef boost::shared_ptr<GPU_Image> texture_t;
-	typedef boost::shared_ptr<GPU_Target> render_target_t;
+typedef std::shared_ptr<SDL_Surface> surface_t;
+typedef std::shared_ptr<GPU_Renderer> renderer_t;
+typedef std::shared_ptr<GPU_Image> texture_t;
+	typedef std::shared_ptr<GPU_Target> render_target_t;
 
 class RenderTarget{
 	texture_t texture;
@@ -155,7 +155,7 @@ public:
 };
 
 class Shader;
-typedef boost::shared_ptr<Shader> shader_t;
+typedef std::shared_ptr<Shader> shader_t;
 
 class Shader{
 	Uint32 shader;

@@ -41,20 +41,20 @@ mp3_static_data Mp3Decoder::static_data;
 
 struct fd_tracker{
 	int counter;
-	typedef std::map<int, boost::shared_ptr<std::ifstream> > map_t;
+	typedef std::map<int, std::shared_ptr<std::ifstream> > map_t;
 	map_t map;
 	fd_tracker():counter(0){}
-	int add(boost::shared_ptr<std::ifstream>);
-	boost::shared_ptr<std::ifstream> get(int);
+	int add(std::shared_ptr<std::ifstream>);
+	std::shared_ptr<std::ifstream> get(int);
 	void remove(int);
 } tracker;
 
-int fd_tracker::add(boost::shared_ptr<std::ifstream> file){
+int fd_tracker::add(std::shared_ptr<std::ifstream> file){
 	this->map[this->counter] = file;
 	return this->counter++;
 }
 
-boost::shared_ptr<std::ifstream> fd_tracker::get(int fd){
+std::shared_ptr<std::ifstream> fd_tracker::get(int fd){
 	return this->map[fd];
 }
 
@@ -115,7 +115,7 @@ Mp3Decoder::Mp3Decoder(AudioStream &parent, const std::wstring &path): Decoder(p
 #endif
 		(path);
 
-	boost::shared_ptr<std::ifstream> stream(new std::ifstream(converted_path.c_str(), std::ios::binary));
+	std::shared_ptr<std::ifstream> stream(new std::ifstream(converted_path.c_str(), std::ios::binary));
 	if (!*stream)
 		throw FileNotFoundException(string_to_utf8(path));
 	error = mpg123_open_fd(this->handle, this->fd = tracker.add(stream));
@@ -176,7 +176,7 @@ void Mp3Decoder::check_for_metadata(){
 	if (!(result & MPG123_ID3))
 		return;
 	auto p = (mpg123_id3v2 *)this->id3v2;
-	boost::shared_ptr<Mp3Metadata> meta(new Mp3Metadata(this->path));
+	std::shared_ptr<Mp3Metadata> meta(new Mp3Metadata(this->path));
 #define SET_ID3_DATA(x) if (p->x) utf8_to_string(meta->id3_##x, (const unsigned char *)p->x->p, strnlen(p->x->p, p->x->size))
 	SET_ID3_DATA(title);
 	SET_ID3_DATA(artist);

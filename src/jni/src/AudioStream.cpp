@@ -103,7 +103,7 @@ void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audi
 	this->position = new_position = this->decoder->seek(target) ? target : current_position;
 }
 
-void AudioStream::metadata_update(boost::shared_ptr<GenericMetadata> p){
+void AudioStream::metadata_update(std::shared_ptr<GenericMetadata> p){
 	this->parent.execute_metadata_update(p);
 	double multiplier = replaygain_get_multiplier(*p, ReplayGainSettings());
 		this->multiplier = multiplier;

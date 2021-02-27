@@ -210,7 +210,7 @@ void FileBrowser::update(){
 	this->listviews.back()->update();
 }
 
-bool FileBrowser::get_input(std::wstring &dst, ControlCoroutine &coroutine, boost::shared_ptr<FileBrowser> self){
+bool FileBrowser::get_input(std::wstring &dst, ControlCoroutine &coroutine, std::shared_ptr<FileBrowser> self){
 	while (1){
 		auto signal = coroutine.display(self);
 		switch (signal.type){

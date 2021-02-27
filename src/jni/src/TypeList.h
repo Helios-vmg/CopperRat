@@ -72,7 +72,7 @@ struct TypeCons{
 	template <typename OriginalType, typename F>
 	void iterate(F &f) const{
 		if (f(T2(), OriginalType()))
-			T1().iterate<OriginalType>(f);
+			T1().template iterate<OriginalType>(f);
 	}
 };
 

@@ -35,7 +35,7 @@ ListView::ListView(SUI *sui, GUIElement *parent, const std::vector<std::wstring>
 	int accum = 0;
 	int square = sui->get_bounding_square();
 	for (auto &s : list){
-		boost::shared_ptr<TextButton> button(new TextButton(sui, this, (unsigned)i));
+		std::shared_ptr<TextButton> button(new TextButton(sui, this, (unsigned)i));
 		button->set_text(s, square, 1);
 		button->set_text_size_mm(2.5);
 		auto bb = button->get_bounding_box();
@@ -159,7 +159,8 @@ update_restart:
 		auto r = b->get_bounding_box();
 		auto h = r.y + r.h + int_offset;
 
-		GPU_Line(target, r.x, h, r.x + r.w, h, color);
+		if (h >= 0 && h < target->h)
+			GPU_Line(target, r.x, h, r.x + r.w, h, color);
 	}
 	if (this->total_length > this->visible_region.h){
 		color.a = 0x80;
@@ -169,11 +170,12 @@ update_restart:
 			5,
 			this->visible_region.h * this->visible_region.h / this->total_length,
 		};
-		GPU_RectangleFilled(target, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, color);
+		if (rect.y + rect.h > 0 && rect.y < target->h)
+			GPU_RectangleFilled(target, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, color);
 	}
 }
 
-bool ListView::get_input(unsigned &dst, ControlCoroutine &coroutine, boost::shared_ptr<ListView> self){
+bool ListView::get_input(unsigned &dst, ControlCoroutine &coroutine, std::shared_ptr<ListView> self){
 	unsigned this_name = this->signal.data.listview_signal.listview_name;
 	while (1){
 		auto signal = coroutine.display(self);

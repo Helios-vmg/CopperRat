@@ -48,8 +48,8 @@ public:
 		const SrcT *src_array = (const SrcT *)buffer.raw_pointer(0);
 		const size_t array_size = buffer.byte_length() / sizeof(SrcT);
 		DstT *dst_array = (DstT *)src_array;
-		assert(boost::is_signed<DstT>::value != boost::is_signed<SrcT>::value);
-		if (boost::is_signed<SrcT>::value){
+		assert(std::is_signed<DstT>::value != std::is_signed<SrcT>::value);
+		if (std::is_signed<SrcT>::value){
 			for (size_t i = 0; i != array_size; i++)
 				dst_array[i] = (DstT)src_array[i] + (DstT)std::numeric_limits<SrcT>::min();
 		}else{
@@ -115,7 +115,7 @@ SignednessFilter *SignednessFilter::create_helper(const AudioFormat &src_format,
 struct SignednessTest{
 	template <typename T>
 	bool operator()(const T &, const AudioFormat &af) const{
-		return boost::is_signed<T>::value == af.is_signed;
+		return std::is_signed<T>::value == af.is_signed;
 	}
 };
 

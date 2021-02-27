@@ -50,7 +50,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ControlCoroutine::ControlCoroutine():
 	co([this](co_t::pull_type &pt){ this->antico = &pt; this->entry_point(); }){}
 
-GuiSignal ControlCoroutine::display(boost::shared_ptr<GUIElement>){
+GuiSignal ControlCoroutine::display(std::shared_ptr<GUIElement>){
 	(*this->antico)();
 	return this->antico->get();
 }
@@ -65,14 +65,14 @@ void SUIControlCoroutine::relay(const GuiSignal &s){
 	this->co(s);
 }
 
-GuiSignal SUIControlCoroutine::display(boost::shared_ptr<GUIElement> el){
+GuiSignal SUIControlCoroutine::display(std::shared_ptr<GUIElement> el){
 	this->sui->current_element = el;
 	this->sui->request_update();
 	return ControlCoroutine::display(el);
 }
 
 bool SUIControlCoroutine::load_file(std::wstring &dst, bool only_directories){
-	boost::shared_ptr<FileBrowser> browser(new FileBrowser(this->sui, this->sui, !only_directories, application_settings.get_last_browse_directory()));
+	std::shared_ptr<FileBrowser> browser(new FileBrowser(this->sui, this->sui, !only_directories, application_settings.get_last_browse_directory()));
 	bool ret = browser->get_input(dst, *this, browser);
 	if (ret)
 		application_settings.set_last_browse_directory(browser->get_new_initial_directory());
@@ -87,7 +87,7 @@ void SUIControlCoroutine::load_file_menu(){
 		L"Enqueue directory...",
 	};
 	std::vector<std::wstring> strings(options, options + sizeof(options) / sizeof(*options));
-	boost::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
+	std::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
 	unsigned button;
 	if (!lv->get_input(button, *this, lv))
 		return;
@@ -113,7 +113,7 @@ void SUIControlCoroutine::options_menu(){
 		strings.push_back(std::wstring(L"Shuffling: O") + (shuffling ? L"N" : L"FF"));
 		strings.push_back(L"Visualization mode: " + to_string(visualization_mode));
 		strings.push_back(std::wstring(L"Display framerate: O") + (display_fps ? L"N" : L"FF"));
-		boost::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
+		std::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
 		unsigned button;
 		if (!lv->get_input(button, *this, lv))
 			return;
@@ -139,7 +139,7 @@ void SUIControlCoroutine::options_menu(){
 }
 
 void SUIControlCoroutine::entry_point(){
-	boost::shared_ptr<MainScreen> main_screen(new MainScreen(this->sui, this->sui, this->sui->player));
+	std::shared_ptr<MainScreen> main_screen(new MainScreen(this->sui, this->sui, this->sui->player));
 	while (1){
 		auto signal = this->display(main_screen);
 		switch (signal.type){
@@ -268,7 +268,7 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 #if defined WIN32 && 0
 		case SDL_SCANCODE_F12:
 			{
-				boost::shared_array<unsigned char> pixels;
+				std::unique_ptr<unsigned char[]> pixels;
 				auto screen = to_surface_t(SDL_GetWindowSurface(this->window.get()));
 				if (!screen)
 					break;
@@ -361,7 +361,7 @@ unsigned SUI::receive(RTPCQueueElement &x){
 }
 
 unsigned SUI::handle_out_events(){
-	boost::shared_ptr<ExternalQueueElement> eqe;
+	std::shared_ptr<ExternalQueueElement> eqe;
 	unsigned ret = NOTHING;
 	while (this->player.external_queue_out.try_pop(eqe)){
 		ret |= eqe->receive(*this);
@@ -372,7 +372,7 @@ unsigned SUI::handle_out_events(){
 }
 
 unsigned SUI::handle_finished_jobs(){
-	boost::shared_ptr<SUIJob> job;
+	std::shared_ptr<SUIJob> job;
 	unsigned ret = NOTHING;
 	while (this->finished_jobs_queue.try_pop(job))
 		ret |= job->finish(*this);
@@ -452,7 +452,7 @@ void SUI::request_update(){
 }
 
 void SUI::perform(RemoteThreadProcedureCall *rtpc){
-	this->player.external_queue_out.push(boost::shared_ptr<ExternalQueueElement>(new RTPCQueueElement(rtpc)));
+	this->player.external_queue_out.push(std::shared_ptr<ExternalQueueElement>(new RTPCQueueElement(rtpc)));
 }
 
 SDL_Rect SUI::get_seekbar_region(){

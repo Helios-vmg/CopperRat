@@ -57,7 +57,7 @@ public:
 		memory_sample_count_t &samples_written,         \
 		audio_position_t &last_position,                \
 		unsigned &sample_rate,                          \
-		boost::shared_ptr<InternalQueueElement> pointer \
+		std::shared_ptr<InternalQueueElement> pointer \
 	)
 
 #define NULL_MACRO
@@ -95,7 +95,7 @@ public:
 class ExternalQueueElement : public InternalQueueElement{
 public:
 	virtual ~ExternalQueueElement(){}
-	void push(AudioPlayer *player, boost::shared_ptr<InternalQueueElement> pointer);
+	void push(AudioPlayer *player, std::shared_ptr<InternalQueueElement> pointer);
 	virtual AudioCallback_switch_SIGNATURE{
 		this->push(player, pointer);
 		return 1;
@@ -129,10 +129,10 @@ public:
 };
 
 class MetaDataUpdate : public ExternalQueueElement{
-	boost::shared_ptr<GenericMetadata> metadata;
+	std::shared_ptr<GenericMetadata> metadata;
 public:
-	MetaDataUpdate(boost::shared_ptr<GenericMetadata> metadata): metadata(metadata){}
-	boost::shared_ptr<GenericMetadata> get_metadata(){
+	MetaDataUpdate(std::shared_ptr<GenericMetadata> metadata): metadata(metadata){}
+	std::shared_ptr<GenericMetadata> get_metadata(){
 		return this->metadata;
 	}
 	unsigned receive(UserInterface &ui){
@@ -199,10 +199,10 @@ public:
 
 class AudioPlayer{
 	friend class AudioDevice;
-	typedef boost::shared_ptr<InternalQueueElement> iqe_t;
-	typedef boost::shared_ptr<ExternalQueueElement> eqe_t;
+	typedef std::shared_ptr<InternalQueueElement> iqe_t;
+	typedef std::shared_ptr<ExternalQueueElement> eqe_t;
 	typedef thread_safe_queue<iqe_t> internal_queue_t;
-	typedef boost::shared_ptr<AudioPlayerAsyncCommand> command_t;
+	typedef std::shared_ptr<AudioPlayerAsyncCommand> command_t;
 	typedef thread_safe_queue<command_t> external_queue_in_t;
 	typedef thread_safe_queue<eqe_t> external_queue_out_t;
 
@@ -242,16 +242,16 @@ class AudioPlayer{
 	void try_update_total_time();
 	bool initialize_stream();
 	void push_to_command_queue(AudioPlayerAsyncCommand *p){
-		boost::shared_ptr<AudioPlayerAsyncCommand> sp(p);
+		std::shared_ptr<AudioPlayerAsyncCommand> sp(p);
 		this->external_queue_in.push(sp);
 	}
 	void push_maybe_to_internal_queue(ExternalQueueElement *p);
 	void push_to_external_queue(ExternalQueueElement *p){
-		boost::shared_ptr<ExternalQueueElement> sp(p);
+		std::shared_ptr<ExternalQueueElement> sp(p);
 		this->external_queue_out.push(sp);
 	}
 	void push_to_internal_queue(InternalQueueElement *p){
-		boost::shared_ptr<InternalQueueElement> sp(p);
+		std::shared_ptr<InternalQueueElement> sp(p);
 		this->internal_queue.push(sp);
 	}
 	void eliminate_buffers(audio_position_t * = 0);
@@ -297,7 +297,7 @@ public:
 	bool execute_exit(){
 		return 0;
 	}
-	bool execute_metadata_update(boost::shared_ptr<GenericMetadata>);
+	bool execute_metadata_update(std::shared_ptr<GenericMetadata>);
 	bool execute_playback_end();
 	Playlist &get_playlist(){
 		return this->playlist;

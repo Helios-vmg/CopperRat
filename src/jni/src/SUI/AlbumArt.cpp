@@ -42,9 +42,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class DelayedPictureLoadStartAction : public DelayedPictureLoadAction{
 	SUI *sui;
-	boost::shared_ptr<PictureDecodingJob> job;
+	std::shared_ptr<PictureDecodingJob> job;
 public:
-	DelayedPictureLoadStartAction(SUI &sui, boost::shared_ptr<PictureDecodingJob> job): sui(&sui), job(job){}
+	DelayedPictureLoadStartAction(SUI &sui, std::shared_ptr<PictureDecodingJob> job): sui(&sui), job(job){}
 	void perform(){
 		this->sui->start_picture_load(this->job);
 	}
@@ -264,6 +264,7 @@ bool PictureDecodingJob::load_picture_from_cache(const std::wstring &s){
 void PictureDecodingJob::load_picture_from_filesystem(){
 	auto path = this->metadata->get_path();
 	auto directory = get_contaning_directory(path);
+	auto path_file = get_filename(path);
 
 	std::wstring patterns[5];
 
@@ -271,7 +272,7 @@ void PictureDecodingJob::load_picture_from_filesystem(){
 		patterns[0] = L"front.*";
 		patterns[1] = L"cover.*";
 		{
-			patterns[2] = path;
+			patterns[2] = path_file;
 			auto last_dot = patterns[2].rfind('.');
 			patterns[2] = patterns[2].substr(0, last_dot);
 			patterns[2] += L".*";
@@ -313,11 +314,11 @@ unsigned PictureDecodingJob::finish(SUI &sui){
 	return sui.finish(*this);
 }
 
-void SUI::start_picture_load(boost::shared_ptr<PictureDecodingJob> job){
+void SUI::start_picture_load(std::shared_ptr<PictureDecodingJob> job){
 	this->picture_job = this->worker.attach(job);
 }
 
-void SUI::start_picture_blurring(boost::shared_ptr<PictureBlurringJob> job){
+void SUI::start_picture_blurring(std::shared_ptr<PictureBlurringJob> job){
 	this->picture_job = this->worker.attach(job);
 }
 
@@ -340,7 +341,7 @@ unsigned SUI::receive(MetaDataUpdate &mdu){
 	if (!this->metadata.size())
 		this->metadata = get_filename(metadata->get_path());
 
-	boost::shared_ptr<PictureDecodingJob> job(new PictureDecodingJob(
+	std::shared_ptr<PictureDecodingJob> job(new PictureDecodingJob(
 		this->finished_jobs_queue, metadata,
 		this->get_bounding_square(),
 		this->get_visible_region(),
@@ -433,7 +434,7 @@ unsigned SUI::finish_picture_load(surface_t picture, const std::wstring &source,
 			}
 		}
 		if (!loaded){
-			boost::shared_ptr<PictureBlurringJob> job(new PictureBlurringJob(
+			std::shared_ptr<PictureBlurringJob> job(new PictureBlurringJob(
 				this->finished_jobs_queue,
 				this->get_max_square(),
 				this->get_visible_region(),

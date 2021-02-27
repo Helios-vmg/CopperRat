@@ -192,16 +192,16 @@ struct UpsamplingFilterCondFloat{
 	}
 	dst_sample_t get_dst(){
 		if (Channels)
-			return (dst_sample_t)buffers[0].get_sample<NumberT, Channels>(this->samples_unwritten);
-		return (dst_sample_t)buffers[0].get_sample_use_channels<NumberT>(this->samples_unwritten);
+			return (dst_sample_t)buffers[0].template get_sample<NumberT, Channels>(this->samples_unwritten);
+		return (dst_sample_t)buffers[0].template get_sample_use_channels<NumberT>(this->samples_unwritten);
 	}
 	src_sample_t get_src0() const{
 		memory_audio_position_t src_sample_pos = samples_unwritten * src_rate / dst_rate;
 		src_sample_t ret;
 		if (Channels)
-			ret = (src_sample_t)buffers[0].get_sample<NumberT, Channels>(src_sample_pos);
+			ret = (src_sample_t)buffers[0].template get_sample<NumberT, Channels>(src_sample_pos);
 		else
-			ret = (src_sample_t)buffers[0].get_sample_use_channels<NumberT>(src_sample_pos);
+			ret = (src_sample_t)buffers[0].template get_sample_use_channels<NumberT>(src_sample_pos);
 		return ret;
 	}
 	src_sample_t get_src1() const{
@@ -214,9 +214,9 @@ struct UpsamplingFilterCondFloat{
 		}
 		src_sample_t ret;
 		if (Channels)
-			ret = (src_sample_t)buffers[idx].get_sample<NumberT, Channels>(src_sample_pos);
+			ret = (src_sample_t)buffers[idx].template get_sample<NumberT, Channels>(src_sample_pos);
 		else
-			ret = (src_sample_t)buffers[idx].get_sample_use_channels<NumberT>(src_sample_pos);
+			ret = (src_sample_t)buffers[idx].template get_sample_use_channels<NumberT>(src_sample_pos);
 		return ret;
 	}
 	void do_assignment(dst_sample_t dst, src_sample_t src0, src_sample_t src1){

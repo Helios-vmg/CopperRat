@@ -131,7 +131,7 @@ void utf8_to_string(std::basic_string<T> &dst, const unsigned char *buffer, size
 		buffer += 3;
 		n -= 3;
 	}
-	boost::shared_array<T> temp(new T[n]);
+	std::unique_ptr<T[]> temp(new T[n]);
 	T *temp_pointer = temp.get();
 	size_t writer = 0;
 	for (size_t i = 0; i != n;){
@@ -306,7 +306,7 @@ template <typename T>
 std::wstring to_wstring(const std::basic_string<T> &s){
 	std::wstring ret;
 	ret.resize(s.size());
-	typedef typename boost::make_unsigned<T>::type UT;
+	typedef typename std::make_unsigned<T>::type UT;
 	for (auto i = s.size(); i--;)
 		ret[i] = (wchar_t)(UT)s[i];
 	return ret;

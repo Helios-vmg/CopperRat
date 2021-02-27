@@ -286,9 +286,9 @@ public:
 };
 
 class WorkerThreadJobHandle{
-	boost::shared_ptr<WorkerThreadJob> job;
+	std::shared_ptr<WorkerThreadJob> job;
 public:
-	WorkerThreadJobHandle(boost::shared_ptr<WorkerThreadJob> job): job(job){}
+	WorkerThreadJobHandle(std::shared_ptr<WorkerThreadJob> job): job(job){}
 	~WorkerThreadJobHandle(){
 		job->cancel();
 	}
@@ -300,7 +300,7 @@ public:
 class WorkerThread{
 	SDL_Thread *sdl_thread;
 	bool low_priority;
-	thread_safe_queue<boost::shared_ptr<WorkerThreadJob> > queue;
+	thread_safe_queue<std::shared_ptr<WorkerThreadJob> > queue;
 	bool execute;
 	SDL_atomic_t next_id;
 	static int _thread(void *_this){
@@ -313,15 +313,15 @@ class WorkerThread{
 			wt.kill();
 		}
 	};
-	boost::shared_ptr<WorkerThreadJob> current_job;
+	std::shared_ptr<WorkerThreadJob> current_job;
 public:
 	WorkerThread(bool low_priority = 1);
 	~WorkerThread();
 	void kill(){
 		this->execute = 0;
 	}
-	boost::shared_ptr<WorkerThreadJobHandle> attach(boost::shared_ptr<WorkerThreadJob>);
-	boost::shared_ptr<WorkerThreadJob> get_current_job() const{
+	std::shared_ptr<WorkerThreadJobHandle> attach(std::shared_ptr<WorkerThreadJob>);
+	std::shared_ptr<WorkerThreadJob> get_current_job() const{
 		return this->current_job;
 	}
 };

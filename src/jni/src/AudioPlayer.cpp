@@ -49,8 +49,8 @@ const char *PlayState::strings[] = {
 	"PAUSED",
 };
 
-void ExternalQueueElement::push(AudioPlayer *player, boost::shared_ptr<InternalQueueElement> pointer){
-	player->external_queue_out.push(boost::static_pointer_cast<ExternalQueueElement>(pointer));
+void ExternalQueueElement::push(AudioPlayer *player, std::shared_ptr<InternalQueueElement> pointer){
+	player->external_queue_out.push(std::static_pointer_cast<ExternalQueueElement>(pointer));
 }
 
 AudioCallback_switch_SIGNATURE2(BufferQueueElement::){
@@ -212,7 +212,7 @@ bool AudioPlayer::initialize_stream(){
 }
 
 void AudioPlayer::push_maybe_to_internal_queue(ExternalQueueElement *p){
-	boost::shared_ptr<ExternalQueueElement> sp(p);
+	std::shared_ptr<ExternalQueueElement> sp(p);
 	{
 		AutoLocker<internal_queue_t> al(this->internal_queue);
 		if (this->internal_queue.unlocked_is_empty()){
@@ -267,7 +267,7 @@ void AudioPlayer::thread_loop(){
 			break;
 #endif
 		audio_buffer_t buffer;
-		boost::shared_ptr<DecoderException> exc;
+		std::shared_ptr<DecoderException> exc;
 		try{
 			if (!this->initialize_stream() || this->internal_queue.is_full() || this->state == PlayState::STOPPED){
 				SDL_Delay(50);
@@ -563,7 +563,7 @@ bool AudioPlayer::execute_load(bool load, bool file, const std::wstring &path){
 	return 1;
 }
 
-bool AudioPlayer::execute_metadata_update(boost::shared_ptr<GenericMetadata> metadata){
+bool AudioPlayer::execute_metadata_update(std::shared_ptr<GenericMetadata> metadata){
 	this->push_maybe_to_internal_queue(new MetaDataUpdate(metadata));
 	return 1;
 }

@@ -58,9 +58,6 @@ extern "C"{
 }
 #include <algorithm>
 #include <boost/coroutine/all.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/shared_array.hpp>
-#include <boost/type_traits.hpp>
 #include <boost/rational.hpp>
 #include <cassert>
 #include <cctype>
@@ -80,6 +77,8 @@ extern "C"{
 #include <string>
 #include <utility>
 #include <vector>
+#include <memory>
+#include <type_traits>
 #include <vorbis/vorbisfile.h>
 #include <webp/encode.h>
 #else

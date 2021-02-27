@@ -107,7 +107,7 @@ WorkerThread::WorkerThread(bool low_priority): execute(1), low_priority(low_prio
 
 WorkerThread::~WorkerThread(){
 	{
-		boost::shared_ptr<TerminateJob> tj(new TerminateJob);
+		std::shared_ptr<TerminateJob> tj(new TerminateJob);
 		auto handle = this->attach(tj);
 		tj->wait();
 	}
@@ -138,9 +138,9 @@ void WorkerThread::thread(){
 	}
 }
 
-boost::shared_ptr<WorkerThreadJobHandle> WorkerThread::attach(boost::shared_ptr<WorkerThreadJob> job){
+std::shared_ptr<WorkerThreadJobHandle> WorkerThread::attach(std::shared_ptr<WorkerThreadJob> job){
 	job->set_id(SDL_AtomicAdd(&this->next_id, 1));
-	boost::shared_ptr<WorkerThreadJobHandle> ret(new WorkerThreadJobHandle(job));
+	std::shared_ptr<WorkerThreadJobHandle> ret(new WorkerThreadJobHandle(job));
 	this->queue.push(job);
 	return ret;
 }

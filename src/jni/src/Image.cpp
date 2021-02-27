@@ -358,7 +358,7 @@ surface_t apply_gaussian_blur(surface_t src_surface, double sigma){
 		int h = src_surface->h;
 
 		auto matrix_side = (unsigned)ceil(sigma * 3);
-		boost::shared_array<unsigned> matrix(new unsigned[matrix_side * matrix_side]);
+		std::unique_ptr<unsigned[]> matrix(new unsigned[matrix_side * matrix_side]);
 		unsigned *matrix_p = matrix.get();
 
 		const unsigned nk = 12;
@@ -495,7 +495,7 @@ surface_t apply_gaussian_blur_double(surface_t src_surface, double sigma){
 		int h = src_surface->h;
 
 		auto matrix_side = (unsigned)ceil(sigma * 3);
-		boost::shared_array<double> matrix(new double[matrix_side * matrix_side]);
+		std::unique_ptr<double[]> matrix(new double[matrix_side * matrix_side]);
 		double *matrix_p = matrix.get();
 
 		for (unsigned x = 0; x < matrix_side; x++){

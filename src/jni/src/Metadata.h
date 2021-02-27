@@ -81,8 +81,8 @@ public:
 			f(p.first, p.second);
 		}
 	}
-	boost::shared_ptr<OggMetadata> clone(){
-		return boost::shared_ptr<OggMetadata>(new OggMetadata(*this));
+	std::shared_ptr<OggMetadata> clone(){
+		return std::shared_ptr<OggMetadata>(new OggMetadata(*this));
 	}
 	std::wstring get_string_or_nothing(const std::wstring &key) const{
 		auto i = this->map.find(key);
@@ -124,8 +124,8 @@ public:
 	void add_mp3_text(const void *text);
 	void add_mp3_extra(const void *text);
 	void add_picture(const void *buffer, size_t length);
-	boost::shared_ptr<Mp3Metadata> clone(){
-		return boost::shared_ptr<Mp3Metadata>(new Mp3Metadata(*this));
+	std::shared_ptr<Mp3Metadata> clone(){
+		return std::shared_ptr<Mp3Metadata>(new Mp3Metadata(*this));
 	}
 	std::wstring album(){
 		return this->id3_album;

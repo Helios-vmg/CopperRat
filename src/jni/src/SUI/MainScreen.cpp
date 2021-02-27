@@ -52,7 +52,7 @@ MainScreen::MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player):
 		spectrogram_data_h(0),
 		spectrogram_data_head(0){
 	this->prepare_buttons();
-	this->children.push_back(boost::shared_ptr<GUIElement>(new SeekBar(sui, this)));
+	this->children.push_back(std::shared_ptr<GUIElement>(new SeekBar(sui, this)));
 }
 
 unsigned MainScreen::handle_event(const SDL_Event &event){
@@ -211,7 +211,7 @@ dct_calculator::dct_calculator(unsigned short size) :
 		//f = m * equal_loudness_curve(middle);
 		//f = m * 2 * (middle / 22050);
 		//f = m * exponential_function2(middle / 22050.f, 1e+1);
-		f = m;
+		f = m * 2.5 * (middle /22050);
 		freq += freq_fractional;
 	}
 }
@@ -322,11 +322,26 @@ void MainScreen::draw_spectrum(Uint32 time, SpectrumQuality quality, bool spectr
 	if (!dct)
 		return;
 	const auto &frequency_domain = dct->result_store;
+	if (this->spectrum_state.size() != frequency_domain.size()){
+		this->spectrum_state = frequency_domain;
+	}else{
+		for (size_t i = 0; i < this->spectrum_state.size(); i++){
+			auto &a = this->spectrum_state[i];
+			auto &b = frequency_domain[i];
+			const float delta = 0.075f;
+			if (a <= b)
+				a = b;
+			else if (a >= delta)
+				a -= delta;
+			else
+				a = 0;
+		}
+	}
 	float mul = (float)visible_region.w / (float)frequency_domain.size();
 	auto target = this->sui->get_target();
 	if (!spectrogram){
 		float x0 = 0;
-		for (auto val : frequency_domain){
+		for (auto val : this->spectrum_state){
 			//float value = (log10(val) + 5) / 7;
 			float value = val;
 			if (value < 0)
@@ -449,7 +464,7 @@ void MainScreen::prepare_buttons(){
 	this->tex_buttons.set_alpha(0.5);
 	for (i = 0; i < n; i++){
 		Subtexture st(this->tex_buttons, rects[i]);
-		boost::shared_ptr<GraphicButton> button(new GraphicButton(this->sui, this));
+		std::shared_ptr<GraphicButton> button(new GraphicButton(this->sui, this));
 		button->set_graphic(st);
 		button->set_position(rects[i].x, rects[i].y + square);
 		button->set_signal_value(i);

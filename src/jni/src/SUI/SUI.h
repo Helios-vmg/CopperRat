@@ -58,7 +58,7 @@ public:
 class SUIJob;
 class SUI;
 
-typedef thread_safe_queue<boost::shared_ptr<SUIJob> > finished_jobs_queue_t;
+typedef thread_safe_queue<std::shared_ptr<SUIJob> > finished_jobs_queue_t;
 
 class SUIJob : public WorkerThreadJob{
 	finished_jobs_queue_t &queue;
@@ -67,7 +67,7 @@ public:
 	SUIJob(finished_jobs_queue_t &queue): queue(queue){}
 	void perform(WorkerThread &wt){
 		this->sui_perform(wt);
-		this->queue.push(boost::static_pointer_cast<SUIJob>(wt.get_current_job()));
+		this->queue.push(std::static_pointer_cast<SUIJob>(wt.get_current_job()));
 	}
 	virtual unsigned finish(SUI &) = 0;
 };
@@ -75,7 +75,7 @@ public:
 #define SDL_PTR_WRAPPER(T) CR_UNIQUE_PTR2(T, void(*)(T *))
 
 class PictureDecodingJob : public SUIJob{
-	boost::shared_ptr<GenericMetadata> metadata;
+	std::shared_ptr<GenericMetadata> metadata;
 	unsigned target_square;
 	surface_t picture;
 	SDL_Rect trim_rect;
@@ -92,7 +92,7 @@ public:
 	std::string description;
 	PictureDecodingJob(
 			finished_jobs_queue_t &queue,
-			boost::shared_ptr<GenericMetadata> metadata,
+			std::shared_ptr<GenericMetadata> metadata,
 			unsigned target_square,
 			const SDL_Rect &trim_rect,
 			const std::wstring &current_source):
@@ -148,7 +148,7 @@ class GUIElement : public UserInterface{
 protected:
 	SUI *sui;
 	GUIElement *parent;
-	std::list<boost::shared_ptr<GUIElement> > children;
+	std::list<std::shared_ptr<GUIElement> > children;
 
 public:
 	GUIElement(SUI *sui, GUIElement *parent): sui(sui), parent(parent){}
@@ -171,7 +171,7 @@ protected:
 public:
 	ControlCoroutine();
 	virtual ~ControlCoroutine(){}
-	virtual GuiSignal display(boost::shared_ptr<GUIElement>);
+	virtual GuiSignal display(std::shared_ptr<GUIElement>);
 };
 
 class SUI;
@@ -185,7 +185,7 @@ class SUIControlCoroutine : public ControlCoroutine{
 	void options_menu();
 public:
 	SUIControlCoroutine(SUI &sui);
-	GuiSignal display(boost::shared_ptr<GUIElement>);
+	GuiSignal display(std::shared_ptr<GUIElement>);
 	void start();
 	void relay(const GuiSignal &);
 };
@@ -224,7 +224,7 @@ private:
 	AudioPlayer player;
 	finished_jobs_queue_t finished_jobs_queue;
 	GPU_Target *screen;
-	boost::shared_ptr<Font> font;
+	std::shared_ptr<Font> font;
 	double current_total_time;
 	std::wstring metadata;
 	Texture tex_picture;
@@ -232,14 +232,14 @@ private:
 	int bounding_square;
 	int max_square;
 	WorkerThread worker;
-	boost::shared_ptr<WorkerThreadJobHandle> picture_job;
+	std::shared_ptr<WorkerThreadJobHandle> picture_job;
 	int full_update_count;
-	typedef boost::shared_ptr<GUIElement> current_element_t;
+	typedef std::shared_ptr<GUIElement> current_element_t;
 	current_element_t current_element;
 	SUIControlCoroutine scc;
 	bool update_requested;
 	bool ui_in_foreground;
-	boost::shared_ptr<DelayedPictureLoadAction> dpla;
+	std::shared_ptr<DelayedPictureLoadAction> dpla;
 	bool apply_blur;
 	ShaderProgram blur_h, blur_v;
 	float current_framerate;
@@ -282,7 +282,7 @@ public:
 	const std::wstring &get_metadata() const{
 		return this->metadata;
 	}
-	boost::shared_ptr<Font> get_font() const{
+	std::shared_ptr<Font> get_font() const{
 		return this->font;
 	}
 	GPU_Target *get_target() const{
@@ -299,8 +299,8 @@ public:
 	}
 	void gui_signal(const GuiSignal &);
 	void request_update();
-	void start_picture_load(boost::shared_ptr<PictureDecodingJob>);
-	void start_picture_blurring(boost::shared_ptr<PictureBlurringJob>);
+	void start_picture_load(std::shared_ptr<PictureDecodingJob>);
+	void start_picture_blurring(std::shared_ptr<PictureBlurringJob>);
 	unsigned finish_picture_load(surface_t picture, const std::wstring &source, const std::string &hash, bool skip_loading);
 	unsigned finish_background_load(surface_t picture);
 	void perform(RemoteThreadProcedureCall *);
