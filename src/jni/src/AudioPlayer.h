@@ -36,7 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "UserInterface.h"
 #include "auto_ptr.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #endif
 
 class AudioPlayerAsyncCommand{

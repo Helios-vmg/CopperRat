@@ -30,7 +30,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "AudioFilterPrivate.h"
 #include "CommonFunctions.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
-#include <boost/rational.hpp>
 #endif
 
 unsigned gcd(unsigned a, unsigned b){
@@ -46,7 +45,98 @@ unsigned lcm(unsigned a, unsigned b){
 	return a * b / gcd(a, b);
 }
 
-typedef boost::rational<Uint32> Q;
+template <typename T>
+class Rational{
+	T n, d;
+
+	void reduce(){
+		auto g = gcd(this->n, this->d);
+		this->n /= g;
+		this->d /= g;
+		if (this->d < 0){
+			this->n = -this->n;
+			this->d = -this->d;
+		}
+	}
+public:
+	Rational(T n = 0, T d = 1): n(n), d(d){
+		this->reduce();
+	}
+	Rational operator+(const Rational &other) const{
+		return Rational(this->n * other.d + other.n * this->d, this->d * other.d);
+	}
+	Rational operator+(const T &other) const{
+		return Rational(this->n + other * this->d, this->d);
+	}
+	Rational operator-(const Rational &other) const{
+		return Rational(this->n * other.d - other.n * this->d, this->d * other.d);
+	}
+	Rational operator-(const T &other) const{
+		return Rational(this->n - other * this->d, this->d);
+	}
+	Rational operator-() const{
+		return Rational(-this->n, this->d);
+	}
+	Rational operator*(const Rational &other) const{
+		return Rational(this->n * other.n, this->d * this->d);
+	}
+	Rational operator*(const T &other) const{
+		return Rational(this->n * other, this->d);
+	}
+	Rational operator/(const Rational &other) const{
+		return Rational(this->n * other.d, this->d * other.n);
+	}
+	bool operator==(const Rational &other) const{
+		return this->n == other.n && this->d == other.d;
+	}
+	bool operator!=(const Rational &other) const{
+		return !(*this == other);
+	}
+	bool operator<(const Rational &other) const{
+		return this->n * other.d < other.n * this->d;
+	}
+	bool operator>(const Rational &other) const{
+		return this->n * other.d > other.n * this->d;
+	}
+	bool operator<=(const Rational &other) const{
+		return this->n * other.d <= other.n * this->d;
+	}
+	bool operator>=(const Rational &other) const{
+		return this->n * other.d >= other.n * this->d;
+	}
+	bool operator==(const T &other) const{
+		return this->n == other && (this->d == 1 || !other);
+	}
+	bool operator!=(const T &other) const{
+		return !(*this == other);
+	}
+	bool operator<(const T &other) const{
+		return this->n < other * this->d;
+	}
+	bool operator>(const T &other) const{
+		return this->n > other * this->d;
+	}
+	bool operator<=(const T &other) const{
+		return this->n <= other * this->d;
+	}
+	bool operator>=(const T &other) const{
+		return this->n >= other * this->d;
+	}
+	explicit operator bool() const{
+		return !!this->n;
+	}
+	explicit operator T() const{
+		return this->n / this->d;
+	}
+	T numerator() const{
+		return this->n;
+	}
+	T denominator() const{
+		return this->d;
+	}
+};
+
+typedef Rational<std::uint32_t> Q;
 
 Q double_to_rational(double number){
 	const auto max = std::numeric_limits<unsigned>::max();
@@ -66,9 +156,9 @@ Q double_to_rational(double number){
 
 			Q q2 = 1;
 			if (power > 0)
-				q2.assign(1 << power, 1);
+				q2 = Q(1 << power, 1);
 			else if (power < 0)
-				q2.assign(1, 1 << -power);
+				q2 = Q(1, 1 << -power);
 			Q q3 = ret + q2;
 			if (q3.numerator() > max || q3.denominator() > max)
 				break;

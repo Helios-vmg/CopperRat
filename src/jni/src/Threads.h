@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <SDL_atomic.h>
 #include <queue>
 #include <limits>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #endif
 
 class Mutex{

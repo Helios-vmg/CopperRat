@@ -29,49 +29,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../stdafx.h"
 #include "ListView.h"
 
-ListView::ListView(SUI *sui, GUIElement *parent, const std::vector<std::wstring> &list, unsigned listview_name): GUIElement(sui, parent){
-	this->items.resize(list.size());
-	size_t i = 0;
-	int accum = 0;
-	int square = sui->get_bounding_square();
-	for (auto &s : list){
-		std::shared_ptr<TextButton> button(new TextButton(sui, this, (unsigned)i));
-		button->set_text(s, square, 1);
-		button->set_text_size_mm(2.5);
-		auto bb = button->get_bounding_box();
-		bb.w = square;
-		bb.y = accum;
-		button->set_bounding_box(bb);
-		button->set_minimum_height(10.0);
-		bb = button->get_bounding_box();
-		accum += bb.h;
-		this->items[i++] = button;
-	}
-	this->visible_region = sui->get_visible_region();
-	this->total_length = accum;
-	this->drag_started = 0;
-	this->buttondown = 0;
-	this->offset = 0;
-	this->min_offset = this->visible_region.h - this->total_length;
-	if (this->min_offset > 0)
-		this->min_offset = 0;
-	this->movement_speed = 0;
-	this->moving = 0;
-
-	this->signal.type = SignalType::LISTVIEW_SIGNAL;
-	this->signal.data.listview_signal.listview_name = listview_name;
-}
-
 unsigned ListView::handle_event(const SDL_Event &event){
 	unsigned ret = SUI::NOTHING;
 	bool relay = 1;
 	switch (event.type){
 		case SDL_KEYDOWN:
-			if (event.key.keysym.scancode == SDL_SCANCODE_AC_BACK || event.key.keysym.scancode == SDL_SCANCODE_BACKSPACE){
-				GuiSignal signal;
-				signal.type = SignalType::BACK_PRESSED;
-				this->parent->gui_signal(signal);
-			}
+			if ((event.key.keysym.scancode == SDL_SCANCODE_AC_BACK || event.key.keysym.scancode == SDL_SCANCODE_BACKSPACE) && this->on_cancel)
+				this->on_cancel();
 			break;
 		case SDL_MOUSEBUTTONDOWN:
 			{
@@ -121,35 +85,39 @@ unsigned ListView::handle_event(const SDL_Event &event){
 void ListView::gui_signal(const GuiSignal &s){
 	if (s.type != SignalType::BUTTON_SIGNAL)
 		return;
+	if (this->on_selection)
+		this->on_selection(s.data.button_signal);
 	auto relay = this->signal;
 	relay.data.listview_signal.signal = &s;
 	this->parent->gui_signal(relay);
 }
 
 void ListView::update(){
-update_restart:
 	auto target = this->sui->get_target();
-	if (this->movement_speed && !this->buttondown){
-		this->offset += this->movement_speed;
-		if (this->offset > 0){
-			this->offset = 0;
-			this->movement_speed = 0;
-			goto update_restart;
+	while (true){
+		if (this->movement_speed && !this->buttondown){
+			this->offset += this->movement_speed;
+			if (this->offset > 0){
+				this->offset = 0;
+				this->movement_speed = 0;
+				continue;
+			}
+			if (this->offset < this->min_offset){
+				this->offset = this->min_offset;
+				this->movement_speed = 0;
+				continue;
+			}
+			if (!this->moving){
+				this->sui->start_full_updating();
+				this->moving = 1;
+			}
+			const double k = 0.5;
+			this->movement_speed += this->movement_speed > 0 ? -k : k;
+		}else if (this->moving){
+			this->sui->end_full_updating();
+			this->moving = 0;
 		}
-		if (this->offset < this->min_offset){
-			this->offset = this->min_offset;
-			this->movement_speed = 0;
-			goto update_restart;
-		}
-		if (!this->moving){
-			this->sui->start_full_updating();
-			this->moving = 1;
-		}
-		const double k = 0.5;
-		this->movement_speed += this->movement_speed > 0 ? -k : k;
-	}else if (this->moving){
-		this->sui->end_full_updating();
-		this->moving = 0;
+		break;
 	}
 	int int_offset = (int)this->offset;
 	SDL_Color color = { 0xFF, 0xFF, 0xFF, 0xFF };
@@ -172,27 +140,5 @@ update_restart:
 		};
 		if (rect.y + rect.h > 0 && rect.y < target->h)
 			GPU_RectangleFilled(target, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, color);
-	}
-}
-
-bool ListView::get_input(unsigned &dst, ControlCoroutine &coroutine, std::shared_ptr<ListView> self){
-	unsigned this_name = this->signal.data.listview_signal.listview_name;
-	while (1){
-		auto signal = coroutine.display(self);
-		switch (signal.type){
-			case SignalType::BACK_PRESSED:
-				return 0;
-			case SignalType::LISTVIEW_SIGNAL:
-				break;
-			default:
-				continue;
-		}
-		if (signal.data.listview_signal.listview_name != this_name)
-			continue;
-		signal = *signal.data.listview_signal.signal;
-		if (signal.type != SignalType::BUTTON_SIGNAL)
-			continue;
-		dst = signal.data.button_signal;
-		return 1;
 	}
 }

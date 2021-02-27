@@ -117,12 +117,14 @@ void FileBrowser::generate_next_list(){
 		list.reserve(temp.size() + list.size());
 		std::copy(temp.begin(), temp.end(), std::back_inserter(list));
 	}
-	this->directory_list_stack.push_back(list);
-	std::vector<std::wstring> temp;
-	temp.resize(list.size());
-	for (size_t i = 0; i < list.size(); i++)
-		temp[i] = list[i].name;
-	this->listviews.push_back(lv_t(new ListView(sui, this, temp, (unsigned)this->listviews.size())));
+	{
+		std::vector<std::wstring> temp;
+		temp.reserve(list.size());
+		for (auto &i : list)
+			temp.push_back(i.name);
+		this->listviews.emplace_back(std::make_shared<ListView>(sui, this, temp.begin(), temp.end(), (unsigned)this->listviews.size()));
+	}
+	this->directory_list_stack.emplace_back(std::move(list));
 }
 
 void FileBrowser::change_directory(){
@@ -139,9 +141,8 @@ unsigned FileBrowser::handle_event(const SDL_Event &e){
 			case SDL_SCANCODE_AC_BACK:
 				handled = 1;
 				if (this->path.size() == 1){
-					GuiSignal signal;
-					signal.type = SignalType::BACK_PRESSED;
-					this->parent->gui_signal(signal);
+					if (this->on_cancel)
+						this->on_cancel();
 					return ret;
 				}
 				this->listviews.pop_back();
@@ -189,17 +190,16 @@ void FileBrowser::gui_signal(const GuiSignal &_signal){
 	auto selection = signal.data.button_signal;
 	this->path.push_back(selection);
 
-	bool done = 0;
+	bool done = false;
 	if (this->select_file){
 		if (!this->directory_list_stack.back()[selection].is_dir)
-			done = 1;
+			done = true;
 	}else if (!selection)
-		done = 1;
+		done = true;
 
 	if (done){
-		signal.type = SignalType::FILE_BROWSER_DONE;
-		signal.data.file_browser_success = 1;
-		this->parent->gui_signal(signal);
+		if (this->on_accept)
+			this->on_accept(this->get_selection());
 		return;
 	}
 
@@ -208,23 +208,4 @@ void FileBrowser::gui_signal(const GuiSignal &_signal){
 
 void FileBrowser::update(){
 	this->listviews.back()->update();
-}
-
-bool FileBrowser::get_input(std::wstring &dst, ControlCoroutine &coroutine, std::shared_ptr<FileBrowser> self){
-	while (1){
-		auto signal = coroutine.display(self);
-		switch (signal.type){
-			case SignalType::BACK_PRESSED:
-				return 0;
-			case SignalType::FILE_BROWSER_DONE:
-				break;
-			default:
-				continue;
-		}
-		if (!signal.data.file_browser_success)
-			return 0;
-		break;
-	}
-	dst = this->get_selection();
-	return 1;
 }

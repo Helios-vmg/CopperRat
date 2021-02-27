@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 #include <SDL.h>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #endif
 #include "Deleters.h"
 

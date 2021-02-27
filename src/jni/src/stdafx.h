@@ -57,8 +57,6 @@ extern "C"{
 #include <SDL_gpu.h>
 }
 #include <algorithm>
-#include <boost/coroutine/all.hpp>
-#include <boost/rational.hpp>
 #include <cassert>
 #include <cctype>
 #include <cmath>
@@ -78,6 +76,7 @@ extern "C"{
 #include <utility>
 #include <vector>
 #include <memory>
+#include <functional>
 #include <type_traits>
 #include <vorbis/vorbisfile.h>
 #include <webp/encode.h>

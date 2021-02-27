@@ -37,7 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <iomanip>
 #include <sstream>
-#include <boost/shared_array.hpp>
+#include <memory>
 #endif
 
 class DelayedPictureLoadStartAction : public DelayedPictureLoadAction{

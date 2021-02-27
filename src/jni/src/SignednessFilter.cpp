@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <SDL_stdinc.h>
 #include <limits>
 #include <cassert>
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #endif
 
 #define NODE(x) TypeCons<TypeNil, x>()
