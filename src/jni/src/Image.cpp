@@ -693,10 +693,13 @@ GPU_Rect to_GPU_Rect(const SDL_Rect &rect){
 	return ret;
 }
 
-void Texture::draw(const SDL_Rect &dst, const SDL_Rect *_src){
+void Texture::draw(const SDL_Rect &dst0, const SDL_Rect *_src){
 	if (!*this)
 		return;
 	GPU_Rect src = !_src ? this->rect : to_GPU_Rect(*_src);
+	auto dst = dst0;
+	dst.x += src.w / 2;
+	dst.y += src.h / 2;
 	GPU_Blit(this->tex.get(), &src, this->target, (float)dst.x, (float)dst.y);
 }
 
@@ -734,8 +737,8 @@ void Texture::draw_with_fill2(GPU_Target *target){
 	src_rect.w *= scale;
 	src_rect.h *= scale;
 
-	src_rect.x = (dst_rect.w - src_rect.w) / 2;
-	src_rect.y = (dst_rect.h - src_rect.h) / 2;
+	src_rect.x = (dst_rect.w - src_rect.w) / 2 + src_rect.w / 2;
+	src_rect.y = (dst_rect.h - src_rect.h) / 2 + src_rect.h / 2;
 
 	auto tex = this->tex.get();
 	GPU_BlitScale(tex, &this->rect, target, src_rect.x, src_rect.y, scale, scale);
@@ -746,7 +749,7 @@ void Texture::set_alpha(double alpha){
 		return;
 	SDL_Color color = { 0xFF, 0xFF, 0xFF, 0xFF };
 	color.a = Uint8(alpha * 255.0);
-	GPU_SetColor(this->tex.get(), &color);
+	GPU_SetColor(this->tex.get(), color);
 }
 
 RenderTarget::RenderTarget(unsigned w, unsigned h){
@@ -789,7 +792,7 @@ void ShaderProgram::create_internal_object(){
 	shaders.reserve(this->shaders.size());
 	for (auto s : this->shaders)
 		shaders.push_back(s->get_shader());
-	this->program = GPU_LinkShadersEx(&shaders[0], shaders.size());
+	this->program = GPU_LinkManyShaders(&shaders[0], shaders.size());
 	if (!this->program)
 		this->error_string = GPU_GetShaderMessage();
 	else{

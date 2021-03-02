@@ -110,8 +110,8 @@ double gauss_kernel(double x, double sigma){
 }
 
 std::string generate_fragment_shader(double sigma, double texture_w, double texture_h, bool vertical){
-	std::stringstream ret;
-	ret <<
+	std::stringstream stream;
+	stream <<
 #ifndef __ANDROID__
 "#version 120\n"
 #else
@@ -144,15 +144,17 @@ std::string generate_fragment_shader(double sigma, double texture_w, double text
 		//if (kernel < 1.0/256.0)
 		//	continue;
 		double x = xs[i];
-		ret <<"	accum += texture2D(tex, texCoord + vec2(";
+		stream <<"	accum += texture2D(tex, texCoord + vec2(";
 		if (!vertical)
-			ret <<(x / texture_w)<<", 0";
+			stream <<(x / texture_w)<<", 0";
 		else
-			ret <<"0, "<<(x / texture_h);
-		ret <<")) * "<<kernel<<";\n";
+			stream <<"0, "<<(x / texture_h);
+		stream <<")) * "<<kernel<<";\n";
 	}
-	ret <<"	gl_FragColor = accum;\n}\n";
-	return ret.str();
+	stream <<"	gl_FragColor = accum;\n}\n";
+	auto ret = stream.str();
+	std::cout << ret << std::endl;
+	return ret;
 }
 
 void SUI::create_shaders(){
@@ -365,8 +367,11 @@ Texture SUI::blur_image(Texture tex){
 
 	t0 = clock();
 
-	RenderTarget target1(screen->w, screen->h);
-	RenderTarget target2(screen->w, screen->h);
+	auto w = screen->w;
+	auto h = screen->h;
+	
+	RenderTarget target1(w, h);
+	RenderTarget target2(w, h);
 	
 	GPU_Clear(target1.get_target());
 	tex.draw_with_fill2(target1.get_target());
@@ -375,13 +380,13 @@ Texture SUI::blur_image(Texture tex){
 	this->blur_h.activate();
 	
 	GPU_Clear(target2.get_target());
-	GPU_Blit(target1.get_target()->image, nullptr, target2.get_target(), 0, 0);
+	GPU_Blit(target1.get_target()->image, nullptr, target2.get_target(), w / 2, h / 2);
 	GPU_FlushBlitBuffer();
 
 	this->blur_v.activate();
 	
 	GPU_Clear(target1.get_target());
-	GPU_Blit(target2.get_target()->image, nullptr, target1.get_target(), 0, 0);
+	GPU_Blit(target2.get_target()->image, nullptr, target1.get_target(), w / 2, h / 2);
 	GPU_FlushBlitBuffer();
 
 	GPU_ActivateShaderProgram(0, nullptr);
@@ -434,14 +439,13 @@ unsigned SUI::finish_picture_load(surface_t picture, const std::wstring &source,
 			}
 		}
 		if (!loaded){
-			std::shared_ptr<PictureBlurringJob> job(new PictureBlurringJob(
+			this->start_picture_blurring(std::make_shared<PictureBlurringJob>(
 				this->finished_jobs_queue,
 				this->get_max_square(),
 				this->get_visible_region(),
 				picture,
 				bg_path
 			));
-			this->start_picture_blurring(job);
 			this->background_picture = this->blur_image(this->tex_picture);
 		}
 	}

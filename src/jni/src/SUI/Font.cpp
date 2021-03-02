@@ -219,7 +219,10 @@ void Font::draw_text(const std::string *text, const std::wstring *wtext, int x0,
 			page = this->get_page(rp.page);
 			last_page = rp.page;
 		}
-		GPU_BlitScale(page.get(), &rp.src, this->target, rp.dst.x, rp.dst.y, rp.scale, rp.scale);
+		GPU_BlitScale(page.get(), &rp.src, this->target,
+			rp.dst.x + rp.dst.w / 2,
+			rp.dst.y + rp.dst.h / 2,
+			rp.scale, rp.scale);
 	}
 }
 

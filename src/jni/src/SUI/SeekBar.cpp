@@ -29,6 +29,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../stdafx.h"
 #include "SeekBar.h"
 #include "MainScreen.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
+#include <sstream>
+#endif
 
 SeekBar::SeekBar(SUI *sui, MainScreen *parent):
 	GUIElement(sui, parent),

@@ -40,7 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 typedef std::shared_ptr<SDL_Surface> surface_t;
 typedef std::shared_ptr<GPU_Renderer> renderer_t;
 typedef std::shared_ptr<GPU_Image> texture_t;
-	typedef std::shared_ptr<GPU_Target> render_target_t;
+typedef std::shared_ptr<GPU_Target> render_target_t;
 
 class RenderTarget{
 	texture_t texture;
