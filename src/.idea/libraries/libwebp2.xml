@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="libwebp">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/jni/libwebp-0.3.0/swig/libwebp.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
