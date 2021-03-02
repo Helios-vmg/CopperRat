@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "my_mpg123.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <fstream>
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #endif
 
 

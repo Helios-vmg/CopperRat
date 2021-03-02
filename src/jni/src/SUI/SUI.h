@@ -41,10 +41,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL.h>
 #include <string>
-#include <boost/shared_ptr.hpp>
-#include <boost/coroutine/all.hpp>
 #include <memory>
 #include <list>
+#include <functional>
 #endif
 
 class UIInitializationException : public CR_Exception{
@@ -162,34 +161,6 @@ public:
 	virtual void gui_signal(const GuiSignal &){}
 };
 
-class ControlCoroutine{
-protected:
-	typedef boost::coroutines::coroutine<GuiSignal> co_t;
-	co_t::push_type co;
-	co_t::pull_type *antico;
-	virtual void entry_point() = 0;
-public:
-	ControlCoroutine();
-	virtual ~ControlCoroutine(){}
-	virtual GuiSignal display(std::shared_ptr<GUIElement>);
-};
-
-class SUI;
-
-class SUIControlCoroutine : public ControlCoroutine{
-	SUI *sui;
-
-	void entry_point();
-	void load_file_menu();
-	bool load_file(std::wstring &dst, bool only_directories);
-	void options_menu();
-public:
-	SUIControlCoroutine(SUI &sui);
-	GuiSignal display(std::shared_ptr<GUIElement>);
-	void start();
-	void relay(const GuiSignal &);
-};
-
 class DelayedPictureLoadAction{
 public:
 	virtual ~DelayedPictureLoadAction(){}
@@ -235,8 +206,7 @@ private:
 	std::shared_ptr<WorkerThreadJobHandle> picture_job;
 	int full_update_count;
 	typedef std::shared_ptr<GUIElement> current_element_t;
-	current_element_t current_element;
-	SUIControlCoroutine scc;
+	std::vector<current_element_t> element_stack;
 	bool update_requested;
 	bool ui_in_foreground;
 	std::shared_ptr<DelayedPictureLoadAction> dpla;
@@ -258,6 +228,18 @@ private:
 	void on_switch_to_foreground();
 	void create_shaders();
 	Texture blur_image(Texture tex);
+	void start_gui();
+	void load_file_menu();
+	void options_menu();
+	template <typename T>
+	void display(const std::shared_ptr<T> &p){
+		this->element_stack.emplace_back(p);
+		this->request_update();
+	}
+	void undisplay(){
+		this->element_stack.pop_back();
+		this->request_update();
+	}
 public:
 	SUI();
 	~SUI();

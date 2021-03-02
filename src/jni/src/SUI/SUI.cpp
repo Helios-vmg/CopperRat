@@ -42,119 +42,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <iomanip>
 #include <sstream>
-#include <boost/shared_array.hpp>
+#include <memory>
 #endif
 
 //#define LIMIT_FPS
-
-ControlCoroutine::ControlCoroutine():
-	co([this](co_t::pull_type &pt){ this->antico = &pt; this->entry_point(); }){}
-
-GuiSignal ControlCoroutine::display(std::shared_ptr<GUIElement>){
-	(*this->antico)();
-	return this->antico->get();
-}
-
-SUIControlCoroutine::SUIControlCoroutine(SUI &sui): sui(&sui){}
-
-void SUIControlCoroutine::start(){
-	this->co(GuiSignal());
-}
-
-void SUIControlCoroutine::relay(const GuiSignal &s){
-	this->co(s);
-}
-
-GuiSignal SUIControlCoroutine::display(std::shared_ptr<GUIElement> el){
-	this->sui->current_element = el;
-	this->sui->request_update();
-	return ControlCoroutine::display(el);
-}
-
-bool SUIControlCoroutine::load_file(std::wstring &dst, bool only_directories){
-	std::shared_ptr<FileBrowser> browser(new FileBrowser(this->sui, this->sui, !only_directories, application_settings.get_last_browse_directory()));
-	bool ret = browser->get_input(dst, *this, browser);
-	if (ret)
-		application_settings.set_last_browse_directory(browser->get_new_initial_directory());
-	return ret;
-}
-
-void SUIControlCoroutine::load_file_menu(){
-	static const wchar_t *options[] = {
-		L"Load file...",
-		L"Load directory...",
-		L"Enqueue file...",
-		L"Enqueue directory...",
-	};
-	std::vector<std::wstring> strings(options, options + sizeof(options) / sizeof(*options));
-	std::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
-	unsigned button;
-	if (!lv->get_input(button, *this, lv))
-		return;
-
-	bool load = button / 2 == 0;
-	bool file = button % 2 == 0;
-	std::wstring path;
-	if (!this->load_file(path, !file))
-		return;
-
-	this->sui->load(load, file, path);
-}
-
-void SUIControlCoroutine::options_menu(){
-	while (1){
-		auto &playlist = this->sui->get_player().get_playlist();
-		auto playback_mode = playlist.get_playback_mode();
-		bool shuffling = playlist.get_shuffle();
-		auto visualization_mode = application_settings.get_visualization_mode();
-		auto display_fps = application_settings.get_display_fps();
-		std::vector<std::wstring> strings;
-		strings.push_back(L"Playback mode: " + to_string(playback_mode));
-		strings.push_back(std::wstring(L"Shuffling: O") + (shuffling ? L"N" : L"FF"));
-		strings.push_back(L"Visualization mode: " + to_string(visualization_mode));
-		strings.push_back(std::wstring(L"Display framerate: O") + (display_fps ? L"N" : L"FF"));
-		std::shared_ptr<ListView> lv(new ListView(this->sui, this->sui, strings, 0));
-		unsigned button;
-		if (!lv->get_input(button, *this, lv))
-			return;
-		switch (button){
-			case 0:
-				application_settings.set_playback_mode(playlist.cycle_mode());
-				break;
-			case 1:
-				application_settings.set_shuffle(playlist.toggle_shuffle());
-				break;
-			case 2:
-				visualization_mode = (VisualizationMode)(((int)visualization_mode + 1) % (int)VisualizationMode::END);
-				application_settings.set_visualization_mode(visualization_mode);
-				this->sui->set_visualization_mode(visualization_mode);
-				break;
-			case 3:
-				display_fps = !display_fps;
-				application_settings.set_display_fps(display_fps);
-				this->sui->set_display_fps(display_fps);
-				break;
-		}
-	}
-}
-
-void SUIControlCoroutine::entry_point(){
-	std::shared_ptr<MainScreen> main_screen(new MainScreen(this->sui, this->sui, this->sui->player));
-	while (1){
-		auto signal = this->display(main_screen);
-		switch (signal.type){
-			case SignalType::MAINSCREEN_LOAD:
-				this->load_file_menu();
-				continue;
-			case SignalType::MAINSCREEN_MENU:
-				this->options_menu();
-				application_settings.commit();
-				continue;
-			default:
-				continue;
-		}
-	}
-}
 
 unsigned GUIElement::handle_event(const SDL_Event &e){
 	unsigned ret = SUI::NOTHING;
@@ -202,7 +93,6 @@ SUI::SUI():
 		bounding_square(-1),
 		max_square(-1),
 		full_update_count(0),
-		scc(*this),
 		update_requested(0),
 		ui_in_foreground(1),
 		apply_blur(0){
@@ -227,7 +117,7 @@ SUI::SUI():
 
 	this->create_shaders();
 
-	this->scc.start();
+	this->start_gui();
 }
 
 SUI::~SUI(){
@@ -302,9 +192,9 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 }
 
 unsigned SUI::handle_event(const SDL_Event &e){
-	//Note: Removing this object may incur in undefined behavior.
-	auto temp = this->current_element;
-	return temp->handle_event(e);
+	auto temp = this->element_stack;
+	auto ret = this->element_stack.back()->handle_event(e);
+	return ret;
 }
 	
 void SUI::on_switch_to_foreground(){
@@ -444,7 +334,8 @@ SDL_Rect SUI::get_visible_region() const{
 }
 
 void SUI::gui_signal(const GuiSignal &signal){
-	this->scc.relay(signal);
+	auto temp = this->element_stack;
+	this->element_stack.back()->gui_signal(signal);
 }
 
 void SUI::request_update(){
@@ -538,10 +429,100 @@ void SUI::loop(){
 			this->current_framerate = -1;
 
 		GPU_Clear(this->screen);
-		this->current_element->update();
+		this->element_stack.back()->update();
 		if (display_string.size())
 			this->font->draw_text(display_string, 0, 0, INT_MAX, 2.0);
 		GPU_Flip(this->screen);
 		last = now_ticks;
 	}
+}
+
+void SUI::start_gui(){
+	auto main_screen = std::make_shared<MainScreen>(this->sui, this->sui, this->sui->player);
+	main_screen->set_on_load_request([this](){ this->load_file_menu(); });
+	main_screen->set_on_menu_request([this](){
+		this->options_menu();
+		application_settings.commit();
+	});
+	this->display(main_screen);
+}
+
+template <typename T, size_t N>
+constexpr size_t array_length(const T (&)[N]){
+	return N;
+}
+
+void SUI::load_file_menu(){
+	static const wchar_t * const options[] = {
+		L"Load file...",
+		L"Load directory...",
+		L"Enqueue file...",
+		L"Enqueue directory...",
+	};
+	auto lv = std::make_shared<ListView>(this->sui, this->sui, options, options + array_length(options), 0);
+	this->display(lv);
+	lv->set_on_cancel([this](){
+		this->undisplay();
+	});
+	lv->set_on_selection([this](size_t button){
+		this->undisplay();
+		bool load = button / 2 == 0;
+		bool file = button % 2 == 0;
+
+		auto browser = std::make_shared<FileBrowser>(this->sui, this->sui, file, application_settings.get_last_browse_directory());
+		this->display(browser);
+		browser->set_on_cancel([this](){
+			this->undisplay();
+		});
+		browser->set_on_accept([this, load, file](std::wstring &&path){
+			auto browser = std::static_pointer_cast<FileBrowser>(this->element_stack.back());
+			this->undisplay();
+			application_settings.set_last_browse_directory(browser->get_new_initial_directory());
+			this->load(load, file, path);
+		});
+	});
+}
+
+void SUI::options_menu(){
+	std::vector<std::wstring> strings;
+	{
+		auto &playlist = this->get_player().get_playlist();
+		auto playback_mode = playlist.get_playback_mode();
+		bool shuffling = playlist.get_shuffle();
+		auto visualization_mode = application_settings.get_visualization_mode();
+		auto display_fps = application_settings.get_display_fps();
+		strings.push_back(L"Playback mode: " + to_string(playback_mode));
+		strings.push_back(std::wstring(L"Shuffling: O") + (shuffling ? L"N" : L"FF"));
+		strings.push_back(L"Visualization mode: " + to_string(visualization_mode));
+		strings.push_back(std::wstring(L"Display framerate: O") + (display_fps ? L"N" : L"FF"));
+	}
+	auto lv = std::make_shared<ListView>(this->sui, this->sui, strings.begin(), strings.end(), 0);
+	this->display(lv);
+	lv->set_on_cancel([this](){
+		this->undisplay();
+	});
+	lv->set_on_selection([this](size_t button){
+		this->undisplay();
+		auto &playlist = this->get_player().get_playlist();
+		switch (button){
+			case 0:
+				application_settings.set_playback_mode(playlist.cycle_mode());
+				break;
+			case 1:
+				application_settings.set_shuffle(playlist.toggle_shuffle());
+				break;
+			case 2:
+				visualization_mode = (VisualizationMode)(((int)visualization_mode + 1) % (int)VisualizationMode::END);
+				application_settings.set_visualization_mode(visualization_mode);
+				this->set_visualization_mode(visualization_mode);
+				break;
+			case 3:
+				display_fps = !display_fps;
+				application_settings.set_display_fps(display_fps);
+				this->set_display_fps(display_fps);
+				break;
+		}
+		//Note: this is not a recursive call.
+		this->options_menu();
+	});
 }

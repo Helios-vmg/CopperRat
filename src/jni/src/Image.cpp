@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <webp/encode.h>
 #include <fstream>
 #include <cmath>
-#include <boost/shared_array.hpp>
+#include <memory>
 #endif
 
 typedef unsigned char byte_t;

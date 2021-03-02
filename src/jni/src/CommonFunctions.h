@@ -34,8 +34,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iomanip>
 #include <vector>
 #include <string>
-#include <boost/type_traits.hpp>
-#include <boost/shared_array.hpp>
+#include <type_traits>
+#include <memory>
 #include <android/log.h>
 #endif
 

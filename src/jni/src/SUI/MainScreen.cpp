@@ -60,7 +60,8 @@ unsigned MainScreen::handle_event(const SDL_Event &event){
 	if (event.type == SDL_KEYDOWN && (event.key.keysym.scancode == SDL_SCANCODE_MENU || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)){
 		GuiSignal signal;
 		signal.type = SignalType::MAINSCREEN_MENU;
-		this->parent->gui_signal(signal);
+		if (this->on_menu_request)
+			this->on_menu_request();
 	}
 	return ret | GUIElement::handle_event(event);
 }
@@ -402,11 +403,8 @@ void MainScreen::gui_signal(const GuiSignal &signal){
 			this->player.request_stop();
 			break;
 		case ButtonSignal::LOAD:
-			{
-				GuiSignal signal;
-				signal.type = SignalType::MAINSCREEN_LOAD;
-				this->parent->gui_signal(signal);
-			}
+			if (this->on_load_request)
+				this->on_load_request();
 			break;
 		case ButtonSignal::PREVIOUS:
 			this->player.request_previous();

@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#define DUMP_OUTPUT
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <memory>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #endif
 
 #ifdef DUMP_OUTPUT

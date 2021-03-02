@@ -36,8 +36,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <fstream>
 #include <SDL.h>
-#include <boost/shared_ptr.hpp>
-#include <boost/type_traits.hpp>
+#include <memory>
+#include <type_traits>
 #endif
 
 #ifndef __ANDROID__

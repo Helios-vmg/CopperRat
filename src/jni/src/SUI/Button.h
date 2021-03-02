@@ -120,6 +120,12 @@ public:
 		this->scale = scale;
 		this->calculate_bounding_box();
 	}
+	void set_text(const wchar_t *text, int max_width = INT_MAX, double scale = 1.0){
+		this->text = text;
+		this->wrapping_limit = max_width;
+		this->scale = scale;
+		this->calculate_bounding_box();
+	}
 	void set_text_size_mm(double millimeters = 1.0);
 	void update();
 	const std::wstring &get_text() const{

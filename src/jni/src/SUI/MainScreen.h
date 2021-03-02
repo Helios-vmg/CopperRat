@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include "ListView.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <list>
+#include <functional>
 #endif
 
 class SeekBar;
@@ -66,6 +67,8 @@ class MainScreen : public GUIElement{
 	unsigned spectrogram_data_w,
 		spectrogram_data_h;
 	size_t spectrogram_data_head;
+	std::function<void()> on_load_request;
+	std::function<void()> on_menu_request;
 
 	void prepare_buttons();
 	void gui_signal(const GuiSignal &);
@@ -78,6 +81,12 @@ public:
 	void update();
 	SDL_Rect get_seekbar_region() const{
 		return this->sui->get_seekbar_region();
+	}
+	void set_on_load_request(std::function<void()> &&f){
+		this->on_load_request = std::move(f);
+	}
+	void set_on_menu_request(std::function<void()> &&f){
+		this->on_menu_request = std::move(f);
 	}
 };
 
