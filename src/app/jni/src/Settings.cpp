@@ -82,6 +82,8 @@ Settings::Settings(): no_changes(1){
 			this->playback_mode = (Mode)query<int>(el);
 		else if (!strcmp(name, "shuffle"))
 			this->shuffle = query<bool>(el);
+		else if (!strcmp(name, "last_root"))
+			this->last_root = query<std::wstring>(el);
 		else if (!strcmp(name, "last_browse_directory"))
 			this->last_browse_directory = query<std::wstring>(el);
 		else if (!strcmp(name, "current_track"))
@@ -121,6 +123,8 @@ void Settings::commit(){
 	doc.LinkEndChild(settings);
 	generate_element(doc, settings, "playback_mode", (int)this->playback_mode);
 	generate_element(doc, settings, "shuffle", this->shuffle);
+	if (this->last_root.size())
+		generate_element(doc, settings, "last_root", string_to_utf8(this->last_root).c_str());
 	if (this->last_browse_directory.size())
 		generate_element(doc, settings, "last_browse_directory", string_to_utf8(this->last_browse_directory).c_str());
 	generate_element(doc, settings, "current_track", this->current_track);
@@ -138,35 +142,44 @@ void Settings::commit(){
 	generate_element(doc, settings, "visualization_mode", (int)this->visualization_mode);
 	generate_element(doc, settings, "display_fps", this->display_fps);
 	doc.SaveFile(SAVE_PATH);
-	this->no_changes = 1;
+	this->no_changes = true;
 }
 
 void Settings::set_default_values(){
-	this->shuffle = 0;
+	this->shuffle = false;
 	this->playback_mode = Mode::REPEAT_LIST;
 	this->current_time = -1;
 	this->current_track = -1;
 	this->visualization_mode = VisualizationMode::NONE;
-	this->display_fps = 0;
+	this->display_fps = false;
 }
 
 void Settings::set_playback_mode(Mode mode){
 	AutoMutex am(this->mutex);
 	this->playback_mode = mode;
-	this->no_changes = 0;
+	this->no_changes = false;
 }
 
 void Settings::set_shuffle(bool shuffle){
 	AutoMutex am(this->mutex);
 	this->shuffle = shuffle;
-	this->no_changes = 0;
+	this->no_changes = false;
+}
+
+void Settings::set_last_root(const std::wstring &last_root){
+	{
+		AutoMutex am(this->mutex);
+		this->last_root = last_root;
+		this->no_changes = false;
+	}
+	this->commit();
 }
 
 void Settings::set_last_browse_directory(const std::wstring &last_browse_directory){
 	{
 		AutoMutex am(this->mutex);
 		this->last_browse_directory = last_browse_directory;
-		this->no_changes = 0;
+		this->no_changes = false;
 	}
 	this->commit();
 }
@@ -174,37 +187,37 @@ void Settings::set_last_browse_directory(const std::wstring &last_browse_directo
 void Settings::set_current_track(int current_track){
 	AutoMutex am(this->mutex);
 	this->current_track = current_track;
-	this->no_changes = 0;
+	this->no_changes = false;
 }
 
 void Settings::set_current_time(double current_time){
 	AutoMutex am(this->mutex);
 	this->current_time = current_time;
-	this->no_changes = 0;
+	this->no_changes = false;
 }
 
 void Settings::set_playlist_items(const std::vector<std::wstring> &playlist_items){
 	AutoMutex am(this->mutex);
 	this->playlist_items = playlist_items;
-	this->no_changes = 0;
+	this->no_changes = false;
 }
 
 void Settings::set_shuffle_items(const std::vector<int> &shuffle_items){
 	AutoMutex am(this->mutex);
 	this->shuffle_items = shuffle_items;
-	this->no_changes = 0;
+	this->no_changes = false;
 }
 
 void Settings::set_visualization_mode(VisualizationMode vm){
 	AutoMutex am(this->mutex);
 	this->visualization_mode = vm;
-	this->no_changes = 0;
+	this->no_changes = false;
 }
 
 void Settings::set_display_fps(bool dfps){
 	AutoMutex am(this->mutex);
 	this->display_fps = dfps;
-	this->no_changes = 0;
+	this->no_changes = false;
 }
 
 Settings::Mode Settings::get_playback_mode(){
@@ -215,6 +228,11 @@ Settings::Mode Settings::get_playback_mode(){
 bool Settings::get_shuffle(){
 	AutoMutex am(this->mutex);
 	return this->shuffle;
+}
+
+std::wstring Settings::get_last_root(){
+	AutoMutex am(this->mutex);
+	return this->last_root;
 }
 
 std::wstring Settings::get_last_browse_directory(){

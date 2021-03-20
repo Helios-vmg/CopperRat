@@ -1,8 +1,11 @@
-	.text
-	
-	.global	render_lineARM
-	
-render_lineARM:
+@ Tremolo library
+@ Copyright (C) 2009 Robin Watts for Pinknoise Productions Ltd
+
+    .text
+
+	.global	render_line_arm
+
+render_line_arm:
 	@ r0 = n
 	@ r1 = d
 	@ r2 = floor
@@ -29,3 +32,5 @@ rl_loop:
 	BGT	rl_loop
 
 	LDMFD	r13!,{r4-r6,r11,PC}
+
+	@ END

@@ -46,25 +46,33 @@ int res_unpack(vorbis_info_residue *info,
   info->begin=oggpack_read(opb,24);
   info->end=oggpack_read(opb,24);
   info->grouping=oggpack_read(opb,24)+1;
-  info->partitions=oggpack_read(opb,6)+1;
-  info->groupbook=oggpack_read(opb,8);
+  info->partitions=(char)oggpack_read(opb,6)+1;
+  info->groupbook=(unsigned char)oggpack_read(opb,8);
   if(info->groupbook>=ci->books)goto errout;
 
   info->stagemasks=_ogg_malloc(info->partitions*sizeof(*info->stagemasks));
   info->stagebooks=_ogg_malloc(info->partitions*8*sizeof(*info->stagebooks));
+  /* check for premature EOP */
+  if(info->groupbook<0)goto errout;
 
   for(j=0;j<info->partitions;j++){
     int cascade=oggpack_read(opb,3);
-    if(oggpack_read(opb,1))
-      cascade|=(oggpack_read(opb,5)<<3);
+    int cflag=oggpack_read(opb,1);
+    if(cflag<0) goto errout;
+    if(cflag){
+      int c=oggpack_read(opb,5);
+      if(c<0) goto errout;
+      cascade|=(c<<3);
+    }
     info->stagemasks[j]=cascade;
   }
 
   for(j=0;j<info->partitions;j++){
     for(k=0;k<8;k++){
       if((info->stagemasks[j]>>k)&1){
-	unsigned char book=oggpack_read(opb,8);
+	unsigned char book=(unsigned char)oggpack_read(opb,8);
 	if(book>=ci->books)goto errout;
+        if(book<0) goto errout;
 	info->stagebooks[j*8+k]=book;
 	if(k+1>info->stages)info->stages=k+1;
       }else
@@ -217,7 +225,6 @@ int res_inverse(vorbis_dsp_state *vd,vorbis_info_residue *info,
       } 
     }
   }
- errout:
  eopbreak:
   
   return 0;

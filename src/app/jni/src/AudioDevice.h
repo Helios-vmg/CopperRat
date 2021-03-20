@@ -45,13 +45,12 @@ public:
 class AudioDevice{
 	friend class InitializeAudioDevice;
 	AudioPlayer &player;
-	RemoteThreadProcedureCallPerformer &rtpcp;
 	bool audio_is_open;
 	std::string error_string;
 
 	void open_in_main();
 public:
-	AudioDevice(AudioPlayer &, RemoteThreadProcedureCallPerformer &);
+	AudioDevice(AudioPlayer &);
 	~AudioDevice();
 	void open();
 	void close();
@@ -61,24 +60,6 @@ public:
 	bool is_open() const{
 		return this->audio_is_open;
 	}
-};
-
-class InitializeAudioDevice : public RemoteThreadProcedureCall{
-	AudioDevice *device;
-	void entry_point_internal(){
-		this->device->open_in_main();
-	}
-public:
-	InitializeAudioDevice(AudioDevice *device, RemoteThreadProcedureCallPerformer &rtpcp): RemoteThreadProcedureCall(rtpcp), device(device){}
-};
-
-class CloseAudioDevice : public RemoteThreadProcedureCall{
-	AudioDevice *device;
-	void entry_point_internal(){
-		this->device->close_in_main();
-	}
-public:
-	CloseAudioDevice(AudioDevice *device, RemoteThreadProcedureCallPerformer &rtpcp): RemoteThreadProcedureCall(rtpcp), device(device){}
 };
 
 #define SDL_PauseAudio(_)

@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 SeekBar::SeekBar(SUI *sui, MainScreen *parent):
 	GUIElement(sui, parent),
-	main_screen(main_screen),
+	main_screen(parent),
 	region(parent->get_seekbar_region()),
 	drag_started(0){
 }

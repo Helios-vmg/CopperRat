@@ -78,7 +78,9 @@ extern "C"{
 #include <memory>
 #include <functional>
 #include <type_traits>
-#include <vorbis/vorbisfile.h>
+#include <string_view>
+#include "tremor/ivorbisfile.h"
+//#include <vorbis/vorbisfile.h>
 #include <webp/encode.h>
 #else
 namespace std { typedef decltype(nullptr) nullptr_t; }

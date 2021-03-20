@@ -32,7 +32,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class TotalTimeUpdate;
 class MetaDataUpdate;
 class PlaybackStop;
-class RTPCQueueElement;
 
 class UserInterface{
 public:
@@ -40,7 +39,6 @@ public:
 	virtual unsigned receive(TotalTimeUpdate &) = 0;
 	virtual unsigned receive(MetaDataUpdate &) = 0;
 	virtual unsigned receive(PlaybackStop &) = 0;
-	virtual unsigned receive(RTPCQueueElement &) = 0;
 };
 
 #endif

@@ -82,16 +82,6 @@ unsigned ListView::handle_event(const SDL_Event &event){
 	return ret;
 }
 
-void ListView::gui_signal(const GuiSignal &s){
-	if (s.type != SignalType::BUTTON_SIGNAL)
-		return;
-	if (this->on_selection)
-		this->on_selection(s.data.button_signal);
-	auto relay = this->signal;
-	relay.data.listview_signal.signal = &s;
-	this->parent->gui_signal(relay);
-}
-
 void ListView::update(){
 	auto target = this->sui->get_target();
 	while (true){

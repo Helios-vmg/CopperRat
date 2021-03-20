@@ -71,7 +71,7 @@ class MainScreen : public GUIElement{
 	std::function<void()> on_menu_request;
 
 	void prepare_buttons();
-	void gui_signal(const GuiSignal &);
+	void on_button(int);
 	void draw_oscilloscope(Uint32 time);
 	void draw_spectrum(Uint32 time, SpectrumQuality, bool spectrogram);
 	Uint32 last_draw;

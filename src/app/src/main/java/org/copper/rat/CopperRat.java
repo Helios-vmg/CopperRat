@@ -7,6 +7,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.lang.reflect.Array;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,6 +20,8 @@ import java.util.jar.Pack200;
 import android.app.*;
 import android.content.*;
 import android.content.res.Resources;
+import android.os.storage.StorageManager;
+import android.os.storage.StorageVolume;
 import android.view.*;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
@@ -31,6 +36,10 @@ import android.graphics.*;
 import android.media.*;
 import android.hardware.*;
 
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
+
 import org.libsdl.app.SDLActivity;
 
 class ResourceTuple{
@@ -43,14 +52,109 @@ class ResourceTuple{
 }
 
 public class CopperRat extends org.libsdl.app.SDLActivity {
+    private static CopperRat instance;
+
+    public static CopperRat getInstance(){
+        return instance;
+    }
+
+    public CopperRat(){
+        instance = this;
+        //NotificationChannel nc = new NotificationChannel("CopperRatNC", "CopperRat", NotificationManager.IMPORTANCE_HIGH);
+
+        /*builder.
+        Intent notificationIntent = new Intent(this, ExampleActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        notification.setLatestEventInfo(this, getText(R.string.notification_title),
+                getText(R.string.notification_message), pendingIntent);
+        startForeground(ONGOING_NOTIFICATION_ID, notification);
+*/
+
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        createChannel();
+        this.sendNotification();
+        startService(new Intent(this, PlayerService.class));
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (this.notification != null) {
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            manager.cancelAll();
+            this.notification = null;
+        }
+
+        super.onDestroy();
+    }
+
+    private void createChannel(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            createChannelO();
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void createChannelO(){
+        String id = getString(R.string.channel_id);
+        CharSequence name = getString(R.string.channel_name);
+        String description = getString(R.string.channel_description);
+        int importance = NotificationManager.IMPORTANCE_HIGH;
+        NotificationChannel channel = new NotificationChannel(id, name, importance);
+        channel.setDescription(description);
+        channel.enableLights(false);
+        channel.setLightColor(Color.RED);
+        channel.enableVibration(false);
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mNotificationManager.createNotificationChannel(channel);
+    }
+
+    public Notification notification = null;
+
+    private void sendNotification(){
+        try {
+            if (this.notification != null)
+                return;
+
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, getString(R.string.channel_id))
+                    .setContentTitle("CopperRat")
+                    .setContentText("CopperRat is playing music.")
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setPriority(NotificationCompat.PRIORITY_MAX)
+                    .setOngoing(true)
+                    .setNotificationSilent();
+
+            Intent notificationIntent = new Intent(this, CopperRat.class);
+            PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            builder.setContentIntent(contentIntent);
+
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            this.notification = builder.build();
+            manager.notify(0, this.notification);
+        } catch (Throwable t) {
+            Log.e("Notification test", t.getMessage());
+        }
+    }
+
+    public String getExternalStoragePath(){
+        StorageManager sm = (StorageManager)getContext().getSystemService(Context.STORAGE_SERVICE);
+        for (StorageVolume vol : sm.getStorageVolumes()){
+            if (vol.isRemovable())
+                return vol.getDirectory().getAbsolutePath();
+        }
+        return null;
+    }
+
     public double getScreenDensity(){
     	DisplayMetrics metric = getResources().getDisplayMetrics();
     	double ret = metric.densityDpi / 25.4;
     	return ret;
     }
-    
+
     public int getScreenWidth(){
-    	Display display = getWindowManager().getDefaultDisplay();
+        Display display = getWindowManager().getDefaultDisplay();
     	Point size = new Point();
     	display.getSize(size);
     	return size.x;
@@ -63,7 +167,7 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
     	return size.y;
     }
 
-    public static void initializeAppDirectory(){
+    public void initializeAppDirectory(){
         ArrayList<ResourceTuple> list = new ArrayList<ResourceTuple>();
         list.add(new ResourceTuple(R.raw.unifont, "unifont.dat"));
         list.add(new ResourceTuple(R.raw.button_load, "button_load.png"));
@@ -75,7 +179,7 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
         list.add(new ResourceTuple(R.raw.button_seekforth, "button_seekforth.png"));
         list.add(new ResourceTuple(R.raw.button_stop, "button_stop.png"));
 
-        Application app = SDLActivity.mSingleton.getApplication();
+        Application app = getApplication();
         String base = app.getFilesDir().getPath() + "/";
 
         for (ResourceTuple resourceTuple : list) {
@@ -89,12 +193,16 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
         }
     }
 
+    public long getPlayer(){
+        return PlayerService.getInstance().getPlayer();
+    }
+
     private static void copyResourceToFileSystem(Application app, int id, String destinationPath){
         InputStream stream;
         FileOutputStream file;
         try{
             stream = app.getResources().openRawResource(id);
-            file = app.openFileOutput(destinationPath, Application.MODE_WORLD_READABLE);
+            file = app.openFileOutput(destinationPath, Application.MODE_PRIVATE);
             byte[] buffer = new byte[1<<12];
             int bytes = 0;
             while (true){

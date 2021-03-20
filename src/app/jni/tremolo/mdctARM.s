@@ -1,15 +1,21 @@
-	.text
+@ Tremolo library
+@ Copyright (C) 2009 Robin Watts for Pinknoise Productions Ltd
+
+    .text
 
 	@ full accuracy version
 
-	.global mdct_backwardARM
-	.global mdct_shift_right
-	.global mdct_unroll_prelap
-	.global mdct_unroll_part2
-	.global mdct_unroll_part3
-	.global mdct_unroll_postlap
+	.global mdct_backward_arm
+	.global mdct_shift_right_arm
+	.global mdct_unroll_prelap_arm
+	.global mdct_unroll_part2_arm
+	.global mdct_unroll_part3_arm
+	.global mdct_unroll_postlap_arm
 
-mdct_unroll_prelap:
+	.extern	sincos_lookup0
+	.extern	sincos_lookup1
+
+mdct_unroll_prelap_arm:
 	@ r0 = out
 	@ r1 = post
 	@ r2 = r
@@ -68,7 +74,7 @@ unroll_loop2:
 unroll_end:
 	LDMFD	r13!,{r4-r7,PC}
 
-mdct_unroll_postlap:
+mdct_unroll_postlap_arm:
 	@ r0 = out
 	@ r1 = post
 	@ r2 = l
@@ -137,7 +143,7 @@ unroll_loop4:
 unroll_over4:
 	LDMFD	r13!,{r4-r7,PC}
 
-mdct_unroll_part2:
+mdct_unroll_part2_arm:
 	@ r0 = out
 	@ r1 = post
 	@ r2 = l
@@ -176,7 +182,7 @@ unroll_loop5:
 unroll_over5:
 	LDMFD	r13!,{r4,r6-r11,PC}
 
-mdct_unroll_part3:
+mdct_unroll_part3_arm:
 	@ r0 = out
 	@ r1 = post
 	@ r2 = l
@@ -215,7 +221,7 @@ unroll_loop6:
 unroll_over6:
 	LDMFD	r13!,{r4,r6-r11,PC}
 
-mdct_shift_right:
+mdct_shift_right_arm:
 	@ r0 = n
 	@ r1 = in
 	@ r2 = right
@@ -249,7 +255,7 @@ sr_loop2:
 sr_end:
 	LDMFD	r13!,{r4-r11,PC}
 
-mdct_backwardARM:
+mdct_backward_arm:
 	@ r0 = n
 	@ r1 = in
 	STMFD	r13!,{r4-r11,r14}
@@ -281,7 +287,7 @@ presymmetry_loop1:
 	LDR	r6, [r4]		@ r6 = s0 = aX[0]
 	LDR	r10,[r5],r2,LSL #2	@ r10= T[0]   T += step
 
-	@ XPROD31(s0, s2, T[0], T[1], &aX[0], &ax[2])
+	@ XPROD31(s0, s2, T[0], T[1], 0xaX[0], &ax[2])
 	SMULL	r8, r9, r7, r11		@ (r8, r9)   = s2*T[1]
 	@ stall
 	@ stall ?
@@ -305,7 +311,7 @@ presymmetry_loop2:
 	LDR	r7,[r4,#8]		@ r6 = s2 = aX[2]
 	LDR	r11,[r5],-r2,LSL #2	@ r11= T[0]   T -= step
 
-	@ XPROD31(s0, s2, T[1], T[0], &aX[0], &ax[2])
+	@ XPROD31(s0, s2, T[1], T[0], 0xaX[0], &ax[2])
 	SMULL	r8, r9, r6, r10		@ (r8, r9)   = s0*T[1]
 	@ stall
 	@ stall ?
@@ -338,7 +344,7 @@ presymmetry_loop3:
 	LDR	r9,[r1,#8-16]		@ r9 = ro2 = bX[2]
 	LDR	r6,[r4]			@ r6 = ri0 = aX[0]
 
-	@ XNPROD31( ro2, ro0, T[1], T[0], &aX[0], &aX[2] )
+	@ XNPROD31( ro2, ro0, T[1], T[0], 0xaX[0], &aX[2] )
 	@ aX[0] = (ro2*T[1] - ro0*T[0])>>31 aX[2] = (ro0*T[1] + ro2*T[0])>>31
 	SMULL	r14,r12,r8, r11		@ (r14,r12)  = ro0*T[1]
 	RSB	r8,r8,#0		@ r8 = -ro0
@@ -355,7 +361,7 @@ presymmetry_loop3:
 	MOV	r3, r3, LSL #1
 	STR	r3, [r4],#-16
 
-	@ XNPROD31( ri2, ri0, T[0], T[1], &bX[0], &bX[2] )
+	@ XNPROD31( ri2, ri0, T[0], T[1], 0xbX[0], &bX[2] )
 	@ bX[0] = (ri2*T[0] - ri0*T[1])>>31 bX[2] = (ri0*T[0] + ri2*T[1])>>31
 	SMULL	r14,r12,r6, r10		@ (r14,r12)  = ri0*T[0]
 	RSB	r6,r6,#0		@ r6 = -ri0
@@ -947,8 +953,8 @@ mdct_bufferflies_loop3:
 
 	LDMFD	r13,{r0-r3}
 
-mdct_bitreverseARM:
-	@ r0 = points
+mdct_bitreverse_arm:
+	@ r0 = points = n
 	@ r1 = in
 	@ r2 = step
 	@ r3 = shift
@@ -1177,3 +1183,5 @@ bitrev:
 	.byte	47
 	.byte	31
 	.byte	63
+
+	@ END

@@ -43,10 +43,9 @@ int vorbis_dsp_restart(vorbis_dsp_state *v){
   return 0;
 }
 
-vorbis_dsp_state *vorbis_dsp_create(vorbis_info *vi){
+int vorbis_dsp_init(vorbis_dsp_state *v,vorbis_info *vi){
   int i;
 
-  vorbis_dsp_state *v=_ogg_calloc(1,sizeof(*v));
   codec_setup_info *ci=(codec_setup_info *)vi->codec_setup;
 
   v->vi=vi;
@@ -64,10 +63,16 @@ vorbis_dsp_state *vorbis_dsp_create(vorbis_info *vi){
   v->W=0;  /* current window size */
 
   vorbis_dsp_restart(v);
+  return 0;
+}
+
+vorbis_dsp_state *vorbis_dsp_create(vorbis_info *vi){
+  vorbis_dsp_state *v=_ogg_calloc(1,sizeof(*v));
+  vorbis_dsp_init(v,vi);
   return v;
 }
 
-void vorbis_dsp_destroy(vorbis_dsp_state *v){
+void vorbis_dsp_clear(vorbis_dsp_state *v){
   int i;
   if(v){
     vorbis_info *vi=v->vi;
@@ -82,9 +87,12 @@ void vorbis_dsp_destroy(vorbis_dsp_state *v){
         if(v->mdctright[i])_ogg_free(v->mdctright[i]);
       _ogg_free(v->mdctright);
     }
-
-    _ogg_free(v);
   }
+}
+
+void vorbis_dsp_destroy(vorbis_dsp_state *v){
+  vorbis_dsp_clear(v);
+  _ogg_free(v);
 }
 
 static LOOKUP_T *_vorbis_window(int left){
@@ -263,10 +271,10 @@ int vorbis_dsp_synthesis(vorbis_dsp_state *vd,ogg_packet *op,int decodep){
 	  /* granulepos could be -1 due to a seek, but that would result
 	     in a long coun t, not short count */
 	  
-	  vd->out_end-=vd->sample_count-vd->granulepos;
+	  vd->out_end-=(int)(vd->sample_count-vd->granulepos);
 	}else{
 	  /* trim the beginning */
-	  vd->out_begin+=vd->sample_count-vd->granulepos;
+	  vd->out_begin+=(int)(vd->sample_count-vd->granulepos);
 	  if(vd->out_begin>vd->out_end)
 	    vd->out_begin=vd->out_end;
 	}
@@ -280,7 +288,7 @@ int vorbis_dsp_synthesis(vorbis_dsp_state *vd,ogg_packet *op,int decodep){
     if(op->granulepos!=-1 && vd->granulepos!=op->granulepos){
       
       if(vd->granulepos>op->granulepos){
-	long extra=vd->granulepos-op->granulepos;
+	long extra=(long)(vd->granulepos-op->granulepos);
 	
 	if(extra)
 	  if(op->e_o_s){

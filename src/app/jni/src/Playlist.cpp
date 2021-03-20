@@ -87,7 +87,7 @@ void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
 		this->shuffle_vector.resize(previous_size + n);
 		for (size_t i = 0; i < n; i++)
 			this->shuffle_vector[previous_size + i] = (int)(i + p);
-		std::random_shuffle(this->shuffle_vector.begin() + previous_size, this->shuffle_vector.end());
+		//std::random_shuffle(this->shuffle_vector.begin() + previous_size, this->shuffle_vector.end());
 	}
 	if (this->current_track < 0)
 		this->current_track = 0;
@@ -110,7 +110,7 @@ bool Playlist::toggle_shuffle(){
 				this->shuffle_vector[i] = (int)i;
 			std::swap(this->shuffle_vector[0], this->shuffle_vector[this->current_track]);
 			this->current_track = 0;
-			std::random_shuffle(this->shuffle_vector.begin() + 1, this->shuffle_vector.end());
+			//std::random_shuffle(this->shuffle_vector.begin() + 1, this->shuffle_vector.end());
 		}
 	}
 	this->shuffle = !this->shuffle;
@@ -139,7 +139,7 @@ bool Playlist::next(bool by_user){
 		case PlaybackMode::REPEAT_LIST:
 			this->current_track = (this->current_track + 1) % this->tracks.size();
 			if (!this->current_track && this->shuffle)
-				std::random_shuffle(this->shuffle_vector.begin(), this->shuffle_vector.end());
+				/*std::random_shuffle(this->shuffle_vector.begin(), this->shuffle_vector.end())*/;
 			break;
 		case PlaybackMode::REPEAT_TRACK:
 			break;

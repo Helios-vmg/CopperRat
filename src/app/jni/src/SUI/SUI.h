@@ -157,8 +157,6 @@ public:
 	virtual unsigned receive(TotalTimeUpdate &);
 	virtual unsigned receive(MetaDataUpdate &);
 	virtual unsigned receive(PlaybackStop &);
-	virtual unsigned receive(RTPCQueueElement &);
-	virtual void gui_signal(const GuiSignal &){}
 };
 
 class DelayedPictureLoadAction{
@@ -167,19 +165,7 @@ public:
 	virtual void perform() = 0;
 };
 
-class RTPCQueueElement : public ExternalQueueElement{
-	RemoteThreadProcedureCall *rtpc;
-public:
-	RTPCQueueElement(RemoteThreadProcedureCall *rtpc): rtpc(rtpc){}
-	RemoteThreadProcedureCall *get_rtpc(){
-		return this->rtpc;
-	}
-	unsigned receive(UserInterface &ui){
-		return ui.receive(*this);
-	}
-};
-
-class SUI : public GUIElement, public RemoteThreadProcedureCallPerformer{
+class SUI : public GUIElement{
 	friend class SUIControlCoroutine;
 public:
 	enum InputStatus{
@@ -192,25 +178,25 @@ public:
 	//came from somewhere other than a file, this string is empty.
 	std::wstring tex_picture_source;
 private:
-	AudioPlayer player;
+	AudioPlayer *player;
 	finished_jobs_queue_t finished_jobs_queue;
 	GPU_Target *screen;
 	std::shared_ptr<Font> font;
-	double current_total_time;
+	double current_total_time = -1;
 	std::wstring metadata;
 	Texture tex_picture;
 	Texture background_picture;
-	int bounding_square;
-	int max_square;
+	int bounding_square = -1;
+	int max_square = -1;
 	WorkerThread worker;
 	std::shared_ptr<WorkerThreadJobHandle> picture_job;
-	int full_update_count;
+	int full_update_count = 0;
 	typedef std::shared_ptr<GUIElement> current_element_t;
 	std::vector<current_element_t> element_stack;
-	bool update_requested;
-	bool ui_in_foreground;
+	bool update_requested = false;
+	bool ui_in_foreground = true;
 	std::shared_ptr<DelayedPictureLoadAction> dpla;
-	bool apply_blur;
+	bool apply_blur = false;
 	ShaderProgram blur_h, blur_v;
 	float current_framerate;
 	VisualizationMode visualization_mode;
@@ -241,22 +227,21 @@ private:
 		this->request_update();
 	}
 public:
-	SUI();
+	SUI(AudioPlayer &player);
 	~SUI();
 	void loop();
 
 	unsigned receive(TotalTimeUpdate &);
 	unsigned receive(MetaDataUpdate &);
 	unsigned receive(PlaybackStop &x);
-	unsigned receive(RTPCQueueElement &);
 	unsigned finish(PictureDecodingJob &);
 	unsigned finish(PictureBlurringJob &);
 	void draw_picture();
 	AudioPlayer &get_player(){
-		return this->player;
+		return *this->player;
 	}
 	const AudioPlayer &get_player() const{
-		return this->player;
+		return *this->player;
 	}
 	double get_current_total_time() const{
 		return this->current_total_time;
@@ -279,13 +264,11 @@ public:
 	void end_full_updating(){
 		this->full_update_count--;
 	}
-	void gui_signal(const GuiSignal &);
 	void request_update();
 	void start_picture_load(std::shared_ptr<PictureDecodingJob>);
 	void start_picture_blurring(std::shared_ptr<PictureBlurringJob>);
 	unsigned finish_picture_load(surface_t picture, const std::wstring &source, const std::string &hash, bool skip_loading);
 	unsigned finish_background_load(surface_t picture);
-	void perform(RemoteThreadProcedureCall *);
 	SDL_Rect get_seekbar_region();
 	float get_current_framerate() const{
 		return this->current_framerate;

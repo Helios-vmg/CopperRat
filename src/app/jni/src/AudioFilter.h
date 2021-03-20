@@ -54,6 +54,10 @@ public:
 		return this->dst_format;
 	}
 	void add_multiplication_filter(double factor);
+	void clear_saved_buffer(){
+		this->need_two_buffers = true;
+		this->saved_buffer.unref();
+	}
 };
 
 #endif

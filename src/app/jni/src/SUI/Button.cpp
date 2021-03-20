@@ -35,7 +35,7 @@ unsigned Button::handle_event(const SDL_Event &event){
 		return SUI::NOTHING;
 	auto x = this->sui->transform_mouse_x(event.button.x) - this->offset_x;
 	auto y = this->sui->transform_mouse_y(event.button.y) - this->offset_y;
-	__android_log_print(ANDROID_LOG_INFO, "C++Button", "Mouse click: (%d, %d)\n", x, y);
+	//__android_log_print(ANDROID_LOG_INFO, "C++Button", "Mouse click: (%d, %d)\n", x, y);
 	const auto &bb = this->bounding_box;
 	if (is_inside(x, y, bb))
 		this->on_click();

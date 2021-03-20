@@ -36,7 +36,7 @@ enum class SignalType{
 	FILE_BROWSER_DONE,
 };
 
-struct GuiSignal{
+/*struct GuiSignal{
 	SignalType type;
 	union{
 		unsigned button_signal;
@@ -46,4 +46,4 @@ struct GuiSignal{
 		} listview_signal;
 		bool file_browser_success;
 	} data;
-};
+};*/

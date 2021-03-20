@@ -1,4 +1,7 @@
-	.text
+@ Tremolo library
+@ Copyright (C) 2009 Robin Watts for Pinknoise Productions Ltd
+
+    .text
 
 	.global	oggpack_look
 	.global	oggpack_adv
@@ -92,6 +95,7 @@ look_really_slow:
 
 look_out_of_data:
 	MVN	r0,#0			@ return -1
+	@MOV	r0,#0
 	LDMFD	r13!,{r5,r6,r10,r11,PC}
 
 look_overrun:
@@ -168,6 +172,8 @@ adv_slow_loop:
 
 	LDMFD	r13!,{r10,PC}
 adv_end:
+	MOV	r2, #0
+	MOV	r12,#0
 	STMIA	r0,{r2,r3,r12}
 
 	LDMFD	r13!,{r10,PC}
@@ -329,6 +335,7 @@ read_out_of_data:
 	MVN	r1,#0			@ r1 = -1 = bitsLeftInSegment
 	STMIA	r0,{r1,r2,r3}
 	MVN	r0,#0			@ return -1
+	@MOV	r0,#0
 	LDMFD	r13!,{r5,r6,r10,r11,PC}
 
 read_overrun:
@@ -357,3 +364,5 @@ read_overrun_next_segment:
 	ADD	r6,r10,r10,LSR #3	@ r6 = pointer to data
 	MOV	r10,#0
 	B	read_slow_loop
+
+	@ END

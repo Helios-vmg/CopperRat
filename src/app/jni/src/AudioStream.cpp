@@ -84,6 +84,7 @@ void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audi
 		return;
 	}
 	this->position = new_position = this->decoder->seek(target) ? target : current_position;
+	this->filter->clear_saved_buffer();
 }
 
 void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audio_position_t current_position, double seconds){
@@ -101,6 +102,7 @@ void AudioStream::seek(AudioPlayer *player, audio_position_t &new_position, audi
 		return;
 	}
 	this->position = new_position = this->decoder->seek(target) ? target : current_position;
+	this->filter->clear_saved_buffer();
 }
 
 void AudioStream::metadata_update(std::shared_ptr<GenericMetadata> p){
@@ -118,5 +120,6 @@ bool AudioStream::reset(){
 	bool ret;
 	if (ret = this->decoder->seek(0))
 		this->position = 0;
+	this->filter->clear_saved_buffer();
 	return ret;
 }

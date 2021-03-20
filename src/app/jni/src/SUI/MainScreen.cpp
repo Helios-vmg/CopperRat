@@ -58,8 +58,6 @@ MainScreen::MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player):
 unsigned MainScreen::handle_event(const SDL_Event &event){
 	unsigned ret = SUI::NOTHING;
 	if (event.type == SDL_KEYDOWN && (event.key.keysym.scancode == SDL_SCANCODE_MENU || event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)){
-		GuiSignal signal;
-		signal.type = SignalType::MAINSCREEN_MENU;
 		if (this->on_menu_request)
 			this->on_menu_request();
 	}
@@ -389,10 +387,8 @@ void MainScreen::draw_spectrum(Uint32 time, SpectrumQuality quality, bool spectr
 	}
 }
 
-void MainScreen::gui_signal(const GuiSignal &signal){
-	if (signal.type != SignalType::BUTTON_SIGNAL)
-		return;
-	switch ((ButtonSignal)signal.data.button_signal){
+void MainScreen::on_button(int signal){
+	switch ((ButtonSignal)signal){
 		case ButtonSignal::PLAY:
 			this->player.request_hardplay();
 			break;
@@ -465,7 +461,7 @@ void MainScreen::prepare_buttons(){
 		std::shared_ptr<GraphicButton> button(new GraphicButton(this->sui, this));
 		button->set_graphic(st);
 		button->set_position(rects[i].x, rects[i].y + square);
-		button->set_signal_value(i);
+		button->set_on_click([this, i](){ this->on_button(i); });
 		this->children.push_back(button);
 	}
 }

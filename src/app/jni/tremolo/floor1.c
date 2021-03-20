@@ -29,7 +29,7 @@ extern const ogg_int32_t FLOOR_fromdB_LOOKUP[];
 #define VIF_POSIT 63
 
 /***********************************************/
-
+ 
 void floor1_free_info(vorbis_info_floor *i){
   vorbis_info_floor1 *info=(vorbis_info_floor1 *)i;
   if(info){
@@ -64,7 +64,7 @@ static void mergesort(char *index,ogg_uint16_t *vals,ogg_uint16_t n){
       int k2=mid;
       int end=(j+i*2<n?j+i*2:n);
       while(k1<mid && k2<end){
-	if(vals[A[k1]]<vals[A[k2]])
+	if(vals[(int)A[k1]]<vals[(int)A[k2]])
 	  B[j++]=A[k1++];
 	else
 	  B[j++]=A[k2++];
@@ -75,7 +75,7 @@ static void mergesort(char *index,ogg_uint16_t *vals,ogg_uint16_t n){
     for(;j<n;j++)B[j]=A[j];
     temp=A;A=B;B=temp;
   }
-
+ 
   if(B==index){
     for(j=0;j<n;j++)B[j]=A[j];
     _ogg_free(A);
@@ -87,14 +87,15 @@ static void mergesort(char *index,ogg_uint16_t *vals,ogg_uint16_t n){
 vorbis_info_floor *floor1_info_unpack (vorbis_info *vi,oggpack_buffer *opb){
   codec_setup_info     *ci=(codec_setup_info *)vi->codec_setup;
   int j,k,count=0,maxclass=-1,rangebits;
-
+  
   vorbis_info_floor1 *info=(vorbis_info_floor1 *)_ogg_calloc(1,sizeof(*info));
   /* read partitions */
   info->partitions=oggpack_read(opb,5); /* only 0 to 31 legal */
   info->partitionclass=
     (char *)_ogg_malloc(info->partitions*sizeof(*info->partitionclass));
   for(j=0;j<info->partitions;j++){
-    info->partitionclass[j]=oggpack_read(opb,4); /* only 0 to 15 legal */
+    info->partitionclass[j]=(char)oggpack_read(opb,4); /* only 0 to 15 legal */
+    if(info->partitionclass[j]<0)goto err_out;
     if(maxclass<info->partitionclass[j])maxclass=info->partitionclass[j];
   }
 
@@ -102,27 +103,28 @@ vorbis_info_floor *floor1_info_unpack (vorbis_info *vi,oggpack_buffer *opb){
   info->class=
     (floor1class *)_ogg_malloc((maxclass+1)*sizeof(*info->class));
   for(j=0;j<maxclass+1;j++){
-    info->class[j].class_dim=oggpack_read(opb,3)+1; /* 1 to 8 */
-    info->class[j].class_subs=oggpack_read(opb,2); /* 0,1,2,3 bits */
+    info->class[j].class_dim=(char)oggpack_read(opb,3)+1; /* 1 to 8 */
+    info->class[j].class_subs=(char)oggpack_read(opb,2); /* 0,1,2,3 bits */
     if(oggpack_eop(opb)<0) goto err_out;
     if(info->class[j].class_subs)
-      info->class[j].class_book=oggpack_read(opb,8);
+      info->class[j].class_book=(unsigned char)oggpack_read(opb,8);
     else
       info->class[j].class_book=0;
     if(info->class[j].class_book>=ci->books)goto err_out;
     for(k=0;k<(1<<info->class[j].class_subs);k++){
-      info->class[j].class_subbook[k]=oggpack_read(opb,8)-1;
+      info->class[j].class_subbook[k]=(unsigned char)oggpack_read(opb,8)-1;
       if(info->class[j].class_subbook[k]>=ci->books &&
 	 info->class[j].class_subbook[k]!=0xff)goto err_out;
     }
   }
 
   /* read the post list */
-  info->mult=oggpack_read(opb,2)+1;     /* only 1,2,3,4 legal now */
+  info->mult=oggpack_read(opb,2)+1;     /* only 1,2,3,4 legal now */ 
   rangebits=oggpack_read(opb,4);
+  if(rangebits<0)goto err_out;
 
   for(j=0,k=0;j<info->partitions;j++)
-    count+=info->class[info->partitionclass[j]].class_dim;
+    count+=info->class[(int)info->partitionclass[j]].class_dim;
   info->postlist=
     (ogg_uint16_t *)_ogg_malloc((count+2)*sizeof(*info->postlist));
   info->forward_index=
@@ -134,9 +136,10 @@ vorbis_info_floor *floor1_info_unpack (vorbis_info *vi,oggpack_buffer *opb){
 
   count=0;
   for(j=0,k=0;j<info->partitions;j++){
-    count+=info->class[info->partitionclass[j]].class_dim;
+    count+=info->class[(int)info->partitionclass[j]].class_dim;
+    if(count>VIF_POSIT)goto err_out;
     for(;k<count;k++){
-      int t=info->postlist[k+2]=oggpack_read(opb,rangebits);
+      int t=info->postlist[k+2]=(ogg_uint16_t)oggpack_read(opb,rangebits);
       if(t>=(1<<rangebits))goto err_out;
     }
   }
@@ -148,7 +151,7 @@ vorbis_info_floor *floor1_info_unpack (vorbis_info *vi,oggpack_buffer *opb){
   /* also store a sorted position index */
   for(j=0;j<info->posts;j++)info->forward_index[j]=j;
   mergesort(info->forward_index,info->postlist,info->posts);
-
+  
   /* discover our neighbors for decode where we don't use fit flags
      (that would push the neighbors outward) */
   for(j=0;j<info->posts-2;j++){
@@ -173,31 +176,36 @@ vorbis_info_floor *floor1_info_unpack (vorbis_info *vi,oggpack_buffer *opb){
   }
 
   return(info);
-
+  
  err_out:
   floor1_free_info(info);
   return(NULL);
 }
 
-#ifdef ONLY_C
-static
-#endif
-int render_point(int x0,int x1,int y0,int y1,int x){
+static int render_point(int x0,int x1,int y0,int y1,int x){
   y0&=0x7fff; /* mask off flag */
   y1&=0x7fff;
-
+    
   {
     int dy=y1-y0;
     int adx=x1-x0;
     int ady=abs(dy);
     int err=ady*(x-x0);
-
+    
     int off=err/adx;
     if(dy<0)return(y0-off);
     return(y0+off);
   }
 }
 
+#ifdef _ARM_ASSEM_
+void render_line_arm(int n, ogg_int32_t *d,const ogg_int32_t *floor,
+                     int base, int err, int adx, int ady);
+void render_line_arm_low(int n, ogg_int32_t *d,const ogg_int32_t *floor,
+                         int base, int err, int adx, int ady);
+#endif
+
+#ifndef MIPS_DSP
 static void render_line(int n,int x0,int x1,int y0,int y1,ogg_int32_t *d){
   int dy;
   int adx;
@@ -221,7 +229,7 @@ static void render_line(int n,int x0,int x1,int y0,int y1,ogg_int32_t *d){
 
   /* We should add base each time, and then:
    *   if dy >=0 we occasionally add 1
-   *   else         occasionally subtract 1.
+  *   else         occasionally subtract 1.
    * As an optimisation we say that if dy <0 we make base 1 smaller.
    * Then we need to add 1 occassionally, rather than subtract 1 - but we
    * need to add 1 in all the cases when we wouldn't have done so before.
@@ -234,10 +242,13 @@ static void render_line(int n,int x0,int x1,int y0,int y1,ogg_int32_t *d){
     err = 0;
   }
 
-  //if(x<n)
-  //  d[x]= MULT31_SHIFT15(d[x],FLOOR_fromdB_LOOKUP[y]);
-
-#if defined(ONLY_C)
+#ifdef _ARM_ASSEM_
+#ifdef _LOW_ACCURACY_
+  render_line_arm_low(n,d,floor,base,err,adx,ady);
+#else
+  render_line_arm(n,d,floor,base,err,adx,ady);
+#endif
+#else
   do{
     *d = MULT31_SHIFT15(*d,*floor);
     d++;
@@ -249,10 +260,9 @@ static void render_line(int n,int x0,int x1,int y0,int y1,ogg_int32_t *d){
     }
     n--;
   } while(n>0);
-#else
-  render_lineARM(n,d,floor,base,err,adx,ady);
 #endif
 }
+#endif //MIPS_DSP
 
 int floor1_memosize(vorbis_info_floor *i){
   vorbis_info_floor1 *info=(vorbis_info_floor1 *)i;
@@ -265,16 +275,16 @@ ogg_int32_t *floor1_inverse1(vorbis_dsp_state *vd,vorbis_info_floor *in,
 			     ogg_int32_t *fit_value){
   vorbis_info_floor1 *info=(vorbis_info_floor1 *)in;
   codec_setup_info   *ci=(codec_setup_info *)vd->vi->codec_setup;
-
+  
   int i,j,k;
-  codebook *books=ci->book_param;
+  codebook *books=ci->book_param;   
   int quant_q=quant_look[info->mult-1];
 
   /* unpack wrapped/predicted values from stream */
   if(oggpack_read(&vd->opb,1)==1){
     fit_value[0]=oggpack_read(&vd->opb,ilog(quant_q-1));
     fit_value[1]=oggpack_read(&vd->opb,ilog(quant_q-1));
-
+    
     /* partition by partition */
     /* partition by partition */
     for(i=0,j=2;i<info->partitions;i++){
@@ -306,10 +316,10 @@ ogg_int32_t *floor1_inverse1(vorbis_dsp_state *vd,vorbis_info_floor *in,
 
     /* unwrap positive values and reconsitute via linear interpolation */
     for(i=2;i<info->posts;i++){
-      int predicted=render_point(info->postlist[info->loneighbor[i-2]],
-				 info->postlist[info->hineighbor[i-2]],
-				 fit_value[info->loneighbor[i-2]],
-				 fit_value[info->hineighbor[i-2]],
+      int predicted=render_point(info->postlist[(int)info->loneighbor[i-2]],
+				 info->postlist[(int)info->hineighbor[i-2]],
+				 fit_value[(int)info->loneighbor[i-2]],
+				 fit_value[(int)info->hineighbor[i-2]],
 				 info->postlist[i]);
       int hiroom=quant_q-predicted;
       int loroom=predicted;
@@ -331,14 +341,14 @@ ogg_int32_t *floor1_inverse1(vorbis_dsp_state *vd,vorbis_info_floor *in,
 	  }
 	}
 
-	fit_value[i]=val+predicted;
-	fit_value[info->loneighbor[i-2]]&=0x7fff;
-	fit_value[info->hineighbor[i-2]]&=0x7fff;
+	fit_value[i]=(val+predicted)&0x7fff;;
+	fit_value[(int)info->loneighbor[i-2]]&=0x7fff;
+	fit_value[(int)info->hineighbor[i-2]]&=0x7fff;
 
       }else{
 	fit_value[i]=predicted|0x8000;
       }
-
+	
     }
 
     return(fit_value);
@@ -347,6 +357,7 @@ ogg_int32_t *floor1_inverse1(vorbis_dsp_state *vd,vorbis_info_floor *in,
   return(NULL);
 }
 
+#ifndef MIPS_DSP
 int floor1_inverse2(vorbis_dsp_state *vd,vorbis_info_floor *in,
 		    ogg_int32_t *fit_value,ogg_int32_t *out){
   vorbis_info_floor1 *info=(vorbis_info_floor1 *)in;
@@ -360,23 +371,29 @@ int floor1_inverse2(vorbis_dsp_state *vd,vorbis_info_floor *in,
     int hx=0;
     int lx=0;
     int ly=fit_value[0]*info->mult;
+    /* guard lookup against out-of-range values */
+    ly=(ly<0?0:ly>255?255:ly);
+
     for(j=1;j<info->posts;j++){
       int current=info->forward_index[j];
       int hy=fit_value[current]&0x7fff;
       if(hy==fit_value[current]){
-
+	
 	hy*=info->mult;
 	hx=info->postlist[current];
+        /* guard lookup against out-of-range values */
+        hy=(hy<0?0:hy>255?255:hy);
 
 	render_line(n,lx,hx,ly,hy,out);
-
+	
 	lx=hx;
 	ly=hy;
       }
     }
-    for(j=hx;j<n;j++)out[j]*=ly; /* be certain */
+    for(j=hx;j<n;j++)out[j]*=ly; /* be certain */    
     return(1);
   }
   memset(out,0,sizeof(*out)*n);
   return(0);
 }
+#endif //MIPS_DSP

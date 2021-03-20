@@ -1,10 +1,18 @@
-	.text
+@ Tremolo library
+@ Copyright (C) 2009 Robin Watts for Pinknoise Productions Ltd
+
+    .text
 
 	.global	decode_packed_entry_number
-	.global decode_packed_entry_number_REALSTART
-	.global decode_map
-	.global vorbis_book_decodevv_add
-	.global _checksum
+	.global	decode_packed_entry_number_REALSTART
+	.global	decode_map
+	.global	vorbis_book_decodevv_add
+	.global	_checksum
+
+	.extern	oggpack_adv
+	.extern	oggpack_look
+	.extern	oggpack_eop
+	.extern	crc_lookup
 
 decode_packed_entry_number_REALSTART:
 dpen_nobits:
@@ -100,7 +108,7 @@ m1_loop:
 	LDRBNE	r14,[r6, r7]		@ r14= t[chase]
 	MOVEQ	r14,#128
 	ADC	r12,r8, r6		@ r12= chase+bit+1+t
-	LDRB	r14,[r12,r14,LSR #7]	@ r14= t[chase+bit+1+(!bit || t[chase]&0x80)]
+	LDRB	r14,[r12,r14,LSR #7]	@ r14= t[chase+bit+1+(!bit || t[chase]0x0x80)]
 	BIC	r10,r10,#0x80		@ r3 = next &= ~0x80
 	@ stall Xscale
 	ORR	r0, r14,r10,LSL #8	@ r7 = chase = (next<<8) | r14
@@ -158,8 +166,8 @@ m3_loop:
 	CMP	r8, r7			@ if bit==0 (chase+bit==chase) sets C
 	LDRHNE	r14,[r6, r7]		@ r14= t[chase]
 	MOVEQ	r14,#0x8000
-	ADC	r12,r8, r14,LSR #15	@ r12= 1+((chase+bit)<<1)+(!bit || t[chase]&0x8000)
-	ADC	r12,r12,r14,LSR #15	@ r12= t + (1+chase+bit+(!bit || t[chase]&0x8000))<<1
+	ADC	r12,r8, r14,LSR #15	@ r12= 1+((chase+bit)<<1)+(!bit || t[chase]0x0x8000)
+	ADC	r12,r12,r14,LSR #15	@ r12= t + (1+chase+bit+(!bit || t[chase]0x0x8000))<<1
 	LDRH	r14,[r6, r12]		@ r14= t[chase+bit+1
 	BIC	r10,r10,#0x8000		@ r3 = next &= ~0x8000
 	@ stall Xscale
@@ -173,7 +181,7 @@ meth4:
 m4_loop:
 	MOVS	r0, r0, LSR #1		@ r0 = lok>>1   C = bottom bit
 	ADC	r2, r7, r7		@ r8 = chase*2+C
-	LDR	r7, [r6, r2, LSL#2]
+	LDR	r7, [r6, r2, LSL #2]
 	ADDS	r1, r1, #1		@ r1 = i-read++ (i-read<0 => i<read)
 	@ stall Xscale
 	CMPLT	r7, #0x80000000
@@ -365,9 +373,9 @@ vorbis_book_decodevv_add:
 	STMFD	r13!,{r4-r11,R14}
 	LDR	r7, [r0, #13*4]		@ r7 = used_entries
 	MOV	r9, r0			@ r9 = book
-	MOV	r10,r1			@ r10= &a[chptr]      chptr=0
+	MOV	r10,r1			@ r10= 0xa[chptr]      chptr=0
 	MOV	r6, r3			@ r6 = ch
-	ADD	r8, r10,r3, LSL #2	@ r8 = &a[ch]
+	ADD	r8, r10,r3, LSL #2	@ r8 = 0xa[ch]
 	MOV	r11,r2			@ r11= offset
 	CMP	r7, #0			@ if (used_entries <= 0)
 	BLE	vbdvva_exit		@     exit
@@ -375,9 +383,9 @@ vorbis_book_decodevv_add:
 vbdvva_loop1:
 	@ r5 = n
 	@ r6 = ch
-	@ r8 = &a[ch]
+	@ r8 = 0xa[ch]
 	@ r9 = book
-	@ r10= &a[chptr]
+	@ r10= 0xa[chptr]
 	@ r11= offset
 	MOV	r0, r9			@ r0 = book
 	LDR	r1, [r13,# 9*4]		@ r1 = b
@@ -394,7 +402,7 @@ vbdvva_loop2:
 	LDR	r12,[r1], #4		@ r1 = v[j++]
 	CMP	r10,r8			@ if (chptr == ch)
 	SUBEQ	r10,r10,r6, LSL #2	@    chptr = 0
-	LDR	r14,[r2, r11,LSL #2]!	@ r2 = &a[chptr++][i] r14=[r12]
+	LDR	r14,[r2, r11,LSL #2]!	@ r2 = 0xa[chptr++][i] r14=[r12]
 	ADDEQ	r11,r11,#1		@    i++
 	SUBEQ	r5, r5, #1		@    n--
 	SUBS	r0, r0, #1		@ r0--
@@ -447,3 +455,5 @@ _cs_no_bytes:
 _cs_end:
 	MOV	r0,r14
 	LDMFD	r13!,{r5-r6,PC}
+
+	@ END

@@ -4,29 +4,29 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE     := tremolo
 LOCAL_ARM_MODE   := arm
-LOCAL_SRC_FILES  := bitwise.c      \
-                    bitwiseARM.s   \
+                    #bitwiseARM.s \
+                    #dpenARM.s    \
+                    #floor1ARM.s  \
+                    #floor1LARM.s \
+                    #mdctARM.s    \
+                    #mdctLARM.s   \
+
+LOCAL_SRC_FILES  := \
+                    bitwise.c      \
                     codebook.c     \
-                    dpen.s         \
                     dsp.c          \
                     floor0.c       \
                     floor1.c       \
-                    floor1ARM.s    \
-                    floor1LARM.s   \
                     floor_lookup.c \
                     framing.c      \
                     info.c         \
                     mapping0.c     \
                     mdct.c         \
-                    mdctARM.s      \
-                    mdctLARM.s     \
                     misc.c         \
                     res012.c       \
-                    speed.s        \
                     vorbisfile.c   \
-                    speed.s        \
 
-LOCAL_CFLAGS     := -D_ARM_ASSEM_
+LOCAL_CFLAGS     := -DLITTLE_ENDIAN=1 -DBYTE_ORDER=1 #-D_ARM_ASSEM_
 
 include $(BUILD_STATIC_LIBRARY)
 

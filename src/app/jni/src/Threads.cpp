@@ -55,25 +55,30 @@ void Mutex::unlock(){
 }
 
 SynchronousEvent::SynchronousEvent(){
-	this->m = SDL_CreateMutex();
 	this->c = SDL_CreateCond();
 }
 
 SynchronousEvent::~SynchronousEvent(){
-	SDL_DestroyMutex(this->m);
 	SDL_DestroyCond(this->c);
 }
 
 void SynchronousEvent::set(){
+	AutoMutex am(this->m);
+	this->signalled = true;
 	SDL_CondSignal(this->c);
 }
 
 void SynchronousEvent::wait(){
-	SDL_CondWait(this->c, this->m);
+	AutoMutex am(this->m);
+	while (!this->signalled)
+		SDL_CondWait(this->c, this->m.get());
+	this->signalled = false;
 }
 
 void SynchronousEvent::wait(unsigned timeout){
-	SDL_CondWaitTimeout(this->c, this->m, timeout);
+	AutoMutex am(this->m);
+	while (!this->signalled)
+		SDL_CondWaitTimeout(this->c, this->m.get(), timeout);
 }
 
 void RecursiveMutex::lock(){
@@ -143,8 +148,4 @@ std::shared_ptr<WorkerThreadJobHandle> WorkerThread::attach(std::shared_ptr<Work
 	std::shared_ptr<WorkerThreadJobHandle> ret(new WorkerThreadJobHandle(job));
 	this->queue.push(job);
 	return ret;
-}
-
-void RemoteThreadProcedureCallPerformer::perform_internal(RemoteThreadProcedureCall *rtpc){
-	rtpc->entry_point();
 }

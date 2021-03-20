@@ -72,7 +72,7 @@ public:
 		return Rational(-this->n, this->d);
 	}
 	Rational operator*(const Rational &other) const{
-		return Rational(this->n * other.n, this->d * this->d);
+		return Rational(this->n * other.n, this->d * other.d);
 	}
 	Rational operator*(const T &other) const{
 		return Rational(this->n * other, this->d);

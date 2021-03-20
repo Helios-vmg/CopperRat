@@ -49,10 +49,10 @@ class FileBrowser : public GUIElement{
 	void change_directory();
 	std::wstring get_selection_internal(bool from_outside) const;
 	void generate_next_list();
+	void gui_signal(unsigned);
 public:
-	FileBrowser(SUI *sui, GUIElement *parent, bool select_file, const std::wstring &initial_directory);
+	FileBrowser(SUI *sui, GUIElement *parent, bool select_file, bool can_return, const std::wstring &root, const std::wstring &initial_directory);
 	unsigned handle_event(const SDL_Event &);
-	void gui_signal(const GuiSignal &);
 	void update();
 	std::wstring get_selection() const{
 		return this->get_selection_internal(1);

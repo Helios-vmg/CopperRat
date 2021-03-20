@@ -43,11 +43,15 @@ public:
 	~Mutex();
 	void lock();
 	void unlock();
+	SDL_mutex *get() const{
+		return this->mutex;
+	}
 };
 
 class SynchronousEvent{
+	bool signalled = false;
 	SDL_cond *c;
-	SDL_mutex *m;
+	Mutex m;
 public:
 	SynchronousEvent();
 	~SynchronousEvent();
@@ -323,35 +327,6 @@ public:
 	std::shared_ptr<WorkerThreadJobHandle> attach(std::shared_ptr<WorkerThreadJob>);
 	std::shared_ptr<WorkerThreadJob> get_current_job() const{
 		return this->current_job;
-	}
-};
-
-class RemoteThreadProcedureCall;
-
-class RemoteThreadProcedureCallPerformer{
-protected:
-	void perform_internal(RemoteThreadProcedureCall *);
-public:
-	virtual ~RemoteThreadProcedureCallPerformer(){}
-	virtual void perform(RemoteThreadProcedureCall *) = 0;
-};
-
-class RemoteThreadProcedureCall{
-	friend class RemoteThreadProcedureCallPerformer;
-	RemoteThreadProcedureCallPerformer &rtpcp;
-	SynchronousEvent call_finished;
-
-	void entry_point(){
-		this->entry_point_internal();
-		this->call_finished.set();
-	}
-	virtual void entry_point_internal() = 0;
-public:
-	RemoteThreadProcedureCall(RemoteThreadProcedureCallPerformer &rtpcp): rtpcp(rtpcp){}
-	virtual ~RemoteThreadProcedureCall(){}
-	void operator()(){
-		this->rtpcp.perform(this);
-		this->call_finished.wait();
 	}
 };
 

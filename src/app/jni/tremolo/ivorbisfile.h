@@ -95,7 +95,7 @@ extern long ov_serialnumber(OggVorbis_File *vf,int i);
 
 extern ogg_int64_t ov_raw_total(OggVorbis_File *vf,int i);
 extern ogg_int64_t ov_pcm_total(OggVorbis_File *vf,int i);
-extern double ov_time_total(OggVorbis_File *vf,int i);
+extern ogg_int64_t ov_time_total(OggVorbis_File *vf,int i);
 
 extern int ov_raw_seek(OggVorbis_File *vf,ogg_int64_t pos);
 extern int ov_pcm_seek(OggVorbis_File *vf,ogg_int64_t pos);

@@ -32,65 +32,64 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../CommonFunctions.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <cassert>
+#include <string_view>
 #endif
 
-void add_slash(std::list<std::vector<DirectoryElement> > &dst){
+void add_slash(std::list<std::vector<DirectoryElement>> &dst, const std::wstring &s){
 	std::vector<DirectoryElement> temp;
-	DirectoryElement de = {
-		L"/",
-		1,
-	};
-	temp.push_back(de);
-	dst.push_back(temp);
+	temp.emplace_back(DirectoryElement{ s, s, true, });
+	dst.emplace_back(std::move(temp));
 }
 
-FileBrowser::FileBrowser(SUI *sui, GUIElement *parent, bool select_file, const std::wstring &_initial_directory):
+FileBrowser::FileBrowser(SUI *sui, GUIElement *parent, bool select_file, bool can_return, const std::wstring &_root, const std::wstring &_initial_directory):
 		GUIElement(sui, parent),
 		select_file(select_file){
-	auto initial_directory = _initial_directory;
+	auto root = _root;
+	std::wstring_view initial_directory = _initial_directory;
 FileBrowser__FileBrowser:
-	if (!initial_directory.size()){
-		add_slash(this->directory_list_stack);
-		this->path.push_back(0);
-		this->change_directory();
-		this->new_initial_directory = L"/";
-		return;
-	}
+	if (!root.size())
+		root = L"/";
 
+	add_slash(this->directory_list_stack, root);
+	this->path.push_back(0);
+	this->change_directory();
+	
 	size_t first = 0;
-	for (bool lap = 0; ; lap = 1){
-		size_t second = initial_directory.find('/', first);
-		bool final_step = 0;
-		if (second == initial_directory.npos)
-			final_step = 1;
-		else
-			second++;
-		std::wstring dir = initial_directory.substr(first, second - first);
-		if (!dir.size())
-			break;
-		first = second;
-		if (!lap){
-			this->path.push_back(0);
-			add_slash(this->directory_list_stack);
-		}else{
-			int index = -1;
-			int i = 0;
-			for (auto p : this->directory_list_stack.back()){
-				if (p.name == dir){
-					index = i;
-					break;
-				}
-				i++;
-			}
-			if (index < 0){
-				this->path.clear();
-				this->listviews.clear();
-				this->directory_list_stack.clear();
-				initial_directory.clear();
-				goto FileBrowser__FileBrowser;
-			}
-			this->path.push_back(index);
+	while (initial_directory.size()){
+		if (initial_directory.front() == '/'){
+			initial_directory = initial_directory.substr(1);
+			continue;
 		}
+		
+		size_t second = initial_directory.find('/', first);
+		std::wstring dir;
+		if (second == initial_directory.npos){
+			dir = (std::wstring)initial_directory;
+			dir += '/';
+			initial_directory = {};
+		}else{
+			second++;
+			dir = (std::wstring)initial_directory.substr(first, second - first);
+			initial_directory = initial_directory.substr(second);
+		}
+		
+		int index = -1;
+		int i = 0;
+		for (auto p : this->directory_list_stack.back()){
+			if (p.name == dir){
+				index = i;
+				break;
+			}
+			i++;
+		}
+		if (index < 0){
+			this->path.clear();
+			this->listviews.clear();
+			this->directory_list_stack.clear();
+			initial_directory = {};
+			goto FileBrowser__FileBrowser;
+		}
+		this->path.push_back(index);
 		this->change_directory();
 	}
 	this->new_initial_directory = initial_directory;
@@ -98,17 +97,13 @@ FileBrowser__FileBrowser:
 
 void FileBrowser::generate_next_list(){
 	std::vector<DirectoryElement> list;
-	if (!this->select_file){
-		DirectoryElement de = {
-			L"<Select this directory>",
-			1,
-		};
-		list.push_back(de);
-	}
-	this->new_initial_directory = this->get_selection_internal(0);
+	if (!this->select_file)
+		list.emplace_back(DirectoryElement{ L"<Select this directory>", L"", true, });
+	this->new_initial_directory = this->get_selection_internal(false);
+	auto dir = this->directory_list_stack.front().front().path + this->new_initial_directory;
 	{
 		std::vector<DirectoryElement> temp;
-		list_files(temp, this->new_initial_directory, this->select_file ? FilteringType::RETURN_ALL : FilteringType::RETURN_DIRECTORIES);
+		list_files(temp, dir, this->select_file ? FilteringType::RETURN_ALL : FilteringType::RETURN_DIRECTORIES);
 		for (auto &f : temp){
 			if (f.is_dir)
 				f.name += '/';
@@ -122,7 +117,12 @@ void FileBrowser::generate_next_list(){
 		temp.reserve(list.size());
 		for (auto &i : list)
 			temp.push_back(i.name);
-		this->listviews.emplace_back(std::make_shared<ListView>(sui, this, temp.begin(), temp.end(), (unsigned)this->listviews.size()));
+		auto n = (unsigned)this->listviews.size();
+		auto button = std::make_shared<ListView>(sui, this, temp.begin(), temp.end());
+		button->set_on_selection([this, n](size_t button){
+			this->gui_signal((unsigned)button);
+		});
+		this->listviews.emplace_back(std::move(button));
 	}
 	this->directory_list_stack.emplace_back(std::move(list));
 }
@@ -167,10 +167,12 @@ std::wstring FileBrowser::get_selection_internal(bool from_outside) const{
 	std::wstring ret;
 	auto n = std::min(this->directory_list_stack.size(), this->path.size());
 	for (auto &vector : this->directory_list_stack){
-		if (i == n)
-			break;
-		ret = path;
-		path += vector[this->path[i]].name;
+		if (from_outside || i){
+			if (i == n)
+				break;
+			ret = path;
+			path += vector[this->path[i]].path;
+		}
 		i++;
 	}
 	if (!skip_last)
@@ -178,16 +180,7 @@ std::wstring FileBrowser::get_selection_internal(bool from_outside) const{
 	return ret;
 }
 
-void FileBrowser::gui_signal(const GuiSignal &_signal){
-	GuiSignal signal = _signal;
-	size_t n = this->listviews.size();
-	if (signal.type != SignalType::LISTVIEW_SIGNAL || signal.data.listview_signal.listview_name != n - 1)
-		return;
-	signal = *signal.data.listview_signal.signal;
-	if (signal.type != SignalType::BUTTON_SIGNAL)
-		return;
-
-	auto selection = signal.data.button_signal;
+void FileBrowser::gui_signal(unsigned selection){
 	this->path.push_back(selection);
 
 	bool done = false;

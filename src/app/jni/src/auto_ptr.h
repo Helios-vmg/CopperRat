@@ -97,8 +97,8 @@ public:
 }
 
 #if defined __ANDROID__
-#define CR_UNIQUE_PTR(x) CR::auto_ptr<x>
-#define CR_UNIQUE_PTR2(x, y) CR::auto_ptr<x, y>
+#define CR_UNIQUE_PTR(x) std::unique_ptr<x>
+#define CR_UNIQUE_PTR2(x, y) std::unique_ptr<x, y>
 #else
 #define CR_UNIQUE_PTR(x) std::unique_ptr<x>
 #define CR_UNIQUE_PTR2(x, y) std::unique_ptr<x, y>

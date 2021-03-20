@@ -220,11 +220,11 @@ class AudioPlayer{
 	};
 
 	PlayState state;
-
+	bool running = false;
 	AudioDevice device;
 	internal_queue_t internal_queue;
 	external_queue_in_t external_queue_in;
-	SDL_Thread *sdl_thread;
+	SDL_Thread *sdl_thread = nullptr;
 	CR_UNIQUE_PTR(AudioStream) now_playing;
 	Playlist playlist;
 	static void AudioCallback(void *udata, Uint8 *stream, int len);
@@ -261,9 +261,21 @@ class AudioPlayer{
 	void on_pause();
 public:
 	external_queue_out_t external_queue_out;
-	AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp);
+	AudioPlayer(bool start_thread = true);
 	~AudioPlayer();
 
+	void loop(){
+		if (this->running)
+			return;
+		try{
+			this->running = true;
+			this->thread();
+			this->running = false;
+		}catch (...){
+			this->running = false;
+			throw;
+		}
+	}
 	void terminate_thread(UserInterface &ui);
 
 	//request_* functions run in the caller thread!

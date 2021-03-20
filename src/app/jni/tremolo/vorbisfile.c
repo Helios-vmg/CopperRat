@@ -493,7 +493,7 @@ static int _open_seekable2(OggVorbis_File *vf){
   /* We get the offset for the last page of the physical bitstream.
      Most OggVorbis files will contain a single logical bitstream */
   end=_get_prev_page(vf,&og);
-  if(end<0)return end;
+  if(end<0)return (int)end;
 
   /* more than one logical bitstream? */
   tempserialno=ogg_page_serialno(&og);
@@ -611,7 +611,7 @@ static int _fetch_and_process_packet(OggVorbis_File *vf,
 	ret=0;
 	goto cleanup;
       }
-      if((ret=_get_next_page(vf,&og,-1))<0){
+      if((ret=(int)_get_next_page(vf,&og,-1))<0){
 	ret=OV_EOF; /* eof. leave unitialized */
 	goto cleanup;
       }
@@ -691,7 +691,7 @@ static int _fetch_and_process_packet(OggVorbis_File *vf,
    fseek64 */
 static int _fseek64_wrap(FILE *f,ogg_int64_t off,int whence){
   if(f==NULL)return -1;
-  return fseek(f,off,whence);
+  return fseek(f,(long)off,whence);
 }
 
 static int _ov_open1(void *f,OggVorbis_File *vf,char *initial,
@@ -767,8 +767,7 @@ int ov_clear(OggVorbis_File *vf){
     if(vf->offsets)_ogg_free(vf->offsets);
     ogg_sync_destroy(vf->oy);
 
-    if (vf->datasource && vf->callbacks.close_func)
-      (vf->callbacks.close_func)(vf->datasource);
+    if(vf->datasource)(vf->callbacks.close_func)(vf->datasource);
     memset(vf,0,sizeof(*vf));
   }
 #ifdef DEBUG_LEAKS
@@ -862,11 +861,11 @@ long ov_bitrate(OggVorbis_File *vf,int i){
      * gcc 3.x on x86 miscompiled this at optimisation level 2 and above,
      * so this is slightly transformed to make it work.
      */
-    return bits/ov_time_total(vf,-1);
+    return (long)(bits*1000/ov_time_total(vf,-1));
   }else{
     if(vf->seekable){
       /* return the actual bitrate */
-      return (vf->offsets[i+1]-vf->dataoffsets[i])*8/ov_time_total(vf,i);
+      return (long)(vf->offsets[i+1]-vf->dataoffsets[i])*8000/ov_time_total(vf,i);
     }else{
       /* return nominal if set */
       if(vf->vi.bitrate_nominal>0){
@@ -893,7 +892,7 @@ long ov_bitrate_instant(OggVorbis_File *vf){
   long ret;
   if(vf->ready_state<OPENED)return OV_EINVAL;
   if(vf->samptrack==0)return OV_FALSE;
-  ret=vf->bittrack/vf->samptrack*vf->vi.rate;
+  ret=(long)(vf->bittrack/vf->samptrack*vf->vi.rate);
   vf->bittrack=0;
   vf->samptrack=0;
   return ret;
@@ -953,17 +952,17 @@ ogg_int64_t ov_pcm_total(OggVorbis_File *vf,int i){
 	    OV_EINVAL if the stream is not seekable (we can't know the
 	    length) or only partially open 
 */
-double ov_time_total(OggVorbis_File *vf,int i){
+ogg_int64_t ov_time_total(OggVorbis_File *vf,int i){
   if(vf->ready_state<OPENED)return OV_EINVAL;
   if(!vf->seekable || i>=vf->links)return OV_EINVAL;
   if(i<0){
-    double acc=0;
+    ogg_int64_t acc=0;
     int i;
     for(i=0;i<vf->links;i++)
       acc+=ov_time_total(vf,i);
     return acc;
   }else{
-    return ((double)vf->pcmlengths[i*2+1])/vf->vi.rate;
+    return ((ogg_int64_t)vf->pcmlengths[i*2+1])*1000/vf->vi.rate;
   }
 }
 
@@ -1388,7 +1387,7 @@ int ov_pcm_seek(OggVorbis_File *vf,ogg_int64_t pos){
     ogg_int64_t target=pos-vf->pcm_offset;
     long samples=vorbis_dsp_pcmout(vf->vd,NULL,0);
 
-    if(samples>target)samples=target;
+    if(samples>target)samples=(long)target;
     vorbis_dsp_read(vf->vd,samples);
     vf->pcm_offset+=samples;
     
@@ -1418,7 +1417,7 @@ int ov_time_seek(OggVorbis_File *vf,ogg_int64_t milliseconds){
   /* which bitstream section does this time offset occur in? */
   for(link=vf->links-1;link>=0;link--){
     pcm_total-=vf->pcmlengths[link*2+1];
-    time_total-=ov_time_total(vf,link) * 1000.0;
+    time_total-=ov_time_total(vf,link);
     if(milliseconds>=time_total)break;
   }
 

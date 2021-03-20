@@ -25,13 +25,17 @@
 #include "ivorbiscodec.h"
 #include "ivorbisfile.h"
 #include "time.h"
-#include "windows.h"
 
-#define PROFILE
+//#define PROFILE
+
+#define WAV_FORMAT
 
 #ifdef _WIN32 /* We need the following two to set stdin/stdout to binary */
 #include <io.h>
 #include <fcntl.h>
+#include "windows.h"
+#else
+typedef int DWORD;
 #endif
 
 char pcmout[4096]; /* take 4k out of the data segment, not the stack */
@@ -40,8 +44,8 @@ char text[4096];
 
 void Output(const char *fmt, ...)
 {
-#ifdef _WIN32_WCE
   va_list  ap;
+#ifdef _WIN32_WCE
   char    *t = text;
   WCHAR    uni[4096];
   WCHAR   *u = uni;
@@ -57,7 +61,9 @@ void Output(const char *fmt, ...)
   *u++ = 0;
   OutputDebugString(uni);
 #else
+  va_start(ap,fmt);
   vfprintf(stderr, fmt, ap);
+  va_end(ap);
 #endif
 }
 
@@ -128,7 +134,7 @@ static DWORD run_test(void *tp)
       {
         fwrite(pcmout,1,ret,refout);
         samples += ret>>1;
-        Output("%d", samples);
+        //Output("%d", samples);
       }
       if (refin != NULL)
       {
@@ -168,6 +174,7 @@ static DWORD run_test(void *tp)
   return 0;
 }
 
+#ifdef _WIN32
 static int filetimetoms(FILETIME *time)
 {
   unsigned long long l;
@@ -237,6 +244,7 @@ void speedtest()
   Output("Speed test complete: Timing=%g\n",
           ((double)readtime)/1000);
 }
+#endif
 
 int main(int argc, char *argv[]){
   FILE       *in;
@@ -244,10 +252,14 @@ int main(int argc, char *argv[]){
   FILE       *refin = NULL;
   FILE       *refout = NULL;
   int         dectime, readtime;
+#ifdef _WIN32
   FILETIME    userStartTime, userStopTime;
   FILETIME    kernelStartTime, kernelStopTime;
   FILETIME    exitStartTime, exitStopTime;
   FILETIME    creationStartTime, creationStopTime;
+#else
+  clock_t     startTime, stopTime;
+#endif
   TestParams  params;
 
   if (argc < 2)
@@ -288,6 +300,24 @@ int main(int argc, char *argv[]){
       Output("Failed to open '%s' for output\n", argv[2]);
       exit(EXIT_FAILURE);
     }
+#ifdef WAV_FORMAT
+    { unsigned int rate = 44100, channels=2, bps=16, drate, dblock;
+      fprintf(out, "RIFF%c%c%c%c",0,0,0,0); /* RIFF, chunksize */
+      fprintf(out, "WAVEfmt %c%c%c%c",16,0,0,0); /* WAVEfmt, chunksize */;
+      fprintf(out, "%c%c%c%c", 1,0, channels,0); /* fmt(PCM), channels) */
+      fprintf(out, "%c%c%c%c", /* Sampling rate (blocks per second) */
+              rate,rate>>8,rate>>16,rate>>24);
+      drate = (bps>>3)*channels*rate;
+      fprintf(out, "%c%c%c%c", /* data rate */
+              drate,drate>>8,drate>>16,drate>>24);
+      dblock = (bps>>3)*channels;
+      fprintf(out, "%c%c", /* data block size(bytes) */
+              dblock,dblock>>8);
+      fprintf(out, "%c%c", /* bps */
+              bps,bps>>8);
+      fprintf(out, "data%c%c%c%c",0,0,0,0); /* sample header */
+    }
+#endif
   }
 
   if (argc >= 4)
@@ -302,6 +332,24 @@ int main(int argc, char *argv[]){
         Output("Failed to open '%s' as output reference file\n", argv[3]);
         exit(EXIT_FAILURE);
       }
+#ifdef WAV_FORMAT
+    { unsigned int rate = 44100, channels=2, bps=16, drate, dblock;
+      fprintf(out, "RIFF%c%c%c%c",0,0,0,0); /* RIFF, chunksize */
+      fprintf(out, "WAVEfmt %c%c%c%c",16,0,0,0); /* WAVEfmt, chunksize */;
+      fprintf(out, "%c%c%c%c", 1,0, channels,0); /* fmt(PCM), channels) */
+      fprintf(out, "%c%c%c%c", /* Sampling rate (blocks per second) */
+              rate,rate>>8,rate>>16,rate>>24);
+      drate = (bps>>3)*channels*rate;
+      fprintf(out, "%c%c%c%c", /* data rate */
+              drate,drate>>8,drate>>16,drate>>24);
+      dblock = (bps>>3)*channels;
+      fprintf(out, "%c%c", /* data block size(bytes) */
+              dblock,dblock>>8);
+      fprintf(out, "%c%c", /* bps */
+              bps,bps>>8);
+      fprintf(out, "data%c%c%c%c",0,0,0,0); /* sample header */
+    }
+#endif
     }
   }
 
@@ -310,7 +358,7 @@ int main(int argc, char *argv[]){
   params.out         = out;
   params.refin       = refin;
   params.refout      = refout;
-  params.max_samples = 1*1024*1024;
+  params.max_samples = 0x7FFFFFFF;//1*1024*1024;
   run_test(&params);
   Output("First test complete\n");
   if (out != NULL)
@@ -326,24 +374,32 @@ int main(int argc, char *argv[]){
     Output("Failed to open '%s' for input\n", argv[1]);
     exit(EXIT_FAILURE);
   }
+#ifdef _WIN32
   GetThreadTimes(GetCurrentThread(),
                  &creationStartTime,
                  &exitStartTime,
                  &kernelStartTime,
                  &userStartTime);
+#else
+  startTime = clock();
+#endif
   params.in          = in;
   params.out         = NULL;
   params.refin       = NULL;
   params.refout      = NULL;
   params.max_samples = 0x7FFFFFFF;
   run_test(&params);
+#ifdef _WIN32
   GetThreadTimes(GetCurrentThread(),
                  &creationStopTime,
                  &exitStopTime,
                  &kernelStopTime,
                  &userStopTime);
-
   dectime = filetimetoms(&userStopTime)-filetimetoms(&userStartTime);
+#else
+  stopTime = clock();
+  dectime = stopTime-startTime;
+#endif
   Output("Second test complete: Timing=%g\n",
          ((double)dectime)/1000);
   Output("Third test: File read speed\n");
@@ -354,21 +410,30 @@ int main(int argc, char *argv[]){
     Output("Failed to open '%s' for input\n", argv[1]);
     exit(EXIT_FAILURE);
   }
+#ifdef _WIN32
   GetThreadTimes(GetCurrentThread(),
                  &creationStartTime,
                  &exitStartTime,
                  &kernelStartTime,
                  &userStartTime);
+#else
+  startTime = clock();
+#endif
   while (!feof(in))
   {
     fread(pcmout,1,4096,in);
   }
+#ifdef _WIN32
   GetThreadTimes(GetCurrentThread(),
                  &creationStopTime,
                  &exitStopTime,
                  &kernelStopTime,
                  &userStopTime);
   readtime = filetimetoms(&userStopTime)-filetimetoms(&userStartTime);
+#else
+  stopTime = clock();
+  dectime = stopTime-startTime;
+#endif
   Output("Third test complete: Timing=%g\n",
           ((double)readtime)/1000);
   Output("Adjusted decode time: Timing=%g\n",
@@ -380,7 +445,7 @@ int main(int argc, char *argv[]){
 
 #ifdef _WIN32_WCE
 
-#define TESTFILE 0
+#define TESTFILE 1
 
 int WinMain(HINSTANCE h,HINSTANCE i,LPWSTR l,int n)
 {
@@ -414,6 +479,17 @@ int WinMain(HINSTANCE h,HINSTANCE i,LPWSTR l,int n)
                    "\\Storage Card\\Tremolo\\outputL.ref",
 #else
                    "\\Storage Card\\Tremolo\\output.ref",
+#endif /* _LOW_ACCURACY_ */
+                   NULL };
+#endif
+#if TESTFILE == 1
+  char *argv[] = { "testtremor",
+                   "\\My Storage\\Tremolo\\Alarm_Classic.ogg",
+                   "\\My Storage\\Tremolo\\output.pcm",
+#ifdef _LOW_ACCURACY_
+                   "\\My Storage\\Tremolo\\outputL.ref",
+#else
+                   "\\My Storage\\Tremolo\\output.ref",
 #endif /* _LOW_ACCURACY_ */
                    NULL };
 #endif

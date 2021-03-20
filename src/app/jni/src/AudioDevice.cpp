@@ -34,35 +34,31 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <SDL.h>
 #endif
 
-AudioDevice::AudioDevice(AudioPlayer &player, RemoteThreadProcedureCallPerformer &rtpcp):
-		player(player),
-		rtpcp(rtpcp),
-		audio_is_open(0){
-}
+AudioDevice::AudioDevice(AudioPlayer &player): player(player), audio_is_open(false){}
 
 AudioDevice::~AudioDevice(){
 	this->close_in_main();
 }
 
 void AudioDevice::open_in_main(){
-	if (!this->audio_is_open){
+	if (this->audio_is_open)
+		return;
 #if !defined PROFILING
-		SDL_AudioSpec specs;
-		specs.freq = 44100;
-		specs.format = AUDIO_S16SYS;
-		specs.channels = 2;
-		specs.samples = 1024*4;
-		specs.callback = AudioPlayer::AudioCallback;
-		specs.userdata = &this->player;
+	SDL_AudioSpec specs;
+	specs.freq = 44100;
+	specs.format = AUDIO_S16SYS;
+	specs.channels = 2;
+	specs.samples = 1024*4;
+	specs.callback = AudioPlayer::AudioCallback;
+	specs.userdata = &this->player;
 
-		if (SDL_OpenAudio(&specs, 0) < 0){
-			this->error_string = "Could not initialize audio device: ";
-			this->error_string += SDL_GetError();
-			return;
-		}
-		this->audio_is_open = 1;
-#endif
+	if (SDL_OpenAudio(&specs, 0) < 0){
+		this->error_string = "Could not initialize audio device: ";
+		this->error_string += SDL_GetError();
+		return;
 	}
+	this->audio_is_open = true;
+#endif
 }
 
 void AudioDevice::close_in_main(){
@@ -74,7 +70,7 @@ void AudioDevice::close_in_main(){
 
 void AudioDevice::open(){
 	if (!this->audio_is_open){
-		InitializeAudioDevice(this, this->rtpcp)();
+		this->open_in_main();
 		if (!this->audio_is_open)
 			throw DeviceInitializationException(this->error_string);
 	}
@@ -83,7 +79,7 @@ void AudioDevice::open(){
 void AudioDevice::close(){
 	application_settings.commit();
 	if (this->audio_is_open)
-		CloseAudioDevice(this, this->rtpcp)();
+		this->close_in_main();
 }
 
 #undef SDL_PauseAudio

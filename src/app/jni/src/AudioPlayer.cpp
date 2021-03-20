@@ -68,7 +68,12 @@ AudioCallback_switch_SIGNATURE2(PlaybackEnd::){
 	return 1;
 }
 
+static std::uint64_t callcount = 0;
+
 void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
+	if (++callcount % 16 == 0)
+		__android_log_print(ANDROID_LOG_DEBUG, "C++Audio", "AudioCallback\n");
+
 	AudioPlayer *player = (AudioPlayer *)udata;
 	AutoLocker<internal_queue_t> al(player->internal_queue);
 	const unsigned bytes_per_sample = 2 * 2;
@@ -127,8 +132,8 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 	}
 }
 
-AudioPlayer::AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp):
-		device(*this, rtpcp),
+AudioPlayer::AudioPlayer(bool start_thread):
+		device(*this),
 		overriding_current_time(-1){
 	this->internal_queue.max_size = 100;
 	this->last_position_seen = 0;
@@ -158,7 +163,10 @@ AudioPlayer::AudioPlayer(RemoteThreadProcedureCallPerformer &rtpcp):
 		}
 	}
 #ifndef PROFILING
-	this->sdl_thread = SDL_CreateThread(_thread, "AudioPlayerThread", this);
+	if (start_thread){
+		this->running = true;
+		this->sdl_thread = SDL_CreateThread(_thread, "AudioPlayerThread", this);
+	}
 #else
 	this->thread();
 #endif
@@ -181,7 +189,8 @@ void AudioPlayer::terminate_thread(UserInterface &ui){
 
 AudioPlayer::~AudioPlayer(){
 #ifndef PROFILING
-	SDL_WaitThread(this->sdl_thread, 0);
+	if (this->sdl_thread)
+		SDL_WaitThread(this->sdl_thread, 0);
 #endif
 	application_settings.set_current_time(this->state == PlayState::STOPPED ? -1 : this->get_current_time());
 }
@@ -251,7 +260,7 @@ void AudioPlayer::on_pause(){
 }
 
 void AudioPlayer::thread_loop(){
-	while (1){
+	while (true){
 		bool continue_loop = this->handle_requests();
 		if (!continue_loop)
 			break;
@@ -270,7 +279,7 @@ void AudioPlayer::thread_loop(){
 		std::shared_ptr<DecoderException> exc;
 		try{
 			if (!this->initialize_stream() || this->internal_queue.is_full() || this->state == PlayState::STOPPED){
-				SDL_Delay(50);
+				SDL_Delay(10);
 				continue;
 			}
 			buffer = this->now_playing->read();

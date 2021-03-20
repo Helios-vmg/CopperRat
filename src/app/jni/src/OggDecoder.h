@@ -31,7 +31,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "Decoder.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <ogg/ogg.h>
-#include <vorbis/vorbisfile.h>
+//#include <vorbis/vorbisfile.h>
+#include "tremor/ivorbisfile.h"
 #include <cstdio>
 #endif
 
@@ -59,6 +60,7 @@ public:
 	static size_t read(void *buffer, size_t size, size_t nmemb, void *s);
 	static int seek(void *s, ogg_int64_t offset, int whence);
 	static long tell(void *s);
+	static int close(void *);
 };
 
 #endif

@@ -53,8 +53,8 @@ OggDecoder::OggDecoder(AudioStream &parent, const std::wstring &path): Decoder(p
 	cb.read_func = OggDecoder::read;
 	cb.seek_func = OggDecoder::seek;
 	cb.tell_func = OggDecoder::tell;
-	cb.close_func = 0;
-	int error = ov_open_callbacks(this, &this->ogg_file, 0, 0, cb);
+	cb.close_func = OggDecoder::close;
+	int error = ov_open_callbacks(this, &this->ogg_file, nullptr, 0, cb);
 	if (error < 0)
 		throw DecoderInitializationException("ov_open_callbacks() failed???");
 	vorbis_info *i = ov_info(&this->ogg_file, this->bitstream);
@@ -102,7 +102,16 @@ audio_buffer_t OggDecoder::read_more_internal(){
 	audio_buffer_t ret(sizeof(Sint16), this->channels, samples_to_read);
 	size_t size = 0;
 	while (size < bytes_to_read){
-		int r = ov_read(&this->ogg_file, ((char *)ret.get_sample_use_channels<Sint16>(0)) + size, int(bytes_to_read - size), 0, 2, 1, &this->bitstream);
+		//int r = ov_read(&this->ogg_file, ((char *)ret.get_sample_use_channels<Sint16>(0)) + size, int(bytes_to_read - size), 0, 2, 1, &this->bitstream);
+		int r = ov_read(
+			&this->ogg_file,
+			((char *)ret.get_sample_use_channels<Sint16>(0)) + size,
+			int(bytes_to_read - size),
+			//0,
+			//2,
+			//1,
+			&this->bitstream
+		);
 		if (r < 0)
 			abort();
 		if (!r){
@@ -121,7 +130,7 @@ sample_count_t OggDecoder::get_pcm_length_internal(){
 }
 
 double OggDecoder::get_seconds_length_internal(){
-	return ov_time_total(&this->ogg_file, this->bitstream);
+	return ov_time_total(&this->ogg_file, this->bitstream) / 1000.0;
 }
 
 bool OggDecoder::seek(audio_position_t pos){
@@ -151,4 +160,8 @@ long OggDecoder::tell(void *s){
 	OggDecoder *_this = (OggDecoder *)s;
 	long ret = ftell(_this->file);
 	return ret;
+}
+
+int OggDecoder::close(void *){
+	return 0;
 }

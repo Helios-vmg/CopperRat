@@ -32,7 +32,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "Decoder.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <ogg/ogg.h>
-#include <vorbis/vorbisfile.h>
+//#include <vorbis/vorbisfile.h>
+#include "tremor/ivorbisfile.h"
 #include <FLAC++/decoder.h>
 #include <fstream>
 #include <queue>

@@ -557,11 +557,25 @@ ogg_uint32_t crc_lookup[256]={
   0xafb010b1,0xab710d06,0xa6322bdf,0xa2f33668,
   0xbcb4666d,0xb8757bda,0xb5365d03,0xb1f740b4};
 
+void ogg_sync_init(ogg_sync_state *oy){
+  memset(oy,0,sizeof(*oy));
+  oy->bufferpool=ogg_buffer_create();
+}
+
 ogg_sync_state *ogg_sync_create(void){
   ogg_sync_state *oy=_ogg_calloc(1,sizeof(*oy));
   memset(oy,0,sizeof(*oy));
   oy->bufferpool=ogg_buffer_create();
   return oy;
+}
+
+int ogg_sync_clear(ogg_sync_state *oy){
+  if(oy){
+    ogg_sync_reset(oy);
+    ogg_buffer_destroy(oy->bufferpool);
+    memset(oy,0,sizeof(*oy));
+  }
+  return OGG_SUCCESS;
 }
 
 int ogg_sync_destroy(ogg_sync_state *oy){
@@ -627,7 +641,9 @@ int ogg_sync_wrote(ogg_sync_state *oy, long bytes){
   return OGG_SUCCESS;
 }
 
-#ifdef ONLY_C
+#ifdef _ARM_ASSEM_
+ogg_uint32_t _checksum(ogg_reference *or, int bytes);
+#else
 static ogg_uint32_t _checksum(ogg_reference *or, int bytes){
   ogg_uint32_t crc_reg=0;
   int j,post;
@@ -813,11 +829,26 @@ int ogg_sync_reset(ogg_sync_state *oy){
   return OGG_SUCCESS;
 }
 
+void ogg_stream_init(ogg_stream_state *os, int serialno){
+  memset(os, 0, sizeof(*os));
+  os->serialno=serialno;
+  os->pageno=-1;
+}
+
 ogg_stream_state *ogg_stream_create(int serialno){
   ogg_stream_state *os=_ogg_calloc(1,sizeof(*os));
   os->serialno=serialno;
   os->pageno=-1;
   return os;
+}
+
+int ogg_stream_clear(ogg_stream_state *os){
+  if(os){
+    ogg_buffer_release(os->header_tail);
+    ogg_buffer_release(os->body_tail);
+    memset(os,0,sizeof(*os));
+  }
+  return OGG_SUCCESS;
 }
 
 int ogg_stream_destroy(ogg_stream_state *os){
@@ -948,20 +979,22 @@ int ogg_stream_pagein(ogg_stream_state *os, ogg_page *og){
 
   /* check the serial number */
   if(serialno!=os->serialno){
-    ogg_page_release(og);
+    //ogg_page_release(og);
     return OGG_ESERIAL;
   }
   if(version>0){
-    ogg_page_release(og);
+    //ogg_page_release(og);
     return OGG_EVERSION;
   }
 
   /* add to fifos */
-  if(!os->body_tail){
-    os->body_tail=og->body;
-    os->body_head=ogg_buffer_walk(og->body);
-  }else{
-    os->body_head=ogg_buffer_cat(os->body_head,og->body);
+  if(og->body){
+    if(!os->body_tail){
+      os->body_tail=og->body;
+      os->body_head=ogg_buffer_walk(og->body);
+    }else{
+      os->body_head=ogg_buffer_cat(os->body_head,og->body);
+    }
   }
   if(!os->header_tail){
     os->header_tail=og->header;

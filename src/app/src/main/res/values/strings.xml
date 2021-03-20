@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">CopperRat</string>
+    <string name="channel_name">CopperRatChannel</string>
+    <string name="channel_description">Notification channel for CopperRat</string>
+    <string name="channel_id">CopperRat_channel_01</string>
 </resources>

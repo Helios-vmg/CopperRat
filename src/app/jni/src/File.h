@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 struct DirectoryElement{
 	std::wstring name;
+	std::wstring path;
 	bool is_dir;
 };
 

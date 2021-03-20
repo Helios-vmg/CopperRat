@@ -41,7 +41,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class ControlCoroutine;
 
 class ListView : public GUIElement{
-	GuiSignal signal;
 	std::vector<std::shared_ptr<TextButton> > items;
 	SDL_Rect visible_region;
 	bool buttondown = 0,
@@ -58,7 +57,7 @@ class ListView : public GUIElement{
 
 	template <typename String>
 	void add_button(String &&s, unsigned index, int square){
-		auto button = std::make_shared<TextButton>(sui, this, index);
+		auto button = std::make_shared<TextButton>(sui, this);
 		button->set_text(std::move(s), square, 1);
 		button->set_text_size_mm(2.5);
 		auto bb = button->get_bounding_box();
@@ -68,11 +67,15 @@ class ListView : public GUIElement{
 		button->set_minimum_height(10.0);
 		bb = button->get_bounding_box();
 		this->total_length += bb.h;
+		button->set_on_click([this, index](){
+			if (this->on_selection)
+				this->on_selection(index);
+		});
 		this->items.emplace_back(std::move(button));
 	}
 public:
 	template <typename It>
-	ListView(SUI *sui, GUIElement *parent, It begin, It end, unsigned listview_name): GUIElement(sui, parent){
+	ListView(SUI *sui, GUIElement *parent, It begin, It end): GUIElement(sui, parent){
 		this->items.reserve(end - begin);
 		int square = sui->get_bounding_square();
 		for (auto it = begin; it != end; ++it)
@@ -81,13 +84,9 @@ public:
 		this->min_offset = this->visible_region.h - this->total_length;
 		if (this->min_offset > 0)
 			this->min_offset = 0;
-
-		this->signal.type = SignalType::LISTVIEW_SIGNAL;
-		this->signal.data.listview_signal.listview_name = listview_name;
 	}
 	unsigned handle_event(const SDL_Event &);
 	void update();
-	void gui_signal(const GuiSignal &);
 	void set_on_cancel(std::function<void()> &&f){
 		this->on_cancel = std::move(f);
 	}

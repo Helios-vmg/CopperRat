@@ -138,10 +138,51 @@ int get_screen_height(){
 void initialize_resources(){
 #ifdef __ANDROID__
 	auto env = (JNIEnv *)SDL_AndroidGetJNIEnv();
+	auto activity = (jobject)SDL_AndroidGetActivity();
 	auto clazz = env->FindClass("org/copper/rat/CopperRat");
-	auto initializeAppDirectory = env->GetStaticMethodID(clazz, "initializeAppDirectory", "()V");
-	env->CallStaticVoidMethod(clazz, initializeAppDirectory);
+	auto initializeAppDirectory = env->GetMethodID(clazz, "initializeAppDirectory", "()V");
+	env->CallVoidMethod(activity, initializeAppDirectory);
 	env->DeleteLocalRef(clazz);
+#endif
+}
+
+std::wstring get_external_storage_path(){
+#ifndef __ANDROID__
+	return {};
+#else
+	static std::wstring path;
+	if (path.size())
+		return path;
+	auto env = (JNIEnv *)SDL_AndroidGetJNIEnv();
+	auto activity = (jobject)SDL_AndroidGetActivity();
+	auto clazz = env->FindClass("org/copper/rat/CopperRat");
+	auto getExternalStoragePath = env->GetMethodID(clazz, "getExternalStoragePath", "()Ljava/lang/String;");
+	auto s = (jstring)env->CallObjectMethod(activity, getExternalStoragePath);
+	auto s2 = env->GetStringUTFChars(s, nullptr);
+	std::wstring ret;
+	utf8_to_string(ret, (const unsigned char *)s2, strlen(s2));
+	env->ReleaseStringUTFChars(s, s2);
+	env->DeleteLocalRef(s);
+	env->DeleteLocalRef(clazz);
+	env->DeleteLocalRef(activity);
+
+	path = ret;
+	return ret;
+#endif
+}
+
+void *android_get_player(){
+#ifndef __ANDROID__
+    return nullptr;
+#else
+    auto env = (JNIEnv *)SDL_AndroidGetJNIEnv();
+    auto activity = (jobject)SDL_AndroidGetActivity();
+    auto clazz = env->FindClass("org/copper/rat/CopperRat");
+    auto getPlayer = env->GetMethodID(clazz, "getPlayer", "()J");
+    auto ret = env->CallLongMethod(activity, getPlayer);
+    env->DeleteLocalRef(activity);
+    env->DeleteLocalRef(clazz);
+    return (void *)(intptr_t)ret;
 #endif
 }
 

@@ -22,6 +22,7 @@ class Settings{
 	bool no_changes;
 	Mode playback_mode;
 	bool shuffle;
+	std::wstring last_root;
 	std::wstring last_browse_directory;
 	int current_track;
 	double current_time;
@@ -40,6 +41,7 @@ public:
 	//Setters:
 	void set_playback_mode(Mode);
 	void set_shuffle(bool);
+	void set_last_root(const std::wstring &);
 	void set_last_browse_directory(const std::wstring &);
 	void set_current_track(int);
 	void set_current_time(double);
@@ -50,6 +52,7 @@ public:
 	//Getters:
 	Mode get_playback_mode();
 	bool get_shuffle();
+	std::wstring get_last_root();
 	std::wstring get_last_browse_directory();
 	int get_current_track();
 	double get_current_time();

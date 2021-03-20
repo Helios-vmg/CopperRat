@@ -285,6 +285,8 @@ double get_dots_per_millimeter();
 int get_screen_width();
 int get_screen_height();
 void initialize_resources();
+void *android_get_player();
+std::wstring get_external_storage_path();
 
 inline std::string to_string(const std::string &s){
 	return s;

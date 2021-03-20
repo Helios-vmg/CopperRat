@@ -40,11 +40,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <dirent.h>
 #endif
 
-static void list_files(std::vector<std::pair<std::wstring, bool> > &dst, const std::string &path){
+static void list_files(std::vector<std::pair<std::wstring, bool> > &dst, const std::string &path0){
+	auto path = path0;
+	while (path.size() > 1 && path.back() == '/')
+		path.pop_back();
 	auto dir = opendir(path.c_str());
 	if (!dir)
 		return;
-	while (1){
+	while (true){
 		auto entry = readdir(dir);
 		if (!entry)
 			break;
@@ -70,11 +73,7 @@ void list_files(std::vector<DirectoryElement> &dst, const std::wstring &path, Fi
 	for (auto &s : temp){
 		if (s.second && filter == FilteringType::RETURN_FILES || !s.second && filter == FilteringType::RETURN_DIRECTORIES)
 			continue;
-		DirectoryElement de = {
-			s.first,
-			s.second,
-		};
-		dst.push_back(de);
+		dst.push_back(DirectoryElement{ s.first, L"/" + s.first, s.second, });
 	}
 }
 
@@ -117,6 +116,7 @@ void basic_list_files(std::vector<DirectoryElement> &dst, const std::basic_strin
 	win32_find<T>::WIN32_FIND_DATA data;
 	dst.clear();
 	auto temp_path = path;
+	temp_path += '/';
 	temp_path += '*';
 	HANDLE handle = f.find_first_func(temp_path.c_str(), &data);
 	if (handle == INVALID_HANDLE_VALUE)
@@ -130,11 +130,9 @@ void basic_list_files(std::vector<DirectoryElement> &dst, const std::basic_strin
 			continue;
 		if (temp.size() == 2 && temp[0] == '.' && temp[1] == '.')
 			continue;
-		DirectoryElement de = {
-			to_wstring(temp),
-			is_dir,
-		};
-		dst.push_back(de);
+		auto name = to_wstring(temp);
+		auto path2 = L"/" + name;
+		dst.emplace_back(DirectoryElement{ std::move(name), std::move(path2), is_dir, });
 	}while (f.find_next_func(handle, &data));
 }
 
@@ -151,8 +149,15 @@ static void find_files_recursively_internal(std::vector<std::wstring> &dst, cons
 	std::vector<DirectoryElement> temp;
 	list_files(temp, path, FilteringType::RETURN_ALL);
 	sort(temp, st);
+	auto *path_with_slash = &path;
+	std::wstring temp_path;
+	if (path_with_slash->size() && path_with_slash->back() != '/'){
+		temp_path = path;
+		temp_path += L'/';
+		path_with_slash = &temp_path;
+	}
 	for (auto &de : temp){
-		auto full_path = path;
+		auto full_path = *path_with_slash;
 		full_path += de.name;
 		if (de.is_dir){
 			full_path += '/';

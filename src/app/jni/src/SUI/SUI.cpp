@@ -78,25 +78,12 @@ unsigned GUIElement::receive(PlaybackStop &x){
 	return ret;
 }
 
-unsigned GUIElement::receive(RTPCQueueElement &x){
-	return SUI::NOTHING;
-}
-
 void GUIElement::update(){
 	for (auto &child : this->children)
 		child->update();
 }
 
-SUI::SUI():
-		GUIElement(this, nullptr),
-		player(*this),
-		current_total_time(-1),
-		bounding_square(-1),
-		max_square(-1),
-		full_update_count(0),
-		update_requested(0),
-		ui_in_foreground(1),
-		apply_blur(0){
+SUI::SUI(AudioPlayer &player): GUIElement(this, nullptr), player(&player){
 	this->set_visualization_mode(application_settings.get_visualization_mode());
 	this->set_display_fps(application_settings.get_display_fps());
 	::get_dots_per_millimeter();
@@ -104,8 +91,6 @@ SUI::SUI():
 	this->true_resolution.y = 0;
 	auto w = this->true_resolution.w = get_screen_width();
 	auto h = this->true_resolution.h = get_screen_height();
-
-	__android_log_print(ANDROID_LOG_INFO, "C++SUI", "Determined resolution: %dx%d\n", this->true_resolution.w, this->true_resolution.h);
 
 	typedef Rational<int> Q;
 
@@ -115,10 +100,14 @@ SUI::SUI():
     w = 1080 / 2;
     h = 1920 / 2;
 
+	__android_log_print(ANDROID_LOG_INFO, "C++SUI", "Determined resolution: %dx%d\n", this->true_resolution.w, this->true_resolution.h);
+
 	if (ratio > tall)
 	    h = (int)(Q(w) / ratio);
 	else if (ratio < tall)
 		w = (int)(Q(h) * ratio);
+
+	__android_log_print(ANDROID_LOG_INFO, "C++SUI", "Using resolution: %dx%d\n", w, h);
 
 	this->screen = GPU_Init(w, h, GPU_DEFAULT_INIT_FLAGS | GPU_INIT_ENABLE_VSYNC);
 	if (!this->screen)
@@ -134,40 +123,38 @@ SUI::SUI():
 	this->start_gui();
 }
 
-SUI::~SUI(){
-	this->player.terminate_thread(*this);
-}
+SUI::~SUI(){}
 
 unsigned SUI::handle_keys(const SDL_Event &e){
 	unsigned ret = NOTHING;
 	switch (e.key.keysym.scancode){
+		//case SDL_SCANCODE_ANDROID_AUDIOPLAYPAUSE:
 		case SDL_SCANCODE_C:
-		/*case SDL_SCANCODE_ANDROID_AUDIOPLAYPAUSE:
-			this->player.request_playpause();
-			break;*/
+			this->player->request_playpause();
+			break;
 		case SDL_SCANCODE_X:
-			this->player.request_hardplay();
+			this->player->request_hardplay();
 			break;
 		/*case SDL_SCANCODE_ANDROID_AUDIOPLAY:
-			this->player.request_play();
+			this->player->request_play();
 			break;
 		case SDL_SCANCODE_ANDROID_AUDIOPAUSE:
-			this->player.request_pause();
+			this->player->request_pause();
 			break;*/
 		case SDL_SCANCODE_AUDIOPLAY:
-			this->player.request_play();
+			this->player->request_play();
 			break;
 		case SDL_SCANCODE_V:
 		case SDL_SCANCODE_AUDIOSTOP:
-			this->player.request_stop();
+			this->player->request_stop();
 			break;
 		case SDL_SCANCODE_B:
 		case SDL_SCANCODE_AUDIONEXT:
-			this->player.request_next();
+			this->player->request_next();
 			break;
 		case SDL_SCANCODE_Z:
 		case SDL_SCANCODE_AUDIOPREV:
-			this->player.request_previous();
+			this->player->request_previous();
 			break;
 #if defined WIN32 && 0
 		case SDL_SCANCODE_F12:
@@ -259,15 +246,10 @@ unsigned SUI::receive(PlaybackStop &x){
 	return REDRAW;
 }
 
-unsigned SUI::receive(RTPCQueueElement &x){
-	this->perform_internal(x.get_rtpc());
-	return NOTHING;
-}
-
 unsigned SUI::handle_out_events(){
 	std::shared_ptr<ExternalQueueElement> eqe;
 	unsigned ret = NOTHING;
-	while (this->player.external_queue_out.try_pop(eqe)){
+	while (this->player->external_queue_out.try_pop(eqe)){
 		ret |= eqe->receive(*this);
 		for (auto &p : this->children)
 			ret |= eqe->receive(*p);
@@ -284,7 +266,7 @@ unsigned SUI::handle_finished_jobs(){
 }
 
 void SUI::load(bool load, bool file, const std::wstring &path){
-	this->player.request_load(load, file, path);
+	this->player->request_load(load, file, path);
 }
 
 #if 0
@@ -347,17 +329,8 @@ SDL_Rect SUI::get_visible_region() const{
 	return ret;
 }
 
-void SUI::gui_signal(const GuiSignal &signal){
-	auto temp = this->element_stack;
-	this->element_stack.back()->gui_signal(signal);
-}
-
 void SUI::request_update(){
 	this->update_requested = 1;
-}
-
-void SUI::perform(RemoteThreadProcedureCall *rtpc){
-	this->player.external_queue_out.push(std::shared_ptr<ExternalQueueElement>(new RTPCQueueElement(rtpc)));
 }
 
 SDL_Rect SUI::get_seekbar_region(){
@@ -396,6 +369,11 @@ void SUI::loop(){
 	std::deque<Uint32> fps_queue;
 	unsigned status;
 	const auto min_time = (Uint32)(1000.0 / 60.0);
+	SDL_Color black;
+	black.r = 0;
+	black.g = 0;
+	black.b = 0;
+	black.a = 255;
 	while (!check_flag(status = this->handle_in_events(), QUIT)){
 		try{
 			status |= this->handle_out_events();
@@ -416,7 +394,7 @@ void SUI::loop(){
 			do_redraw = do_redraw || delta_t >= 500;
 			do_redraw = do_redraw || check_flag(status, REDRAW);
 			do_redraw = do_redraw || this->full_update_count > 0;
-			do_redraw = do_redraw || this->player.get_state() == PlayState::PLAYING && this->visualization_mode != VisualizationMode::NONE
+			do_redraw = do_redraw || this->player->get_state() == PlayState::PLAYING && this->visualization_mode != VisualizationMode::NONE
 #ifdef LIMIT_FPS
 				&& delta_t >= min_time
 #endif
@@ -442,6 +420,7 @@ void SUI::loop(){
 		}else
 			this->current_framerate = -1;
 
+		GPU_ClearColor(this->screen, black);
 		GPU_Clear(this->screen);
 		this->element_stack.back()->update();
 		if (display_string.size())
@@ -452,7 +431,7 @@ void SUI::loop(){
 }
 
 void SUI::start_gui(){
-	auto main_screen = std::make_shared<MainScreen>(this->sui, this->sui, this->sui->player);
+	auto main_screen = std::make_shared<MainScreen>(this->sui, this->sui, *this->sui->player);
 	main_screen->set_on_load_request([this](){ this->load_file_menu(); });
 	main_screen->set_on_menu_request([this](){
 		this->options_menu();
@@ -473,7 +452,7 @@ void SUI::load_file_menu(){
 		L"Enqueue file...",
 		L"Enqueue directory...",
 	};
-	auto lv = std::make_shared<ListView>(this->sui, this->sui, options, options + array_length(options), 0);
+	auto lv = std::make_shared<ListView>(this->sui, this->sui, options, options + array_length(options));
 	this->display(lv);
 	lv->set_on_cancel([this](){
 		this->undisplay();
@@ -483,14 +462,19 @@ void SUI::load_file_menu(){
 		bool load = button / 2 == 0;
 		bool file = button % 2 == 0;
 
-		auto browser = std::make_shared<FileBrowser>(this->sui, this->sui, file, application_settings.get_last_browse_directory());
+		auto path = application_settings.get_last_browse_directory();
+		auto root = application_settings.get_last_root();
+		if (!root.size())
+			root = get_external_storage_path();
+		auto browser = std::make_shared<FileBrowser>(this->sui, this->sui, file, false, root, path);
 		this->display(browser);
 		browser->set_on_cancel([this](){
 			this->undisplay();
 		});
-		browser->set_on_accept([this, load, file](std::wstring &&path){
+		browser->set_on_accept([this, load, file, root{std::move(root)}](std::wstring &&path){
 			auto browser = std::static_pointer_cast<FileBrowser>(this->element_stack.back());
 			this->undisplay();
+			application_settings.set_last_root(root);
 			application_settings.set_last_browse_directory(browser->get_new_initial_directory());
 			this->load(load, file, path);
 		});
@@ -510,7 +494,7 @@ void SUI::options_menu(){
 		strings.push_back(L"Visualization mode: " + to_string(visualization_mode));
 		strings.push_back(std::wstring(L"Display framerate: O") + (display_fps ? L"N" : L"FF"));
 	}
-	auto lv = std::make_shared<ListView>(this->sui, this->sui, strings.begin(), strings.end(), 0);
+	auto lv = std::make_shared<ListView>(this->sui, this->sui, strings.begin(), strings.end());
 	this->display(lv);
 	lv->set_on_cancel([this](){
 		this->undisplay();
