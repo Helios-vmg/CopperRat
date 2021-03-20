@@ -68,12 +68,7 @@ AudioCallback_switch_SIGNATURE2(PlaybackEnd::){
 	return 1;
 }
 
-static std::uint64_t callcount = 0;
-
 void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
-	if (++callcount % 16 == 0)
-		__android_log_print(ANDROID_LOG_DEBUG, "C++Audio", "AudioCallback\n");
-
 	AudioPlayer *player = (AudioPlayer *)udata;
 	AutoLocker<internal_queue_t> al(player->internal_queue);
 	const unsigned bytes_per_sample = 2 * 2;

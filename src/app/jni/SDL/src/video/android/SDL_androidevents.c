@@ -108,8 +108,10 @@ Android_PumpEvents_Blocking(_THIS)
             SDL_UnlockMutex(Android_ActivityMutex);
         }
 
-        ANDROIDAUDIO_PauseDevices();
-        openslES_PauseDevices();
+        if (videodata->pauseAudio) {
+            ANDROIDAUDIO_PauseDevices();
+            openslES_PauseDevices();
+        }
 
         if (SDL_SemWait(Android_ResumeSem) == 0) {
 

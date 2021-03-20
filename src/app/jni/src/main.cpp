@@ -74,6 +74,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved){
 
 int main(int argc, char **argv){
 	setlocale(LC_ALL, "en.UTF-8");
+	SDL_SetHintWithPriority(SDL_HINT_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO, "0", SDL_HINT_OVERRIDE);
 	SDL_Init(SDL_INIT_EVERYTHING);
 	initialize_resources();
 	try{
