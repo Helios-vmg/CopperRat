@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef THREADS_H
-#define THREADS_H
+#pragma once
+
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL.h>
 #include <SDL_atomic.h>
@@ -309,5 +309,3 @@ public:
 		return this->current_job;
 	}
 };
-
-#endif

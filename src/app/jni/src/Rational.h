@@ -5,6 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
+#pragma once
+
 inline unsigned gcd(unsigned a, unsigned b){
 	while (b){
 		unsigned c = b;

@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef USERINTERFACE_H
-#define USERINTERFACE_H
+#pragma once
 
 class TotalTimeUpdate;
 class MetaDataUpdate;
@@ -19,5 +18,3 @@ public:
 	virtual unsigned receive(MetaDataUpdate &) = 0;
 	virtual unsigned receive(PlaybackStop &) = 0;
 };
-
-#endif

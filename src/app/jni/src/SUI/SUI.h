@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef SUI_H
-#define SUI_H
+#pragma once
 
 #include "../AudioPlayer.h"
 #include "../UserInterface.h"
@@ -260,5 +259,3 @@ public:
 	int transform_mouse_y(int y) const;
 	double get_dots_per_millimeter() const;
 };
-
-#endif

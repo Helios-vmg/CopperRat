@@ -5,6 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
+#pragma once
+
 enum class SignalType{
 	QUIT,
 	BACK_PRESSED,

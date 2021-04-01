@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef DELETERS_H
-#define DELETERS_H
+#pragma once
+
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL.h>
 extern "C"{
@@ -75,5 +75,3 @@ struct GPU_Target_deleter{
 		GPU_Target_deleter_func(r);
 	}
 };
-
-#endif

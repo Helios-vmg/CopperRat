@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef DECODER_H
-#define DECODER_H
+#pragma once
+
 #include "AudioTypes.h"
 #include "Metadata.h"
 #include "AudioBuffer.h"
@@ -98,5 +98,3 @@ public:
 
 void filter_list_by_supported_formats(std::vector<std::wstring> &dst, const std::vector<std::wstring> &src);
 bool format_is_supported(const std::wstring &);
-
-#endif

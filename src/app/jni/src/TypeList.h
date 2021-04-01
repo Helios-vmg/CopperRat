@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef TYPELIST_H
-#define TYPELIST_H
+#pragma once
 
 struct TypeNil{
 	template <typename OriginalType, typename F>
@@ -59,5 +58,3 @@ template <typename ListType, typename F>
 void iterate_type_list(const ListType &lt, F &f){
 	lt.template iterate<ListType>(f);
 }
-
-#endif

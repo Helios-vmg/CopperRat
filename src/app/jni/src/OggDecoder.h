@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef OGGDECODER_H
-#define OGGDECODER_H
+#pragma once
+
 #include "Decoder.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <ogg/ogg.h>
@@ -41,5 +41,3 @@ public:
 	static long tell(void *s);
 	static int close(void *);
 };
-
-#endif

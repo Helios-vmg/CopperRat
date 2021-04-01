@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef AUDIOTYPES_H
-#define AUDIOTYPES_H
+#pragma once
+
 #include <SDL.h>
 
 typedef Sint32 stereo_sample_t;
@@ -54,5 +54,3 @@ struct AudioFormat{
 		return this->bytes_per_channel * this->channels;
 	}
 };
-
-#endif

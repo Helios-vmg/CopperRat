@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef AUDIOPLAYER_H
-#define AUDIOPLAYER_H
+#pragma once
+
 #include "Threads.h"
 #include "AudioDevice.h"
 #include "AudioStream.h"
@@ -104,5 +104,3 @@ public:
 	audio_buffer_t get_last_buffer_played();
 	PlayState::Value get_state() const;
 };
-
-#endif

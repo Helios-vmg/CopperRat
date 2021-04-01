@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef AUDIODEVICE_H
-#define AUDIODEVICE_H
+#pragma once
 
 #include "Exception.h"
 #include "Threads.h"
@@ -42,4 +41,3 @@ public:
 };
 
 #define SDL_PauseAudio(_)
-#endif

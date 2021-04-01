@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef RESAMPLING_FILTER_H
-#define RESAMPLING_FILTER_H
+#pragma once
+
 #include "Decoder.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <vector>
@@ -38,5 +38,3 @@ public:
 		this->saved_buffer.unref();
 	}
 };
-
-#endif

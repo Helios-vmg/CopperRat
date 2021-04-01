@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef IMAGE_H
-#define IMAGE_H
+#pragma once
 
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <string>
@@ -177,5 +176,3 @@ public:
 		return this->error_string;
 	}
 };
-
-#endif

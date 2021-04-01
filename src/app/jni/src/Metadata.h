@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef METADATA_H
-#define METADATA_H
+#pragma once
 
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <string>
@@ -141,5 +140,3 @@ struct ReplayGainSettings{
 };
 
 double replaygain_get_multiplier(GenericMetadata &, const ReplayGainSettings &);
-
-#endif

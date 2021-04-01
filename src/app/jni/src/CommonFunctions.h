@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef COMMONFUNCTIONS_H
-#define COMMONFUNCTIONS_H
+#pragma once
+
 #include "BasicTypes.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <iostream>
@@ -365,5 +365,3 @@ void normalize_slashes(std::basic_string<T> &s){
 }
 
 std::string wide_to_narrow(const std::wstring &s);
-
-#endif

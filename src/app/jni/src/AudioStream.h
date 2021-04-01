@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef AUDIOSTREAM_H
-#define AUDIOSTREAM_H
+#pragma once
+
 #include "AudioFilter.h"
 //#define DUMP_OUTPUT
 #ifndef HAVE_PRECOMPILED_HEADERS
@@ -51,5 +51,3 @@ public:
 		return this->path;
 	}
 };
-
-#endif

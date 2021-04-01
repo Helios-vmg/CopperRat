@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef MAINSCREEN_H
-#define MAINSCREEN_H
+#pragma once
 
 #include "SUI.h"
 //#include "ListView.h"
@@ -68,5 +67,3 @@ public:
 		this->on_menu_request = std::move(f);
 	}
 };
-
-#endif

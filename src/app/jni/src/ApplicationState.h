@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef SETTINGS_H
-#define SETTINGS_H
+#pragma once
 
 #include "Threads.h"
 #include <mutex>
@@ -179,5 +178,3 @@ public:
 };
 
 extern ApplicationState application_state;
-
-#endif

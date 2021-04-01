@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef EXCEPTION_H
-#define EXCEPTION_H
+#pragma once
 
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <string>
@@ -32,5 +31,3 @@ public:
 		return new CR_Exception(*this);
 	}
 };
-
-#endif

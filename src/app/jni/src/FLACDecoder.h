@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef FLACDECODER_H
-#define FLACDECODER_H
+#pragma once
 
 #include "Decoder.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
@@ -68,5 +67,3 @@ public:
 		return 1;
 	}
 };
-
-#endif

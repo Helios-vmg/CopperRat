@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef SEEKBAR_H
-#define SEEKBAR_H
+#pragma once
 
 #include "SUI.h"
 
@@ -22,5 +21,3 @@ public:
 	void update();
 	unsigned handle_event(const SDL_Event &);
 };
-
-#endif

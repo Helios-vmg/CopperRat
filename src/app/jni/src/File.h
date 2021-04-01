@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef FILE_H
-#define FILE_H
+#pragma once
 
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <vector>
@@ -38,4 +37,3 @@ void find_files_recursively(std::vector<std::wstring> &dst, const std::wstring &
 void sort(std::vector<DirectoryElement> &, SortingType = SortingType::DIRECTORIES_FIRST);
 
 bool file_exists(const std::wstring &path);
-#endif

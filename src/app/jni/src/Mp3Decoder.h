@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef MP3DECODER_H
-#define MP3DECODER_H
+#pragma once
+
 #include "Decoder.h"
 
 class mp3_static_data{
@@ -61,5 +61,3 @@ public:
 		return 1;
 	}
 };
-
-#endif

@@ -1,6 +1,3 @@
-#ifndef BASICTYPES_H
-#define BASICTYPES_H
+#pragma once
 
 #include "AudioTypes.h"
-
-#endif

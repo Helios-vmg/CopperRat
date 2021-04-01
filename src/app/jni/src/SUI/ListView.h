@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef LISTVIEW_H
-#define LISTVIEW_H
+#pragma once
 
 #include "Button.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
@@ -73,5 +72,3 @@ public:
 		this->on_selection = std::move(f);
 	}
 };
-
-#endif

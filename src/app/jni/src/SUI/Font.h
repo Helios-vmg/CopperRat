@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef FONT_H
-#define FONT_H
+#pragma once
 
 #include "../Exception.h"
 #include "../Image.h"
@@ -61,5 +60,3 @@ public:
 		return 16;
 	}
 };
-
-#endif

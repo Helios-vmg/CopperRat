@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef BUTTON_H
-#define BUTTON_H
+#pragma once
 
 #include "SUI.h"
 #include "../Deleters.h"
@@ -99,5 +98,3 @@ public:
 	}
 	void set_minimum_height(double millimeters);
 };
-
-#endif

@@ -5,8 +5,8 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef AUDIOBUFFER_H
-#define AUDIOBUFFER_H
+#pragma once
+
 #include "BasicTypes.h"
 #include "Threads.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
@@ -126,5 +126,3 @@ public:
 			this->data_offset = this->sample_count;
 	}
 };
-
-#endif

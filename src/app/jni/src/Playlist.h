@@ -5,8 +5,7 @@ All rights reserved.
 Distributed under a permissive license. See COPYING.txt for details.
 */
 
-#ifndef PLAYLIST_H
-#define PLAYLIST_H
+#pragma once
 
 #include "ApplicationState.h"
 #include "Metadata.h"
@@ -67,5 +66,3 @@ public:
 };
 
 std::wstring to_string(PlaybackMode);
-
-#endif
