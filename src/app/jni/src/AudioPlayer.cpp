@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include "AudioPlayer.h"
 #include "CommonFunctions.h"
-#include "Settings.h"
+#include "ApplicationState.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <fstream>
 #ifdef PROFILING
@@ -49,122 +49,28 @@ const char *PlayState::strings[] = {
 	"PAUSED",
 };
 
-void ExternalQueueElement::push(AudioPlayer *player, std::shared_ptr<InternalQueueElement> pointer){
-	player->external_queue_out.push(std::static_pointer_cast<ExternalQueueElement>(pointer));
-}
-
-AudioCallback_switch_SIGNATURE2(BufferQueueElement::){
-	const size_t bytes_written = samples_written * bytes_per_sample;
-	auto &buffer = this->buffer;
-	last_position = buffer.position;
-	sample_rate = this->stream_format.freq;
-	size_t ctb_res = buffer.copy_to_buffer<Sint16, 2>(stream + bytes_written, len - samples_written * bytes_per_sample);
-	samples_written += (memory_sample_count_t)(ctb_res / bytes_per_sample);
-	return !buffer.samples();
-}
-
-AudioCallback_switch_SIGNATURE2(PlaybackEnd::){
-	player->notify_playback_end();
-	return 1;
-}
-
 void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
-	AudioPlayer *player = (AudioPlayer *)udata;
-	AutoLocker<internal_queue_t> al(player->internal_queue);
-	const unsigned bytes_per_sample = 2 * 2;
-
-	memory_sample_count_t samples_written = 0;
-	audio_position_t last_position;
-	bool perform_final_pops = 0;
-	unsigned last_sample_rate;
-	audio_buffer_t last_buffer;
-	while ((unsigned)len > samples_written * bytes_per_sample){
-		const size_t bytes_written = samples_written * bytes_per_sample;
-		auto element = player->internal_queue.unlocked_try_peek();
-		if (!element){
-			memset(stream + bytes_written, 0, len - bytes_written);
-			return;
-		}
-		auto action = (*element)->AudioCallback_switch(
-			player,
-			stream,
-			len,
-			bytes_per_sample,
-			samples_written,
-			last_position,
-			last_sample_rate,
-			*element
-		);
-		if ((*element)->is_buffer())
-			last_buffer = static_cast<BufferQueueElement &>(**element).get_buffer();
-		if (action)
-			player->internal_queue.unlocked_simple_pop();
-		perform_final_pops = action;
-	}
-	{
-		AutoMutex am(player->position_mutex);
-		player->last_freq_seen = last_sample_rate;
-		player->last_position_seen = last_position;
-		if (last_buffer){
-			player->last_buffer_played = audio_buffer_t(last_buffer.bytes_per_sample() / last_buffer.channels(), last_buffer.channels(), samples_written);
-			memcpy(player->last_buffer_played.raw_pointer(0), stream, samples_written * bytes_per_sample);
-			player->last_buffer_played.reset_offset();
-		}
-	}
-	if (!perform_final_pops)
+	auto player = ((AudioPlayer *)udata)->current_player.load();
+	if (!player){
+		memset(stream, 0, len);
 		return;
-	while (1){
-		{
-			auto element = player->internal_queue.unlocked_try_peek();
-			if (!element)
-				return;
-			if ((*element)->is_buffer())
-				break;
-		}
-		auto element = player->internal_queue.unlocked_simple_pop();
-		auto eqe = static_cast<ExternalQueueElement *>(element.get());
-		eqe->push(player, element);
 	}
+	player->audio_callback(stream, len);
 }
 
-AudioPlayer::AudioPlayer(bool start_thread):
-		device(*this),
-		overriding_current_time(-1){
-	this->internal_queue.max_size = 100;
-	this->last_position_seen = 0;
-	this->last_freq_seen = 0;
-	this->state = PlayState::STOPPED;
-	double time = application_settings.get_current_time();
-	if (time >= 0){
-		this->state = PlayState::PAUSED;
-		int success = 0;
-		int index = this->playlist.get_current_track_index();
-		while (success == 0){
-			try{
-				this->initialize_stream();
-				success = 1;
-			}catch (DecoderInitializationException &){
-				if (!this->playlist.next() || this->playlist.get_current_track_index() == index)
-					success = -1;
-				time = 0;
-			}
-		}
-		if (success > 0){
-			time = std::max(time - 5, 0.0);
-			this->execute_absolute_seek(time, 0);
-			this->overriding_current_time = time;
-		}else{
-			this->playlist.clear();
-		}
+AudioPlayer::AudioPlayer(bool start_thread): device(*this){
+	{
+		auto ul = application_state.lock();
+		for (auto &kv : application_state.get_players())
+			this->players[kv.first] = {*this, kv.second};
 	}
-#ifndef PROFILING
+
+	this->current_player = &this->players[application_state.get_current_player_index()];
+	
 	if (start_thread){
 		this->running = true;
 		this->sdl_thread = SDL_CreateThread(_thread, "AudioPlayerThread", this);
 	}
-#else
-	this->thread();
-#endif
 }
 
 void AudioPlayer::terminate_thread(UserInterface &ui){
@@ -185,9 +91,8 @@ void AudioPlayer::terminate_thread(UserInterface &ui){
 AudioPlayer::~AudioPlayer(){
 #ifndef PROFILING
 	if (this->sdl_thread)
-		SDL_WaitThread(this->sdl_thread, 0);
+		SDL_WaitThread(this->sdl_thread, nullptr);
 #endif
-	application_settings.set_current_time(this->state == PlayState::STOPPED ? -1 : this->get_current_time());
 }
 
 int AudioPlayer::_thread(void *p){
@@ -200,110 +105,16 @@ int AudioPlayer::_thread(void *p){
 std::ofstream raw_file;
 #endif
 
-bool AudioPlayer::initialize_stream(){
-	if (this->now_playing || this->state == PlayState::STOPPED)
-		return 1;
-	std::wstring next;
-	if (!this->playlist.get_current_track(next)){
-		this->on_end();
-		return 0;
-	}
-	auto &filename = next;
-	this->now_playing.reset(new AudioStream(*this, filename, 44100, 2));
-	this->current_total_time = -1;
-	this->try_update_total_time();
-	return 1;
-}
-
-void AudioPlayer::push_maybe_to_internal_queue(ExternalQueueElement *p){
-	std::shared_ptr<ExternalQueueElement> sp(p);
-	{
-		AutoLocker<internal_queue_t> al(this->internal_queue);
-		if (this->internal_queue.unlocked_is_empty()){
-			this->external_queue_out.push(sp);
-			return;
-		}
-	}
-	this->internal_queue.push(sp);
-}
-
-void AudioPlayer::on_stop(){
-	if (this->state == PlayState::STOPPED)
-		return;
-	this->state = PlayState::STOPPED;
-	this->current_total_time = 0;
-	{
-		AutoMutex am(this->position_mutex);
-		this->last_position_seen = 0;
-		this->last_freq_seen = 0;
-	}
-	application_settings.set_current_time(-1);
-	this->device.close();
-	this->external_queue_out.push(eqe_t(new PlaybackStop));
-}
-
-void AudioPlayer::on_end(){
-	if (this->state == PlayState::ENDING)
-		return;
-	this->state = PlayState::ENDING;
-	this->push_to_internal_queue(new PlaybackEnd);
-}
-
-void AudioPlayer::on_pause(){
-	this->time_of_last_pause = SDL_GetTicks();
-	application_settings.set_current_time(this->get_current_time());
-}
-
 void AudioPlayer::thread_loop(){
 	while (true){
 		bool continue_loop = this->handle_requests();
 		if (!continue_loop)
 			break;
-		if (this->state == PlayState::PAUSED && this->device.is_open()){
-			unsigned now = SDL_GetTicks();
-			if (now >= this->time_of_last_pause + 5000){
-				__android_log_print(ANDROID_LOG_INFO, "C++Audio", "%s", "Audio inactivity timeout. Closing device.\n");
-				this->device.close();
-			}
-		}
-#if PROFILING
-		if (!this->now_playing && !this->track_queue.size())
-			break;
-#endif
-		audio_buffer_t buffer;
-		std::shared_ptr<DecoderException> exc;
-		try{
-			if (!this->initialize_stream() || this->internal_queue.is_full() || this->state == PlayState::STOPPED){
-				SDL_Delay(10);
-				continue;
-			}
-			buffer = this->now_playing->read();
-			this->try_update_total_time();
-#ifdef PROFILING
-			samples_decoded += buffer.samples();
-#endif
-		}catch (DecoderException &e){
-			exc.reset(static_cast<DecoderException *>(e.clone()));
-		}
-
-		bool b_continue = 0;
-		if (!buffer){
-			this->now_playing.reset();
-			this->playlist.next();
-			b_continue = 1;
-		}
-		if (exc)
-			throw *exc;
-		if (b_continue)
-			continue;
-
-		//std::cout <<"Outputting "<<buffer.samples()<<" samples.\n";
-#if !defined PROFILING
-		this->push_to_internal_queue(new BufferQueueElement(buffer, this->now_playing->get_stream_format()));
-#endif
-#if defined OUTPUT_TO_FILE
-		raw_file.write((char *)buffer.raw_pointer(0), buffer.byte_length());
-#endif
+		bool nothing_was_done = true;
+		for (auto &kv : this->players)
+			nothing_was_done &= !kv.second.process();
+		if (nothing_was_done)
+			SDL_Delay(10);
 	}
 }
 
@@ -353,249 +164,73 @@ void AudioPlayer::thread(){
 }
 
 bool AudioPlayer::handle_requests(){
-	bool ret = 1;
+	auto current_player = this->current_player.load();
+	bool ret = true;
 	for (command_t command; this->external_queue_in.try_pop(command) && ret;)
-		ret = command->execute();
+		ret = command->execute(*current_player);
 	return ret;
 }
 
 void AudioPlayer::request_hardplay(){
-	this->push_to_command_queue(new AsyncCommandHardPlay(this));
+	this->push_to_command_queue(new AsyncCommandHardPlay);
 }
 
 void AudioPlayer::request_playpause(){
-	this->push_to_command_queue(new AsyncCommandPlayPause(this));
+	this->push_to_command_queue(new AsyncCommandPlayPause);
 }
 
 void AudioPlayer::request_play(){
-	this->push_to_command_queue(new AsyncCommandPlay(this));
+	this->push_to_command_queue(new AsyncCommandPlay);
 }
 
 void AudioPlayer::request_pause(){
-	this->push_to_command_queue(new AsyncCommandPause(this));
+	this->push_to_command_queue(new AsyncCommandPause);
 }
 
 void AudioPlayer::request_stop(){
-	this->push_to_command_queue(new AsyncCommandStop(this));
+	this->push_to_command_queue(new AsyncCommandStop);
 }
 
 void AudioPlayer::request_absolute_scaling_seek(double scale){
-	this->push_to_command_queue(new AsyncCommandAbsoluteSeek(this, scale, 1));
+	this->push_to_command_queue(new AsyncCommandAbsoluteSeek(scale, true));
 }
 
 void AudioPlayer::request_relative_seek(double seconds){
-	this->push_to_command_queue(new AsyncCommandRelativeSeek(this, seconds));
+	this->push_to_command_queue(new AsyncCommandRelativeSeek(seconds));
 }
 
 void AudioPlayer::request_previous(){
-	this->push_to_command_queue(new AsyncCommandPrevious(this));
+	this->push_to_command_queue(new AsyncCommandPrevious);
 }
 
 void AudioPlayer::request_next(){
-	this->push_to_command_queue(new AsyncCommandNext(this));
+	this->push_to_command_queue(new AsyncCommandNext);
 }
 
 void AudioPlayer::request_exit(){
-	this->push_to_command_queue(new AsyncCommandExit(this));
+	this->push_to_command_queue(new AsyncCommandExit);
 }
 
 void AudioPlayer::request_load(bool load, bool file, const std::wstring &path){
-	this->push_to_command_queue(new AsyncCommandLoad(this, load, file, path));
-}
-
-void AudioPlayer::eliminate_buffers(audio_position_t *pos){
-	AutoLocker<internal_queue_t> am(this->internal_queue);
-	std::queue<iqe_t> temp;
-	bool set = 0;
-	while (!this->internal_queue.unlocked_is_empty()){
-		auto el = this->internal_queue.unlocked_simple_pop();
-		auto bqe = dynamic_cast<BufferQueueElement *>(el.get());
-		if (!bqe){
-			temp.push(el);
-			continue;
-		}
-		if (set)
-			continue;
-		auto buffer = bqe->get_buffer();
-		if (pos)
-			*pos = buffer.position;
-		set = 1;
-	}
-	while (temp.size()){
-		this->internal_queue.push(temp.front());
-		temp.pop();
-	}
-}
-
-bool AudioPlayer::execute_hardplay(){
-	this->device.start_audio();
-	switch (this->state){
-		case PlayState::STOPPED:
-		case PlayState::PAUSED:
-			break;
-		case PlayState::PLAYING:
-			if (this->now_playing->reset())
-				this->eliminate_buffers();
-			break;
-	}
-	this->state = PlayState::PLAYING;
-	return 1;
-}
-
-bool AudioPlayer::execute_playpause(){
-	switch (this->state){
-		case PlayState::STOPPED:
-		case PlayState::PAUSED:
-			this->device.start_audio();
-			this->state = PlayState::PLAYING;
-			break;
-		case PlayState::PLAYING:
-			this->device.pause_audio();
-			this->state = PlayState::PAUSED;
-			this->on_pause();
-			break;
-	}
-	return 1;
-}
-
-bool AudioPlayer::execute_play(){
-	switch (this->state){
-		case PlayState::STOPPED:
-		case PlayState::PAUSED:
-			this->device.start_audio();
-			this->state = PlayState::PLAYING;
-			break;
-		case PlayState::PLAYING:
-			break;
-	}
-	return 1;
-}
-
-bool AudioPlayer::execute_pause(){
-	switch (this->state){
-		case PlayState::STOPPED:
-			break;
-		case PlayState::PLAYING:
-			this->on_pause();
-			this->device.pause_audio();
-			this->state = PlayState::PAUSED;
-			break;
-		case PlayState::PAUSED:
-			this->device.start_audio();
-			this->state = PlayState::PLAYING;
-			break;
-	}
-	return 1;
-}
-
-bool AudioPlayer::execute_stop(){
-	switch (this->state){
-		case PlayState::STOPPED:
-			break;
-		case PlayState::PLAYING:
-		case PlayState::PAUSED:
-			this->device.pause_audio();
-			this->eliminate_buffers();
-			this->now_playing.reset();
-			this->on_stop();
-			break;
-	}
-	this->state = PlayState::STOPPED;
-	return 1;
-}
-
-bool AudioPlayer::execute_absolute_seek(double param, bool scaling){
-	//TODO: Find some way to merge this code with AudioPlayer::execute_relative_seek().
-	if (!this->now_playing)
-		return 1;
-	AudioLocker al(*this);
-	audio_position_t pos = invalid_audio_position;
-	this->eliminate_buffers(&pos);
-	if (pos == invalid_audio_position){
-		AutoMutex am(this->position_mutex);
-		pos = this->last_position_seen;
-	}
-	audio_position_t new_pos;
-	this->now_playing->seek(this, new_pos, pos, param, scaling);
-	AutoMutex am(this->position_mutex);
-	this->last_position_seen = new_pos;
-	return 1;
-}
-
-bool AudioPlayer::execute_relative_seek(double seconds){
-	if (!this->now_playing)
-		return 1;
-	AudioLocker al(*this);
-	audio_position_t pos = invalid_audio_position;
-	this->eliminate_buffers(&pos);
-	if (pos == invalid_audio_position){
-		AutoMutex am(this->position_mutex);
-		pos = this->last_position_seen;
-	}
-	audio_position_t new_pos;
-	this->now_playing->seek(this, new_pos, pos, seconds);
-	AutoMutex am(this->position_mutex);
-	this->last_position_seen = new_pos;
-	return 1;
-}
-
-bool AudioPlayer::execute_previous(){
-	AudioLocker al(*this);
-	this->eliminate_buffers();
-	this->now_playing.reset();
-	if (this->playlist.back())
-		this->initialize_stream();
-	return 1;
-}
-
-bool AudioPlayer::execute_next(){
-	AudioLocker al(*this);
-	this->eliminate_buffers();
-	this->now_playing.reset();
-	if (this->playlist.next(true))
-		this->initialize_stream();
-	return 1;
-}
-
-bool AudioPlayer::execute_load(bool load, bool file, const std::wstring &path){
-	if (load){
-		this->execute_stop();
-		this->playlist.load(file, path);
-		this->execute_play();
-	}else
-		this->playlist.append(file, path);
-	return 1;
-}
-
-bool AudioPlayer::execute_metadata_update(std::shared_ptr<GenericMetadata> metadata){
-	this->push_maybe_to_internal_queue(new MetaDataUpdate(metadata));
-	return 1;
-}
-
-bool AudioPlayer::execute_playback_end(){
-	this->on_stop();
-	return 1;
+	this->push_to_command_queue(new AsyncCommandLoad(load, file, path));
 }
 
 double AudioPlayer::get_current_time(){
-	AutoMutex am(this->position_mutex);
-	if (!this->last_freq_seen){
-		if (this->overriding_current_time >= 0)
-			return this->overriding_current_time;
-		return 0;
-	}
-	return (double)this->last_position_seen / (double)this->last_freq_seen;
-}
-
-void AudioPlayer::try_update_total_time(){
-	if (this->current_total_time >= 0)
-		return;
-	this->current_total_time = this->now_playing->get_total_time();
-	if (this->current_total_time < 0)
-		return;
-	this->push_maybe_to_internal_queue(new TotalTimeUpdate(this->current_total_time));
+	return this->current_player.load()->get_current_time();
 }
 
 void AudioPlayer::notify_playback_end(){
-	this->push_to_command_queue(new AsyncCommandPlaybackEnd(this));
+	this->push_to_command_queue(new AsyncCommandPlaybackEnd);
+}
+
+Playlist &AudioPlayer::get_playlist(){
+	return this->current_player.load()->playlist;
+}
+
+audio_buffer_t AudioPlayer::get_last_buffer_played(){
+	return this->current_player.load()->get_last_buffer_played();
+}
+
+PlayState::Value AudioPlayer::get_state() const{
+	return this->current_player.load()->state;
 }

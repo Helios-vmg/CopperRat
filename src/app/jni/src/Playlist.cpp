@@ -31,16 +31,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "File.h"
 #include "Decoder.h"
 #include "CommonFunctions.h"
-#include "Settings.h"
+#include "ApplicationState.h"
+#include "XorShift128.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <fstream>
 #endif
 
-std::wstring to_string(Playlist::PlaybackMode mode){
+thread_local XorShift128 xorshift128;
+thread_local UniformGeneratorSelector<size_t>::type<XorShift128> size_t_gen(xorshift128);
+
+std::wstring to_string(PlaybackMode mode){
 	switch (mode){
-#define CHECK_MODE(x)               \
-	case Playlist::PlaybackMode::x: \
-		return L###x
+#define CHECK_MODE(x) case PlaybackMode::x: return L###x
 		CHECK_MODE(SINGLE);
 		CHECK_MODE(REPEAT_LIST);
 		CHECK_MODE(REPEAT_TRACK);
@@ -49,16 +51,40 @@ std::wstring to_string(Playlist::PlaybackMode mode){
 	return L"";
 }
 
-Playlist::Playlist(): current_track(-1){
-	this->mode = application_settings.get_playback_mode();
-	this->shuffle = application_settings.get_shuffle();
-	application_settings.get_playlist_items(this->tracks);
-	application_settings.get_shuffle_items(this->shuffle_vector);
-	this->current_track = application_settings.get_current_track();
+template <typename It>
+void playlist_random_shuffle(It begin, It end){
+	auto n = end - begin;
+	auto n1 = begin + n / 3;
+	auto n2 = begin + n * 2 / 3;
+	special_random_shuffle(begin, n2, n1, size_t_gen);
+	random_shuffle(n1, end, size_t_gen);
+}
+
+Playlist::Playlist(PlayerState &state): state(&state){
+	auto &playback = this->state->get_playback();
+	this->mode = playback.get_playback_mode();
+	this->shuffle = playback.get_shuffle();
+	this->current_track = playback.get_current_track();
+
+	auto &playlist = this->state->get_playlist();
+	playlist.get_playlist_items(this->tracks);
+	playlist.get_shuffle_items(this->shuffle_vector);
+}
+
+Playlist &Playlist::operator=(Playlist &&other){
+	this->state = other.state;
+	other.state = nullptr;
+	this->current_track = other.current_track;
+	this->mode = other.mode;
+	this->shuffle = other.shuffle;
+	this->tracks = std::move(other.tracks);
+	this->shuffle_vector = std::move(other.shuffle_vector);
+	return *this;
 }
 
 Playlist::~Playlist(){
-	this->save_state();
+	if (this->state)
+		this->save_state();
 }
 
 void Playlist::clear(){
@@ -68,12 +94,15 @@ void Playlist::clear(){
 }
 
 void Playlist::save_state(){
-	application_settings.set_playback_mode(this->mode);
-	application_settings.set_shuffle(this->shuffle);
-	application_settings.set_current_track(this->current_track);
-	application_settings.set_playlist_items(this->tracks);
-	application_settings.set_shuffle_items(this->shuffle_vector);
-	application_settings.commit();
+	auto &playback = this->state->get_playback();
+	playback.set_playback_mode(this->mode);
+	playback.set_shuffle(this->shuffle);
+	playback.set_current_track(this->current_track);
+	
+	auto &playlist = this->state->get_playlist();
+	playlist.set_playlist_items(this->tracks);
+	playlist.set_shuffle_items(this->shuffle_vector);
+	this->state->save();
 }
 
 void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
@@ -87,7 +116,7 @@ void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
 		this->shuffle_vector.resize(previous_size + n);
 		for (size_t i = 0; i < n; i++)
 			this->shuffle_vector[previous_size + i] = (int)(i + p);
-		//std::random_shuffle(this->shuffle_vector.begin() + previous_size, this->shuffle_vector.end());
+		random_shuffle(this->shuffle_vector.begin() + previous_size, this->shuffle_vector.end(), size_t_gen);
 	}
 	if (this->current_track < 0)
 		this->current_track = 0;
@@ -110,7 +139,7 @@ bool Playlist::toggle_shuffle(){
 				this->shuffle_vector[i] = (int)i;
 			std::swap(this->shuffle_vector[0], this->shuffle_vector[this->current_track]);
 			this->current_track = 0;
-			//std::random_shuffle(this->shuffle_vector.begin() + 1, this->shuffle_vector.end());
+			random_shuffle(this->shuffle_vector.begin() + 1, this->shuffle_vector.end(), size_t_gen);
 		}
 	}
 	this->shuffle = !this->shuffle;
@@ -120,10 +149,10 @@ bool Playlist::toggle_shuffle(){
 
 bool Playlist::get_current_track(std::wstring &dst){
 	if (this->at_null_position())
-		return 0;
+		return false;
 	size_t index = !this->shuffle ? this->current_track : this->shuffle_vector[this->current_track];
 	dst = this->tracks[index];
-	return 1;
+	return true;
 }
 
 bool Playlist::next(bool by_user){
@@ -139,12 +168,12 @@ bool Playlist::next(bool by_user){
 		case PlaybackMode::REPEAT_LIST:
 			this->current_track = (this->current_track + 1) % this->tracks.size();
 			if (!this->current_track && this->shuffle)
-				/*std::random_shuffle(this->shuffle_vector.begin(), this->shuffle_vector.end())*/;
+				playlist_random_shuffle(this->shuffle_vector.begin(), this->shuffle_vector.end());
 			break;
 		case PlaybackMode::REPEAT_TRACK:
 			break;
 	}
-	application_settings.set_current_track(this->current_track);
+	this->state->get_playback().set_current_track(this->current_track);
 	return 1;
 }
 
@@ -164,7 +193,7 @@ bool Playlist::is_back_possible() const{
 	return 1;
 }
 
-Playlist::PlaybackMode Playlist::cycle_mode(){
+PlaybackMode Playlist::cycle_mode(){
 	this->mode = (PlaybackMode)(((int)this->mode + 1) % (int)PlaybackMode::COUNT);
 	if (this->mode == PlaybackMode::REPEAT_LIST && this->tracks.size())
 		this->current_track %= this->tracks.size();

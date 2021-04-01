@@ -34,7 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "MainScreen.h"
 #include "FileBrowser.h"
 #include "ListView.h"
-#include "../Settings.h"
+#include "../ApplicationState.h"
 #include "../AudioBuffer.h"
 #include "../Rational.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
@@ -84,8 +84,8 @@ void GUIElement::update(){
 }
 
 SUI::SUI(AudioPlayer &player): GUIElement(this, nullptr), player(&player){
-	this->set_visualization_mode(application_settings.get_visualization_mode());
-	this->set_display_fps(application_settings.get_display_fps());
+	this->set_visualization_mode(application_state.get_visualization_mode());
+	this->set_display_fps(application_state.get_display_fps());
 	::get_dots_per_millimeter();
 	this->true_resolution.x = 0;
 	this->true_resolution.y = 0;
@@ -155,6 +155,10 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 		case SDL_SCANCODE_Z:
 		case SDL_SCANCODE_AUDIOPREV:
 			this->player->request_previous();
+			break;
+		case SDL_SCANCODE_RIGHT:
+			break;
+		case SDL_SCANCODE_LEFT:
 			break;
 #if defined WIN32 && 0
 		case SDL_SCANCODE_F12:
@@ -435,7 +439,7 @@ void SUI::start_gui(){
 	main_screen->set_on_load_request([this](){ this->load_file_menu(); });
 	main_screen->set_on_menu_request([this](){
 		this->options_menu();
-		application_settings.commit();
+		application_state.save();
 	});
 	this->display(main_screen);
 }
@@ -462,8 +466,8 @@ void SUI::load_file_menu(){
 		bool load = button / 2 == 0;
 		bool file = button % 2 == 0;
 
-		auto path = application_settings.get_last_browse_directory();
-		auto root = application_settings.get_last_root();
+		auto path = application_state.get_last_browse_directory();
+		auto root = application_state.get_last_root();
 		if (!root.size())
 			root = get_external_storage_path();
 		auto browser = std::make_shared<FileBrowser>(this->sui, this->sui, file, false, root, path);
@@ -474,8 +478,8 @@ void SUI::load_file_menu(){
 		browser->set_on_accept([this, load, file, root{std::move(root)}](std::wstring &&path){
 			auto browser = std::static_pointer_cast<FileBrowser>(this->element_stack.back());
 			this->undisplay();
-			application_settings.set_last_root(root);
-			application_settings.set_last_browse_directory(browser->get_new_initial_directory());
+			application_state.set_last_root(root);
+			application_state.set_last_browse_directory(browser->get_new_initial_directory());
 			this->load(load, file, path);
 		});
 	});
@@ -487,8 +491,8 @@ void SUI::options_menu(){
 		auto &playlist = this->get_player().get_playlist();
 		auto playback_mode = playlist.get_playback_mode();
 		bool shuffling = playlist.get_shuffle();
-		auto visualization_mode = application_settings.get_visualization_mode();
-		auto display_fps = application_settings.get_display_fps();
+		auto visualization_mode = application_state.get_visualization_mode();
+		auto display_fps = application_state.get_display_fps();
 		strings.push_back(L"Playback mode: " + to_string(playback_mode));
 		strings.push_back(std::wstring(L"Shuffling: O") + (shuffling ? L"N" : L"FF"));
 		strings.push_back(L"Visualization mode: " + to_string(visualization_mode));
@@ -502,21 +506,22 @@ void SUI::options_menu(){
 	lv->set_on_selection([this](size_t button){
 		this->undisplay();
 		auto &playlist = this->get_player().get_playlist();
+		auto &playback = application_state.get_current_player().get_playback();
 		switch (button){
 			case 0:
-				application_settings.set_playback_mode(playlist.cycle_mode());
+				playback.set_playback_mode(playlist.cycle_mode());
 				break;
 			case 1:
-				application_settings.set_shuffle(playlist.toggle_shuffle());
+				playback.set_shuffle(playlist.toggle_shuffle());
 				break;
 			case 2:
 				visualization_mode = (VisualizationMode)(((int)visualization_mode + 1) % (int)VisualizationMode::END);
-				application_settings.set_visualization_mode(visualization_mode);
+				application_state.set_visualization_mode(visualization_mode);
 				this->set_visualization_mode(visualization_mode);
 				break;
 			case 3:
 				display_fps = !display_fps;
-				application_settings.set_display_fps(display_fps);
+				application_state.set_display_fps(display_fps);
 				this->set_display_fps(display_fps);
 				break;
 		}

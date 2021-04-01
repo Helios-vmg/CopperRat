@@ -174,6 +174,10 @@ size_t utf8_size(const std::basic_string<T> &s){
 template <typename T>
 void string_to_utf8(std::vector<unsigned char> &dst, const std::basic_string<T> &src){
 	static const unsigned char masks[] = { 0, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE };
+	if (!src.size()){
+		dst.clear();
+		return;
+	}
 	dst.resize(utf8_size(src));
 	unsigned char *pointer = &dst[0];
 	const T *src_pointer = &src[0];
@@ -209,7 +213,8 @@ bool check_flag(T1 flag, T2 pattern){
 }
 
 #ifndef __ANDROID__
-#define __android_log_print(x, y, z, ...) printf(z, __VA_ARGS__)
+//#define __android_log_print(x, y, z, ...) printf(z, __VA_ARGS__)
+#define __android_log_print(...)
 #endif
 
 bool read_32_bits(Uint32 &dst, std::istream &stream);

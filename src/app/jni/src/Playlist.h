@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef PLAYLIST_H
 #define PLAYLIST_H
 
+#include "ApplicationState.h"
 #include "Metadata.h"
 
 class PlayItem{
@@ -37,15 +38,8 @@ class PlayItem{
 };
 
 class Playlist{
-public:
-	enum class PlaybackMode{
-		SINGLE = 0,
-		REPEAT_LIST = 1,
-		REPEAT_TRACK = 2,
-		COUNT = 3,
-	};
-private:
-	int current_track;
+	PlayerState *state = nullptr;
+	int current_track = -1;
 	PlaybackMode mode;
 	bool shuffle;
 	std::vector<std::wstring> tracks;
@@ -57,8 +51,15 @@ private:
 	void load_playlist(const std::wstring &path);
 	void save_state();
 public:
-	Playlist();
+	Playlist() = default;
+	Playlist(PlayerState &);
 	~Playlist();
+	Playlist(const Playlist &) = delete;
+	Playlist &operator=(const Playlist &) = delete;
+	Playlist(Playlist &&other){
+		*this = std::move(other);
+	}
+	Playlist &operator=(Playlist &&);
 	void clear();
 	void set(const std::vector<std::wstring> &v){
 		this->clear();
@@ -86,6 +87,6 @@ public:
 	void append(bool file, const std::wstring &path);
 };
 
-std::wstring to_string(Playlist::PlaybackMode);
+std::wstring to_string(PlaybackMode);
 
 #endif

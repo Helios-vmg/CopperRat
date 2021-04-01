@@ -31,11 +31,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../AudioPlayer.h"
 #include "../UserInterface.h"
-#include "../auto_ptr.h"
 #include "../Deleters.h"
 #include "../Threads.h"
 #include "../Image.h"
-#include "../Settings.h"
+#include "../ApplicationState.h"
 #include "Font.h"
 #include "Signal.h"
 #ifndef HAVE_PRECOMPILED_HEADERS

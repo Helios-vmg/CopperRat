@@ -79,6 +79,8 @@ extern "C"{
 #include <functional>
 #include <type_traits>
 #include <string_view>
+#include <random>
+#include <array>
 #include "tremor/ivorbisfile.h"
 //#include <vorbis/vorbisfile.h>
 #include <webp/encode.h>

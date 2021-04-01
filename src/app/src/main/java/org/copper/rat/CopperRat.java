@@ -121,7 +121,7 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, getString(R.string.channel_id))
                     .setContentTitle("CopperRat")
                     .setContentText("CopperRat is playing music.")
-                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setSmallIcon(R.mipmap.ic_launcher2)
                     .setPriority(NotificationCompat.PRIORITY_MAX)
                     .setOngoing(true)
                     .setNotificationSilent();
@@ -138,13 +138,22 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
         }
     }
 
-    public String getExternalStoragePath(){
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public String getExternalStoragePathN(){
         StorageManager sm = (StorageManager)getContext().getSystemService(Context.STORAGE_SERVICE);
-        for (StorageVolume vol : sm.getStorageVolumes()){
-            if (vol.isRemovable())
-                return vol.getDirectory().getAbsolutePath();
+        for (int attempt = 0; attempt < 2; attempt++) {
+            for (StorageVolume vol : sm.getStorageVolumes()) {
+                if ((vol.isRemovable() ? 0 : 1) == attempt)
+                    return vol.getDirectory().getAbsolutePath();
+            }
         }
         return null;
+    }
+
+    public String getExternalStoragePath(){
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N)
+            return getExternalStoragePathN();
+        return "/";
     }
 
     public double getScreenDensity(){

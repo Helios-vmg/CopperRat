@@ -41,11 +41,11 @@ void add_slash(std::list<std::vector<DirectoryElement>> &dst, const std::wstring
 	dst.emplace_back(std::move(temp));
 }
 
-FileBrowser::FileBrowser(SUI *sui, GUIElement *parent, bool select_file, bool can_return, const std::wstring &_root, const std::wstring &_initial_directory):
+FileBrowser::FileBrowser(SUI *sui, GUIElement *parent, bool select_file, bool can_return, const std::wstring &p_root, const std::wstring &p_initial_directory):
 		GUIElement(sui, parent),
 		select_file(select_file){
-	auto root = _root;
-	std::wstring_view initial_directory = _initial_directory;
+	auto root = p_root;
+	std::wstring_view initial_directory = p_initial_directory;
 FileBrowser__FileBrowser:
 	if (!root.size())
 		root = L"/";
@@ -92,7 +92,7 @@ FileBrowser__FileBrowser:
 		this->path.push_back(index);
 		this->change_directory();
 	}
-	this->new_initial_directory = initial_directory;
+	this->new_initial_directory = p_initial_directory;
 }
 
 void FileBrowser::generate_next_list(){

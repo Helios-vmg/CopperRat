@@ -41,7 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifndef __ANDROID__
-#define BASE_PATH
+#define BASE_PATH ""
 #else
 #define BASE_PATH "/data/data/org.copper.rat/files/"
 #endif

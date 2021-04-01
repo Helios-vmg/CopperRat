@@ -29,7 +29,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef AUDIOSTREAM_H
 #define AUDIOSTREAM_H
 #include "AudioFilter.h"
-#include "auto_ptr.h"
 //#define DUMP_OUTPUT
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <memory>
@@ -40,12 +39,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <fstream>
 #endif
 
-class AudioPlayer;
+class AudioPlayerState;
 
 class AudioStream{
-	AudioPlayer &parent;
-	CR_UNIQUE_PTR(Decoder) decoder;
-	CR_UNIQUE_PTR(AudioFilterManager) filter;
+	AudioPlayerState *parent;
+	std::unique_ptr<Decoder> decoder;
+	std::unique_ptr<AudioFilterManager> filter;
 	audio_position_t position;
 	std::wstring path;
 #ifdef DUMP_OUTPUT
@@ -54,11 +53,11 @@ class AudioStream{
 	AudioFormat dst_format;
 	double multiplier;
 public:
-	AudioStream(AudioPlayer &parent, const std::wstring &path, unsigned frequency, unsigned channels);
+	AudioStream(AudioPlayerState &parent, const std::wstring &path, unsigned frequency, unsigned channels);
 	audio_buffer_t read();
 	bool reset();
-	void seek(AudioPlayer *player, audio_position_t &new_position, audio_position_t current_position, double param, bool scaling);
-	void seek(AudioPlayer *player, audio_position_t &new_position, audio_position_t current_position, double seconds);
+	void seek(audio_position_t &new_position, audio_position_t current_position, double param, bool scaling);
+	void seek(audio_position_t &new_position, audio_position_t current_position, double seconds);
 	double get_total_time(){
 		return this->decoder->get_seconds_length();
 	}

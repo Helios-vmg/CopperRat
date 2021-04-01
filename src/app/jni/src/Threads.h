@@ -89,7 +89,7 @@ template <typename T>
 class thread_safe_queue{
 	friend class AutoLocker<thread_safe_queue<T> >;
 	std::queue<T> queue;
-	Mutex mutex;
+	mutable Mutex mutex;
 	SynchronousEvent popped_event;
 	SynchronousEvent pushed_event;
 	void lock(){
@@ -113,6 +113,7 @@ public:
 			this->mutex
 		};
 		this->queue = b.queue;
+		return *this;
 	}
 	void clear(){
 		AutoMutex am(this->mutex);

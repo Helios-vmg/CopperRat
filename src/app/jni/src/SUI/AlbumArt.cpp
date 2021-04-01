@@ -152,9 +152,7 @@ std::string generate_fragment_shader(double sigma, double texture_w, double text
 		stream <<")) * "<<kernel<<";\n";
 	}
 	stream <<"	gl_FragColor = accum;\n}\n";
-	auto ret = stream.str();
-	std::cout << ret << std::endl;
-	return ret;
+	return stream.str();
 }
 
 void SUI::create_shaders(){

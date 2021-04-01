@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include "AudioDevice.h"
 #include "AudioPlayer.h"
-#include "Settings.h"
+#include "ApplicationState.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL.h>
 #endif
@@ -77,7 +77,7 @@ void AudioDevice::open(){
 }
 
 void AudioDevice::close(){
-	application_settings.commit();
+	application_state.save();
 	if (this->audio_is_open)
 		this->close_in_main();
 }
