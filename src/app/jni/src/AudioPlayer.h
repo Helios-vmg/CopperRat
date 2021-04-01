@@ -15,10 +15,10 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "UserInterface.h"
 #include "AudioPlayerState.h"
 #include "QueueElements.h"
-#include "AsyncCommands.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <memory>
 #include <map>
+#include <functional>
 #endif
 
 struct NotImplementedException{};
@@ -27,7 +27,7 @@ class AudioPlayer{
 	friend class AudioDevice;
 	friend class AudioPlayerState;
 	typedef std::shared_ptr<ExternalQueueElement> eqe_t;
-	typedef std::shared_ptr<AudioPlayerAsyncCommand> command_t;
+	typedef std::function<bool(AudioPlayerState &)> command_t;
 	typedef thread_safe_queue<command_t> external_queue_in_t;
 	typedef thread_safe_queue<eqe_t> external_queue_out_t;
 
@@ -55,10 +55,6 @@ class AudioPlayer{
 
 	void thread();
 	void thread_loop();
-	void push_to_command_queue(AudioPlayerAsyncCommand *p){
-		std::shared_ptr<AudioPlayerAsyncCommand> sp(p);
-		this->external_queue_in.push(sp);
-	}
 	void push_to_external_queue(ExternalQueueElement *p){
 		std::shared_ptr<ExternalQueueElement> sp(p);
 		this->external_queue_out.push(sp);
@@ -83,18 +79,19 @@ public:
 	}
 	void terminate_thread(UserInterface &ui);
 
+	#define TRIVIAL_ASYNC_COMMAND(name) void request_##name(){ this->external_queue_in.push([this](AudioPlayerState &state){ return state.execute_##name(); }); }
 	//request_* functions run in the caller thread!
-	void request_hardplay();
-	void request_playpause();
-	void request_play();
-	void request_pause();
-	void request_stop();
+	TRIVIAL_ASYNC_COMMAND(hardplay)
+	TRIVIAL_ASYNC_COMMAND(playpause)
+	TRIVIAL_ASYNC_COMMAND(play)
+	TRIVIAL_ASYNC_COMMAND(pause)
+	TRIVIAL_ASYNC_COMMAND(stop)
+	TRIVIAL_ASYNC_COMMAND(previous)
+	TRIVIAL_ASYNC_COMMAND(next)
+	TRIVIAL_ASYNC_COMMAND(exit)
 	void request_absolute_scaling_seek(double scale);
 	void request_relative_seek(double seconds);
-	void request_previous();
-	void request_next();
-	void request_exit();
-	void request_load(bool load, bool file, const std::wstring &path);
+	void request_load(bool load, bool file, std::wstring &&path);
 	double get_current_time();
 
 	//nodify_* functions are designed to be called from the audio output thread.

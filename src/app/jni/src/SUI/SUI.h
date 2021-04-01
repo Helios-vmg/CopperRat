@@ -187,7 +187,7 @@ private:
 	unsigned handle_finished_jobs();
 	//load: true for load, false for add
 	//file: true for file, false for directory
-	void load(bool load, bool file, const std::wstring &path);
+	void load(bool load, bool file, std::wstring &&path);
 	void on_switch_to_foreground();
 	void create_shaders();
 	Texture blur_image(Texture tex);
@@ -203,6 +203,8 @@ private:
 		this->element_stack.pop_back();
 		this->request_update();
 	}
+	void switch_to_next_player();
+	void switch_to_previous_player();
 public:
 	SUI(AudioPlayer &player);
 	~SUI();

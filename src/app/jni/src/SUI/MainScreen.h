@@ -47,12 +47,12 @@ class MainScreen : public GUIElement{
 	size_t spectrogram_data_head;
 	std::function<void()> on_load_request;
 	std::function<void()> on_menu_request;
+	Uint32 last_draw;
 
 	void prepare_buttons();
 	void on_button(int);
 	void draw_oscilloscope(Uint32 time);
 	void draw_spectrum(Uint32 time, SpectrumQuality, bool spectrogram);
-	Uint32 last_draw;
 public:
 	MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player);
 	unsigned handle_event(const SDL_Event &);

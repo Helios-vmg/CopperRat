@@ -136,8 +136,10 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 			this->player->request_previous();
 			break;
 		case SDL_SCANCODE_RIGHT:
+			this->switch_to_next_player();
 			break;
 		case SDL_SCANCODE_LEFT:
+			this->switch_to_previous_player();
 			break;
 #if defined WIN32 && 0
 		case SDL_SCANCODE_F12:
@@ -248,8 +250,8 @@ unsigned SUI::handle_finished_jobs(){
 	return ret;
 }
 
-void SUI::load(bool load, bool file, const std::wstring &path){
-	this->player->request_load(load, file, path);
+void SUI::load(bool load, bool file, std::wstring &&path){
+	this->player->request_load(load, file, std::move(path));
 }
 
 #if 0
@@ -459,7 +461,7 @@ void SUI::load_file_menu(){
 			this->undisplay();
 			application_state.set_last_root(root);
 			application_state.set_last_browse_directory(browser->get_new_initial_directory());
-			this->load(load, file, path);
+			this->load(load, file, std::move(path));
 		});
 	});
 }
@@ -507,4 +509,13 @@ void SUI::options_menu(){
 		//Note: this is not a recursive call.
 		this->options_menu();
 	});
+}
+
+
+void SUI::switch_to_next_player(){
+	
+}
+
+void SUI::switch_to_previous_player(){
+	
 }

@@ -146,60 +146,28 @@ bool AudioPlayer::handle_requests(){
 	auto current_player = this->current_player.load();
 	bool ret = true;
 	for (command_t command; this->external_queue_in.try_pop(command) && ret;)
-		ret = command->execute(*current_player);
+		ret = command(*current_player);
 	return ret;
 }
 
-void AudioPlayer::request_hardplay(){
-	this->push_to_command_queue(new AsyncCommandHardPlay);
-}
-
-void AudioPlayer::request_playpause(){
-	this->push_to_command_queue(new AsyncCommandPlayPause);
-}
-
-void AudioPlayer::request_play(){
-	this->push_to_command_queue(new AsyncCommandPlay);
-}
-
-void AudioPlayer::request_pause(){
-	this->push_to_command_queue(new AsyncCommandPause);
-}
-
-void AudioPlayer::request_stop(){
-	this->push_to_command_queue(new AsyncCommandStop);
-}
-
 void AudioPlayer::request_absolute_scaling_seek(double scale){
-	this->push_to_command_queue(new AsyncCommandAbsoluteSeek(scale, true));
+	this->external_queue_in.push([scale](AudioPlayerState &state){ return state.execute_absolute_seek(scale, true); });
 }
 
 void AudioPlayer::request_relative_seek(double seconds){
-	this->push_to_command_queue(new AsyncCommandRelativeSeek(seconds));
+	this->external_queue_in.push([seconds](AudioPlayerState &state){ return state.execute_relative_seek(seconds); });
 }
 
-void AudioPlayer::request_previous(){
-	this->push_to_command_queue(new AsyncCommandPrevious);
+void AudioPlayer::request_load(bool load, bool file, std::wstring &&path){
+	this->external_queue_in.push([load, file, path = std::move(path)](AudioPlayerState &state){ return state.execute_load(load, file, path); });
 }
 
-void AudioPlayer::request_next(){
-	this->push_to_command_queue(new AsyncCommandNext);
-}
-
-void AudioPlayer::request_exit(){
-	this->push_to_command_queue(new AsyncCommandExit);
-}
-
-void AudioPlayer::request_load(bool load, bool file, const std::wstring &path){
-	this->push_to_command_queue(new AsyncCommandLoad(load, file, path));
+void AudioPlayer::notify_playback_end(){
+	this->external_queue_in.push([](AudioPlayerState &state){ return state.execute_playback_end(); });
 }
 
 double AudioPlayer::get_current_time(){
 	return this->current_player.load()->get_current_time();
-}
-
-void AudioPlayer::notify_playback_end(){
-	this->push_to_command_queue(new AsyncCommandPlaybackEnd);
 }
 
 Playlist &AudioPlayer::get_playlist(){

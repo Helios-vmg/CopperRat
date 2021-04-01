@@ -103,12 +103,16 @@ public:
 			this->queue.pop();
 	}
 	void push(const T &e){
-		while (1){
+		auto copy = e;
+		this->push(std::move(copy));
+	}
+	void push(T &&e){
+		while (true){
 			{
 				AutoMutex am(this->mutex);
 				size_t size = this->queue.size();
 				if (size < this->max_size){
-					this->queue.push(e);
+					this->queue.emplace(std::move(e));
 					this->pushed_event.set();
 					return;
 				}
@@ -117,10 +121,14 @@ public:
 		}
 	}
 	void shove(const T &e){
+		auto copy = e;
+		this->shove(std::move(copy));
+	}
+	void shove(T &&e){
 		AutoMutex am(this->mutex);
 		while (this->size() >= this->max_size)
 			this->queue.pop();
-		this->queue.push(e);
+		this->queue.emplace(std::move(e));
 	}
 	bool is_empty(){
 		AutoMutex am(this->mutex);
@@ -138,11 +146,10 @@ public:
 		return this->queue.size();
 	}
 	T &peek(){
-		while (1){
+		while (true){
 			{
 				AutoMutex am(this->mutex);
-				size_t size = this->queue.size();
-				if (size > 0)
+				if (!this->queue.empty())
 					return this->queue.front();
 			}
 			this->pushed_event.wait();
@@ -158,18 +165,17 @@ public:
 		return &this->queue.front();
 	}
 	T pop(){
-		while (1){
+		while (true){
 			{
 				AutoMutex am(this->mutex);
-				if (this->queue.size() > 0){
+				if (!this->queue.empty())
 					return this->unlocked_simple_pop();
-				}
 			}
 			this->pushed_event.wait();
 		}
 	}
 	T unlocked_simple_pop(){
-		T ret = this->queue.front();
+		T ret = std::move(this->queue.front());
 		this->queue.pop();
 		this->popped_event.set();
 		return ret;
@@ -180,16 +186,15 @@ public:
 	}
 	bool unlocked_try_pop(T &o){
 		if (!this->queue.size())
-			return 0;
+			return false;
 		o = this->unlocked_simple_pop();
-		return 1;
+		return true;
 	}
 	void pop_without_copy(){
-		while (1){
+		while (true){
 			{
 				AutoMutex am(this->mutex);
-				size_t size = this->queue.size();
-				if (size > 0){
+				if (!this->queue.empty()){
 					this->queue.pop();
 					this->popped_event.set();
 					return;
