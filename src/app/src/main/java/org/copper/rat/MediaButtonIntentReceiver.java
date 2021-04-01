@@ -1,3 +1,10 @@
+/*
+Copyright (c), Helios
+All rights reserved.
+
+Distributed under a permissive license. See COPYING.txt for details.
+*/
+
 package org.copper.rat;
 
 import android.content.BroadcastReceiver;
