@@ -84,7 +84,7 @@ void AudioStream::seek(audio_position_t &new_position, audio_position_t current_
 	this->filter->clear_saved_buffer();
 }
 
-void AudioStream::metadata_update(std::shared_ptr<GenericMetadata> p){
+void AudioStream::metadata_update(const std::shared_ptr<GenericMetadata> &p){
 	this->parent->execute_metadata_update(p);
 	double multiplier = replaygain_get_multiplier(*p, ReplayGainSettings());
 	this->multiplier = multiplier;

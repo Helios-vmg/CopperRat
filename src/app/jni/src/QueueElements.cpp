@@ -10,7 +10,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "AudioPlayer.h"
 
 void ExternalQueueElement::push(AudioPlayer *player, std::shared_ptr<InternalQueueElement> pointer){
-	player->external_queue_out.push(std::static_pointer_cast<ExternalQueueElement>(pointer));
+	this->state->main_screen->get_ui().push_async_callback(std::move(this->f));
 }
 
 AudioCallback_switch_SIGNATURE2(BufferQueueElement::){
@@ -25,11 +25,11 @@ AudioCallback_switch_SIGNATURE2(BufferQueueElement::){
 }
 
 AudioCallback_switch_SIGNATURE2(PlaybackEnd::){
-	state = this->state;
-	player->notify_playback_end();
+	player->notify_playback_end(*this->state);
 	return true;
 }
 
+/*
 unsigned TotalTimeUpdate::receive(UserInterface &ui){
 	return ui.receive(*this);
 }
@@ -41,3 +41,4 @@ unsigned MetaDataUpdate::receive(UserInterface &ui){
 unsigned PlaybackStop::receive(UserInterface &ui){
 	return ui.receive(*this);
 }
+*/

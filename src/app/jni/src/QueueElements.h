@@ -39,6 +39,9 @@ public:
 	virtual ~InternalQueueElement(){}
 	virtual AudioCallback_switch_SIGNATURE = 0;
 	virtual bool is_buffer() const = 0;
+	AudioPlayerState &get_state() const{
+		return *this->state;
+	}
 };
 
 class BufferQueueElement : public InternalQueueElement{
@@ -60,6 +63,7 @@ public:
 
 class PlaybackEnd : public InternalQueueElement{
 public:
+	PlaybackEnd(AudioPlayerState &state): InternalQueueElement(&state){}
 	AudioCallback_switch_SIGNATURE;
 	bool is_buffer() const{
 		return false;
@@ -67,8 +71,9 @@ public:
 };
 
 class ExternalQueueElement : public InternalQueueElement{
+	std::function<void()> f;
 public:
-	ExternalQueueElement(AudioPlayerState *state = nullptr): InternalQueueElement(state){}
+	ExternalQueueElement(std::function<void()> &&f, AudioPlayerState &state): InternalQueueElement(&state), f(std::move(f)){}
 	virtual ~ExternalQueueElement(){}
 	void push(AudioPlayer *player, std::shared_ptr<InternalQueueElement> pointer);
 	virtual AudioCallback_switch_SIGNATURE{
@@ -79,9 +84,9 @@ public:
 	bool is_buffer() const{
 		return false;
 	}
-	virtual unsigned receive(UserInterface &) = 0;
 };
 
+/*
 class ExceptionTransport : public ExternalQueueElement{
 	CR_Exception e;
 public:
@@ -105,7 +110,7 @@ public:
 class MetaDataUpdate : public ExternalQueueElement{
 	std::shared_ptr<GenericMetadata> metadata;
 public:
-	MetaDataUpdate(AudioPlayerState *state, std::shared_ptr<GenericMetadata> metadata): ExternalQueueElement(state), metadata(metadata){}
+	MetaDataUpdate(AudioPlayerState &state, std::shared_ptr<GenericMetadata> metadata): ExternalQueueElement(&state), metadata(metadata){}
 	std::shared_ptr<GenericMetadata> get_metadata(){
 		return this->metadata;
 	}
@@ -114,6 +119,7 @@ public:
 
 class PlaybackStop : public ExternalQueueElement{
 public:
+	PlaybackStop(AudioPlayerState &state): ExternalQueueElement(&state){}
 	unsigned receive(UserInterface &ui);
 };
 
@@ -123,3 +129,4 @@ public:
 		return 0;
 	}
 };
+*/

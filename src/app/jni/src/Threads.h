@@ -13,6 +13,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include <queue>
 #include <limits>
 #include <memory>
+#include <thread>
 #endif
 
 class Mutex{
@@ -20,6 +21,12 @@ class Mutex{
 public:
 	Mutex();
 	~Mutex();
+	Mutex(const Mutex &) = delete;
+	Mutex &operator=(const Mutex &) = delete;
+	Mutex(Mutex &&other){
+		*this = std::move(other);
+	}
+	Mutex &operator=(Mutex &&);
 	void lock();
 	void unlock();
 	SDL_mutex *get() const{
@@ -34,9 +41,42 @@ class SynchronousEvent{
 public:
 	SynchronousEvent();
 	~SynchronousEvent();
+	SynchronousEvent(const SynchronousEvent &) = delete;
+	SynchronousEvent &operator=(const SynchronousEvent &) = delete;
+	SynchronousEvent(SynchronousEvent &&other){
+		*this = std::move(other);
+	}
+	SynchronousEvent &operator=(SynchronousEvent &&);
 	void set();
 	void wait();
 	void wait(unsigned timeout);
+};
+
+template <typename T>
+class Future{
+	bool set = false;
+	SynchronousEvent e;
+	T v;
+public:
+	Future() = default;
+	template <typename T2>
+	Future(T2 &&initial): v(std::move(initial)){}
+	Future(const Future &) = delete;
+	Future &operator=(const Future &) = delete;
+	Future(Future &&) = delete;
+	Future &operator=(Future &&) = delete;
+	Future &operator=(T &&value){
+		this->v = std::move(value);
+		this->e.set();
+		return *this;
+	}
+	T &operator*(){
+		if (!this->set){
+			this->e.wait();
+			this->set = true;
+		}
+		return this->v;
+	}
 };
 
 class RecursiveMutex{
@@ -78,20 +118,29 @@ class thread_safe_queue{
 		this->mutex.unlock();
 	}
 public:
-	unsigned max_size;
-	thread_safe_queue(){
-		this->max_size = std::numeric_limits<unsigned>::max();
+	unsigned max_size = std::numeric_limits<unsigned>::max();
+	thread_safe_queue() = default;
+	thread_safe_queue(const thread_safe_queue &other){
+		AutoMutex am(other.mutex);
+		this->queue = other.queue;
 	}
-	thread_safe_queue(const thread_safe_queue &b){
-		AutoMutex am(b.mutex);
-		this->queue = b.queue;
-	}
-	const thread_safe_queue &operator=(const thread_safe_queue &b){
+	const thread_safe_queue &operator=(const thread_safe_queue &other){
 		AutoMutex am[] = {
-			b.mutex,
+			other.mutex,
 			this->mutex
 		};
-		this->queue = b.queue;
+		this->queue = other.queue;
+		return *this;
+	}
+	thread_safe_queue(thread_safe_queue &&other){
+		*this = std::move(other);
+	}
+	thread_safe_queue &operator=(thread_safe_queue &&other){
+		this->queue = std::move(queue);
+		this->popped_event = std::move(popped_event);
+		this->pushed_event = std::move(pushed_event);
+		this->max_size = other.max_size;
+		other.max_size = std::numeric_limits<unsigned>::max();
 		return *this;
 	}
 	void clear(){
@@ -235,82 +284,46 @@ public:
 class WorkerThread;
 class WorkerThreadJobHandle;
 
-class WorkerThreadJob{
+class CancellableJob{
 protected:
-	WorkerThread *worker;
-	int id;
-	Atomic<bool> cancelled;
+	std::atomic<bool> cancelled = false;
 public:
-	WorkerThreadJob(): id(0), cancelled(0), worker(0){}
-	virtual ~WorkerThreadJob(){}
+	CancellableJob() = default;
+	CancellableJob(const CancellableJob &) = delete;
+	CancellableJob operator=(const CancellableJob &) = delete;
+	CancellableJob(CancellableJob &&) = delete;
+	CancellableJob operator=(CancellableJob &&) = delete;
+	virtual ~CancellableJob(){}
 	void cancel(){
-		this->cancelled.set(1);
+		this->cancelled = true;
 	}
-	bool was_cancelled(){
-		return this->cancelled.get();
-	}
-	virtual void perform(WorkerThread &) = 0;
-	void set_id(int id){
-		this->id = id;
-	}
-	int get_id() const{
-		return this->id;
-	}
-};
-
-class SyncWorkerThreadJob : public WorkerThreadJob{
-protected:
-	SynchronousEvent finished;
-	virtual void sync_perform(WorkerThread &) = 0;
-public:
-	virtual ~SyncWorkerThreadJob(){}
-	void perform(WorkerThread &wt){
-		this->sync_perform(wt);
-		this->finished.set();
-	}
-	//Call from the non-worker thread.
-	void wait(){
-		this->finished.wait();
-	}
-};
-
-class WorkerThreadJobHandle{
-	std::shared_ptr<WorkerThreadJob> job;
-public:
-	WorkerThreadJobHandle(std::shared_ptr<WorkerThreadJob> job): job(job){}
-	~WorkerThreadJobHandle(){
-		job->cancel();
-	}
-	int get_id() const{
-		return this->job->get_id();
+	bool is_cancelled() const{
+		return this->cancelled.load();
 	}
 };
 
 class WorkerThread{
-	SDL_Thread *sdl_thread;
+	std::thread thread;
 	bool low_priority;
-	thread_safe_queue<std::shared_ptr<WorkerThreadJob> > queue;
+	thread_safe_queue<std::function<void()>> queue;
 	bool execute;
-	SDL_atomic_t next_id;
-	static int _thread(void *_this){
-		((WorkerThread *)_this)->thread();
-		return 0;
-	}
-	void thread();
-	class TerminateJob : public SyncWorkerThreadJob{
-		void sync_perform(WorkerThread &wt){
-			wt.kill();
-		}
-	};
-	std::shared_ptr<WorkerThreadJob> current_job;
+	void thread_func();
 public:
-	WorkerThread(bool low_priority = 1);
+	WorkerThread(bool low_priority = true);
 	~WorkerThread();
-	void kill(){
-		this->execute = 0;
+	template <typename F>
+	void attach(F &&f){
+		this->queue.push(f);
 	}
-	std::shared_ptr<WorkerThreadJobHandle> attach(std::shared_ptr<WorkerThreadJob>);
-	std::shared_ptr<WorkerThreadJob> get_current_job() const{
-		return this->current_job;
+	template <typename F>
+	std::shared_ptr<CancellableJob> attach_cancellable(F &&f){
+		auto c = std::make_shared<CancellableJob>();
+		this->queue.push([f = std::move(f), c](){
+			if (c->is_cancelled())
+				return;
+			if (f)
+				f();
+		});
+		return c;
 	}
 };

@@ -12,9 +12,12 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "AudioTypes.h"
 #include "QueueElements.h"
 #include "CommonFunctions.h"
+#include "AudioDevice.h"
+#include "SUI/MainScreen.h"
 
 class AudioPlayer;
 class AudioStream;
+class MainScreen;
 
 class PlayState{
 public:
@@ -75,7 +78,6 @@ class AudioPlayerState{
 	unsigned time_of_last_pause;
 	audio_buffer_t last_buffer_played;
 
-
 	void on_end();
 	void eliminate_buffers(audio_position_t * = 0);
 	void on_stop();
@@ -84,8 +86,20 @@ class AudioPlayerState{
 		std::shared_ptr<InternalQueueElement> sp(p);
 		this->internal_queue.push(sp);
 	}
-	void push_maybe_to_internal_queue(ExternalQueueElement *p);
+	template <typename F>
+	void push_maybe_to_internal_queue(F &&f){
+		{
+			AutoLocker<internal_queue_t> al(this->internal_queue);
+			if (this->internal_queue.unlocked_is_empty()){
+				this->parent->sui->push_async_callback(f);
+				return;
+			}
+		}
+		this->internal_queue.push(std::make_shared<ExternalQueueElement>(std::move(f), *this));
+	}
 public:
+	MainScreen *main_screen = nullptr;
+	
 	AudioPlayerState() = default;
 	AudioPlayerState(AudioPlayer &, PlayerState &);
 	~AudioPlayerState();
@@ -95,9 +109,15 @@ public:
 		*this = std::move(other);
 	}
 	AudioPlayerState &operator=(AudioPlayerState &&);
+	AudioPlayer &get_player() const{
+		return *this->parent;
+	}
 	bool initialize_stream();
 	void try_update_total_time();
 	double get_current_time();
+	auto get_state() const{
+		return this->state;
+	}
 	//Returns false if nothing (expensive) was done.
 	bool process();
 	void audio_callback(Uint8 *stream, int len);
@@ -112,6 +132,11 @@ public:
 		}
 		return ret;
 	}
+	bool is_active() const{
+		return this->state == PlayState::PLAYING;
+	}
+	bool is_empty() const;
+	void erase();
 
 	//execute_* functions run in the internal thread!
 	bool execute_hardplay();
@@ -124,7 +149,7 @@ public:
 	bool execute_previous();
 	bool execute_next();
 	bool execute_load(bool load, bool file, const std::wstring &path);
-	bool execute_metadata_update(std::shared_ptr<GenericMetadata>);
+	bool execute_metadata_update(const std::shared_ptr<GenericMetadata> &);
 	bool execute_exit(){
 		return false;
 	}

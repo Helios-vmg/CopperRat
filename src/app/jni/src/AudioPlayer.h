@@ -21,28 +21,16 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include <functional>
 #endif
 
+class SUI;
+
 struct NotImplementedException{};
 
 class AudioPlayer{
 	friend class AudioDevice;
 	friend class AudioPlayerState;
 	typedef std::shared_ptr<ExternalQueueElement> eqe_t;
-	typedef std::function<bool(AudioPlayerState &)> command_t;
+	typedef std::function<bool()> command_t;
 	typedef thread_safe_queue<command_t> external_queue_in_t;
-	typedef thread_safe_queue<eqe_t> external_queue_out_t;
-
-	struct AudioLocker{
-		bool restore;
-		AudioPlayer &player;
-		AudioLocker(AudioPlayer &player): player(player){
-			this->restore = player.device.is_open();
-			player.device.pause_audio();
-		}
-		~AudioLocker(){
-			if (restore)
-				player.device.start_audio();
-		}
-	};
 
 	bool running = false;
 	AudioDevice device;
@@ -55,15 +43,14 @@ class AudioPlayer{
 
 	void thread();
 	void thread_loop();
-	void push_to_external_queue(ExternalQueueElement *p){
-		std::shared_ptr<ExternalQueueElement> sp(p);
-		this->external_queue_out.push(sp);
-	}
 	bool handle_requests();
 public:
-	external_queue_out_t external_queue_out;
-	AudioPlayer(bool start_thread = true);
+	SUI *sui = nullptr;
+	
+	AudioPlayer(): device(*this){}
 	~AudioPlayer();
+
+	void initialize(bool start_thread);
 
 	void loop(){
 		if (this->running)
@@ -77,9 +64,9 @@ public:
 			throw;
 		}
 	}
-	void terminate_thread(UserInterface &ui);
+	//void terminate_thread(UserInterface &ui);
 
-	#define TRIVIAL_ASYNC_COMMAND(name) void request_##name(){ this->external_queue_in.push([this](AudioPlayerState &state){ return state.execute_##name(); }); }
+	#define TRIVIAL_ASYNC_COMMAND(name) void request_##name(){ this->external_queue_in.push([this](){ return this->current_player.load()->execute_##name(); }); }
 	//request_* functions run in the caller thread!
 	TRIVIAL_ASYNC_COMMAND(hardplay)
 	TRIVIAL_ASYNC_COMMAND(playpause)
@@ -92,10 +79,21 @@ public:
 	void request_absolute_scaling_seek(double scale);
 	void request_relative_seek(double seconds);
 	void request_load(bool load, bool file, std::wstring &&path);
-	double get_current_time();
+	auto &get_players(){
+		return this->players;
+	}
+	auto &get_players() const{
+		return this->players;
+	}
+	AudioPlayerState &get_current_player(){
+		return *this->current_player.load();
+	}
+	AudioPlayerState &new_player();
+	void switch_to_player(AudioPlayerState &);
+	void erase(AudioPlayerState &);
 
 	//nodify_* functions are designed to be called from the audio output thread.
-	void notify_playback_end();
+	void notify_playback_end(AudioPlayerState &);
 	
 	Playlist &get_playlist();
 	audio_buffer_t get_last_buffer_played();

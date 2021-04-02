@@ -14,7 +14,4 @@ class PlaybackStop;
 class UserInterface{
 public:
 	virtual ~UserInterface(){}
-	virtual unsigned receive(TotalTimeUpdate &) = 0;
-	virtual unsigned receive(MetaDataUpdate &) = 0;
-	virtual unsigned receive(PlaybackStop &) = 0;
 };

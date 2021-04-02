@@ -351,7 +351,7 @@ std::basic_string<T> get_extension(const std::basic_string<T> &s){
 template <typename T>
 bool path_is_rooted(const std::basic_string<T> &s){
 	if (!s.size())
-		return 0;
+		return false;
 	return s[0] == '/' || s[0] == '\\';
 }
 
@@ -362,6 +362,13 @@ void normalize_slashes(std::basic_string<T> &s){
 	for (auto &c : s)
 		if (c == '\\')
 			c = '/';
+}
+
+template <typename T>
+T pop_front(std::deque<T> &q){
+	auto ret = std::move(q.front());
+	q.pop_front();
+	return ret;
 }
 
 std::string wide_to_narrow(const std::wstring &s);

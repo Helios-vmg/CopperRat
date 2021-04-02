@@ -42,7 +42,7 @@ class PlaybackState{
 	std::string get_path() const;
 public:
 	PlaybackState() = default;
-	PlaybackState(int index);
+	PlaybackState(int index, bool force_new);
 	~PlaybackState(){
 		this->save();
 	}
@@ -61,6 +61,9 @@ public:
 	void set_current_time(double);
 	
 	//Getters:
+	auto get_index() const{
+		return this->index;
+	}
 	Mode get_playback_mode() const;
 	bool get_shuffle() const;
 	int get_current_track() const;
@@ -77,7 +80,7 @@ class PlaylistState{
 	std::string get_path() const;
 public:
 	PlaylistState() = default;
-	PlaylistState(int index);
+	PlaylistState(int index, bool force_new);
 	~PlaylistState(){
 		this->save();
 	}
@@ -99,11 +102,12 @@ public:
 };
 
 class PlayerState{
+	bool read_only = false;
 	PlaybackState playback;
 	PlaylistState playlist;
 public:
 	PlayerState() = default;
-	PlayerState(int index): playback(index), playlist(index){}
+	PlayerState(bool read_only, int index, bool force_new): read_only(read_only), playback(index, force_new), playlist(index, force_new){}
 	~PlayerState(){
 		this->save();
 	}
@@ -113,6 +117,7 @@ public:
 		*this = std::move(other);
 	}
 	PlayerState &operator=(PlayerState &&other){
+		this->read_only = std::move(other.read_only);
 		this->playback = std::move(other.playback);
 		this->playlist = std::move(other.playlist);
 		return *this;
@@ -134,6 +139,7 @@ public:
 };
 
 class ApplicationState{
+	const bool read_only;
 	mutable std::mutex mutex;
 	mutable bool no_changes = true;
 	std::wstring last_root;
@@ -145,7 +151,7 @@ class ApplicationState{
 
 	void reset();
 public:
-	ApplicationState();
+	ApplicationState(bool read_only = false);
 	~ApplicationState(){
 		this->save();
 	}
@@ -153,6 +159,12 @@ public:
 	std::unique_lock<std::mutex> lock() const{
 		return std::unique_lock<std::mutex>(this->mutex);
 	}
+	PlayerState &new_player();
+	void erase(PlayerState &);
+	ApplicationState(const ApplicationState &) = delete;
+	ApplicationState &operator=(const ApplicationState &) = delete;
+	ApplicationState(ApplicationState &&) = delete;
+	ApplicationState &operator=(ApplicationState &&) = delete;
 	
 	//Setters:
 	void set_last_root(const std::wstring &);

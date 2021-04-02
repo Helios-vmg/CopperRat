@@ -17,21 +17,21 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "Rational.h"
 
 void proper_main(){
-	AudioPlayer *pplayer = nullptr;
 	SynchronousEvent event;
-	std::thread player_thread([&event, &pplayer](){
-		AudioPlayer player(false);
-		pplayer = &player;
-		event.set();
-		player.loop();
-		event.wait();
-	});
-	event.wait();
+	std::thread player_thread;
+	AudioPlayer player;
 	{
-		SUI sui(*pplayer);
+		SUI sui(player);
+		player.sui = &sui;
+		player.initialize(false);
+		sui.initialize();
+		player_thread = std::thread([&](){
+			player.loop();
+			event.wait();
+		});
 		sui.loop();
 	}
-	pplayer->request_exit();
+	player.request_exit();
 	event.set();
 	player_thread.join();
 }

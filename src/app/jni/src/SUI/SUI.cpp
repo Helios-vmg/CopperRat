@@ -16,6 +16,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "../ApplicationState.h"
 #include "../AudioBuffer.h"
 #include "../Rational.h"
+#include "../AudioPlayer.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL_image.h>
 #include <iostream>
@@ -36,33 +37,16 @@ unsigned GUIElement::handle_event(const SDL_Event &e){
 	return ret;
 }
 
-unsigned GUIElement::receive(TotalTimeUpdate &x){
-	unsigned ret = SUI::NOTHING;
-	for (auto &child : this->children)
-		ret |= child->receive(x);
-	return ret;
-}
-
-unsigned GUIElement::receive(MetaDataUpdate &x){
-	unsigned ret = SUI::NOTHING;
-	for (auto &child : this->children)
-		ret |= child->receive(x);
-	return ret;
-}
-
-unsigned GUIElement::receive(PlaybackStop &x){
-	unsigned ret = SUI::NOTHING;
-	for (auto &child : this->children)
-		ret |= child->receive(x);
-	return ret;
-}
-
 void GUIElement::update(){
 	for (auto &child : this->children)
 		child->update();
 }
 
-SUI::SUI(AudioPlayer &player): GUIElement(this, nullptr), player(&player){
+SUI::SUI(AudioPlayer &player): GUIElement(this, nullptr), player(&player){}
+
+SUI::~SUI(){}
+
+void SUI::initialize(){
 	this->set_visualization_mode(application_state.get_visualization_mode());
 	this->set_display_fps(application_state.get_display_fps());
 	::get_dots_per_millimeter();
@@ -92,17 +76,33 @@ SUI::SUI(AudioPlayer &player): GUIElement(this, nullptr), player(&player){
 	if (!this->screen)
 		throw UIInitializationException("Window creation failed.");
 
-	this->tex_picture.set_target(this->screen);
-	this->background_picture.set_target(this->screen);
-
+	this->set_geometry();
+	
 	this->font.reset(new Font(this->screen));
 
 	this->create_shaders();
 
-	this->start_gui();
+	auto &map = this->sui->player->get_players();
+	auto &current = this->sui->player->get_current_player();
+	this->stacks.reserve(map.size());
+	size_t i = 0;
+	for (auto &kv : map){
+		if (&current == &kv.second)
+			this->active_stack = i;
+		i++;
+		std::vector<current_element_t> stack;
+		this->start_gui(stack, kv.second);
+		this->stacks.emplace_back(std::move(stack));
+	}
 }
 
-SUI::~SUI(){}
+void SUI::set_geometry(){
+	auto w = this->screen->w,
+		h = this->screen->h;
+	this->bounding_square = std::min(w, h);
+	this->max_square = std::max(w, h);
+}
+
 
 unsigned SUI::handle_keys(const SDL_Event &e){
 	unsigned ret = NOTHING;
@@ -178,17 +178,14 @@ unsigned SUI::handle_keys(const SDL_Event &e){
 }
 
 unsigned SUI::handle_event(const SDL_Event &e){
-	auto temp = this->element_stack;
-	auto ret = this->element_stack.back()->handle_event(e);
+	auto &stack = this->stacks[this->active_stack];
+	auto temp = stack;
+	auto ret = stack.back()->handle_event(e);
 	return ret;
 }
 	
 void SUI::on_switch_to_foreground(){
-	this->ui_in_foreground = 1;
-	if (this->dpla){
-		this->dpla->perform();
-		this->dpla.reset();
-	}
+	this->ui_in_foreground = true;
 }
 
 unsigned SUI::handle_in_events(){
@@ -217,37 +214,33 @@ unsigned SUI::handle_in_events(){
 	return ret;
 }
 
-unsigned SUI::receive(TotalTimeUpdate &ttu){
-	this->current_total_time = ttu.get_seconds();
-	return REDRAW;
-}
-
-unsigned SUI::receive(PlaybackStop &x){
-	this->tex_picture_source.clear();
-	this->tex_picture.unload();
-	this->background_picture.unload();
-	this->metadata.clear();
-	this->current_total_time = -1;
-	return REDRAW;
-}
-
-unsigned SUI::handle_out_events(){
-	std::shared_ptr<ExternalQueueElement> eqe;
-	unsigned ret = NOTHING;
-	while (this->player->external_queue_out.try_pop(eqe)){
-		ret |= eqe->receive(*this);
-		for (auto &p : this->children)
-			ret |= eqe->receive(*p);
+void SUI::process(decltype(async_callbacks) &q){
+	while (true){
+		std::function<void()> f;
+		{
+			std::lock_guard<std::mutex> lg(this->async_callbacks_mutex);
+			if (!q.size())
+				break;
+			f = pop_front(q);
+		}
+		if (f)
+			f();
 	}
-	return ret;
 }
 
-unsigned SUI::handle_finished_jobs(){
-	std::shared_ptr<SUIJob> job;
-	unsigned ret = NOTHING;
-	while (this->finished_jobs_queue.try_pop(job))
-		ret |= job->finish(*this);
-	return ret;
+void SUI::handle_out_events(){
+	this->process(this->async_callbacks);
+	if (this->ui_in_foreground)
+		this->process(this->fg_async_callbacks);
+}
+
+void SUI::push_async_callback(std::function<void()> &&f, bool fg_only){
+	std::lock_guard<std::mutex> lg(this->async_callbacks_mutex);
+	(fg_only ? this->fg_async_callbacks : this->async_callbacks).emplace_back(std::move(f));
+}
+
+void SUI::push_parallel_work(std::function<void()> &&f){
+	this->worker.attach(std::move(f));
 }
 
 void SUI::load(bool load, bool file, std::wstring &&path){
@@ -278,35 +271,6 @@ void format_memory(std::basic_ostream<T> &stream, size_t size){
 }
 #endif
 
-void SUI::draw_picture(){
-	int sq = this->get_bounding_square();
-	if (this->background_picture){
-		SDL_Rect rect = { 0, 0, 0, 0 };
-		this->background_picture.draw(rect);
-	}
-	if (this->tex_picture){
-		auto rect = this->tex_picture.get_rect();
-		SDL_Rect dst = { int((sq - rect.w) / 2), int((sq - rect.h) / 2), 0, 0 };
-		this->tex_picture.draw(dst);
-	}
-}
-
-int SUI::get_bounding_square(){
-	if (this->bounding_square >= 0)
-		return this->bounding_square;
-	int w = this->screen->w,
-		h = this->screen->h;
-	return this->bounding_square = std::min(w, h);
-}
-
-int SUI::get_max_square(){
-	if (this->max_square >= 0)
-		return this->max_square;
-	int w = this->screen->w,
-		h = this->screen->h;
-	return this->max_square = std::max(w, h);
-}
-
 SDL_Rect SUI::get_visible_region() const{
 	int w = this->screen->w,
 		h = this->screen->h;
@@ -315,7 +279,7 @@ SDL_Rect SUI::get_visible_region() const{
 }
 
 void SUI::request_update(){
-	this->update_requested = 1;
+	this->update_requested = true;
 }
 
 SDL_Rect SUI::get_seekbar_region(){
@@ -361,7 +325,7 @@ void SUI::loop(){
 	black.a = 255;
 	while (!check_flag(status = this->handle_in_events(), QUIT)){
 		try{
-			status |= this->handle_out_events();
+			this->handle_out_events();
 		}catch (const DeviceInitializationException &e){
 			__android_log_print(ANDROID_LOG_INFO, "C++Exception", "Fatal exception caught: %s\n", e.what());
 			return;
@@ -369,8 +333,7 @@ void SUI::loop(){
 			__android_log_print(ANDROID_LOG_INFO, "C++Exception", "Non-fatal exception caught: %s\n", e.what());
 		}catch (...){
 		}
-		status |= this->handle_finished_jobs();
-		bool do_redraw = 0;
+		bool do_redraw = false;
 		Uint32 now_ticks = 0;
 		if (this->ui_in_foreground){
 			now_ticks = SDL_GetTicks();
@@ -389,7 +352,7 @@ void SUI::loop(){
 			SDL_Delay(min_time / 2);
 			continue;
 		}
-		this->update_requested = 0;
+		this->update_requested = false;
 
 		std::string display_string;
 		fps_queue.push_back(now_ticks);
@@ -407,7 +370,7 @@ void SUI::loop(){
 
 		GPU_ClearColor(this->screen, black);
 		GPU_Clear(this->screen);
-		this->element_stack.back()->update();
+		this->stacks[this->active_stack].back()->update();
 		if (display_string.size())
 			this->font->draw_text(display_string, 0, 0, INT_MAX, 2.0);
 		GPU_Flip(this->screen);
@@ -415,14 +378,15 @@ void SUI::loop(){
 	}
 }
 
-void SUI::start_gui(){
-	auto main_screen = std::make_shared<MainScreen>(this->sui, this->sui, *this->sui->player);
+void SUI::start_gui(std::vector<current_element_t> &dst, AudioPlayerState &state){
+	auto main_screen = std::make_shared<MainScreen>(this->sui, this->sui, state);
+	state.main_screen = main_screen.get();
 	main_screen->set_on_load_request([this](){ this->load_file_menu(); });
 	main_screen->set_on_menu_request([this](){
 		this->options_menu();
 		application_state.save();
 	});
-	this->display(main_screen);
+	this->display(dst, main_screen);
 }
 
 template <typename T, size_t N>
@@ -457,7 +421,7 @@ void SUI::load_file_menu(){
 			this->undisplay();
 		});
 		browser->set_on_accept([this, load, file, root{std::move(root)}](std::wstring &&path){
-			auto browser = std::static_pointer_cast<FileBrowser>(this->element_stack.back());
+			auto browser = std::static_pointer_cast<FileBrowser>(this->stacks[this->active_stack].back());
 			this->undisplay();
 			application_state.set_last_root(root);
 			application_state.set_last_browse_directory(browser->get_new_initial_directory());
@@ -513,9 +477,31 @@ void SUI::options_menu(){
 
 
 void SUI::switch_to_next_player(){
-	
+	this->switch_player(1);
 }
 
 void SUI::switch_to_previous_player(){
-	
+	this->switch_player(-1);
+}
+
+void SUI::switch_player(int direction){
+	this->active_stack = this->active_stack + direction;
+	if (this->active_stack >= this->stacks.size()){
+		auto &ms = static_cast<MainScreen &>(*this->stacks.back().front());
+		auto &player = ms.get_player();
+		if (!player.is_empty()){
+			auto &new_player = this->player->new_player();
+			std::vector<current_element_t> stack;
+			this->start_gui(stack, new_player);
+			this->stacks.emplace_back(std::move(stack));
+			this->active_stack = this->stacks.size() - 1;
+		}else{
+			this->player->erase(player);
+			this->stacks.pop_back();
+			this->active_stack = direction > 0 ? 0 : this->stacks.size() - 1;
+		}
+	}
+	auto &screen = static_cast<MainScreen &>(*this->stacks[this->active_stack].front());
+	this->player->switch_to_player(screen.get_player());
+	this->request_update();
 }

@@ -12,6 +12,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "../File.h"
 #include "ListView.h"
 #include "SeekBar.h"
+#include "../AudioPlayer.h"
 
 enum class ButtonSignal{
 	PLAY = 0,
@@ -24,14 +25,17 @@ enum class ButtonSignal{
 	NEXT,
 };
 
-MainScreen::MainScreen(SUI *sui, GUIElement *parent, AudioPlayer &player):
+MainScreen::MainScreen(SUI *sui, GUIElement *parent, AudioPlayerState &player):
 		GUIElement(sui, parent),
-		player(player),
+		player(&player),
 		spectrogram_data_w(0),
 		spectrogram_data_h(0),
 		spectrogram_data_head(0){
 	this->prepare_buttons();
 	this->children.push_back(std::shared_ptr<GUIElement>(new SeekBar(sui, this)));
+	
+	this->tex_picture.set_target(this->sui->get_target());
+	this->background_picture.set_target(this->sui->get_target());
 }
 
 unsigned MainScreen::handle_event(const SDL_Event &event){
@@ -45,7 +49,7 @@ unsigned MainScreen::handle_event(const SDL_Event &event){
 
 void MainScreen::update(){
 	Uint32 time = SDL_GetTicks();
-	this->sui->draw_picture();
+	this->draw_picture();
 	GUIElement::update();
 	switch (this->sui->get_visualization_mode()){
 		case VisualizationMode::NONE:
@@ -72,12 +76,12 @@ void MainScreen::update(){
 }
 
 void MainScreen::draw_oscilloscope(Uint32 time){
-	auto player_state = this->player.get_state();
+	auto player_state = this->player->get_state();
 	if (player_state == PlayState::STOPPED){
 		this->last_buffer.unref();
 		return;
 	}
-	auto buffer = this->player.get_last_buffer_played();
+	auto buffer = this->player->get_last_buffer_played();
 	auto visible_region = this->sui->get_visible_region();
 	memory_sample_count_t length = this->last_buffer.samples();
 	length = std::min(length, (memory_sample_count_t)visible_region.w);
@@ -235,13 +239,13 @@ void dct_calculator::compute_arbitrary_size_dct(float *time_domain, size_t size)
 }
 
 void MainScreen::draw_spectrum(Uint32 time, SpectrumQuality quality, bool spectrogram){
-	auto player_state = this->player.get_state();
+	auto player_state = this->player->get_state();
 	auto framerate = this->sui->get_current_framerate();
 	if (player_state == PlayState::STOPPED || framerate <= 0){
 		this->last_buffer.unref();
 		return;
 	}
-	auto buffer = this->player.get_last_buffer_played();
+	auto buffer = this->player->get_last_buffer_played();
 	auto visible_region = this->sui->get_visible_region();
 	memory_sample_count_t length = this->last_buffer.samples();
 	length = std::min(length, (memory_sample_count_t)visible_region.w);
@@ -367,31 +371,32 @@ void MainScreen::draw_spectrum(Uint32 time, SpectrumQuality quality, bool spectr
 }
 
 void MainScreen::on_button(int signal){
+	auto &player = this->player->get_player();
 	switch ((ButtonSignal)signal){
 		case ButtonSignal::PLAY:
-			this->player.request_hardplay();
+			player.request_hardplay();
 			break;
 		case ButtonSignal::PAUSE:
-			this->player.request_pause();
+			player.request_pause();
 			break;
 		case ButtonSignal::STOP:
-			this->player.request_stop();
+			player.request_stop();
 			break;
 		case ButtonSignal::LOAD:
 			if (this->on_load_request)
 				this->on_load_request();
 			break;
 		case ButtonSignal::PREVIOUS:
-			this->player.request_previous();
+			player.request_previous();
 			break;
 		case ButtonSignal::SEEKBACK:
-			this->player.request_relative_seek(-5);
+			player.request_relative_seek(-5);
 			break;
 		case ButtonSignal::SEEKFORTH:
-			this->player.request_relative_seek(5);
+			player.request_relative_seek(5);
 			break;
 		case ButtonSignal::NEXT:
-			this->player.request_next();
+			player.request_next();
 			break;
 	}
 }
@@ -443,4 +448,102 @@ void MainScreen::prepare_buttons(){
 		button->set_on_click([this, i](){ this->on_button(i); });
 		this->children.push_back(button);
 	}
+}
+
+void MainScreen::on_total_time_update(double t){
+	this->current_total_time = t;
+	this->sui->request_update();
+}
+
+void MainScreen::on_playback_stop(){
+	this->tex_picture_source.clear();
+	this->tex_picture.unload();
+	this->background_picture.unload();
+	this->metadata.clear();
+	this->current_total_time = -1;
+	this->sui->request_update();
+}
+
+void MainScreen::on_metadata_update(const std::shared_ptr<GenericMetadata> &metadata){
+	this->metadata.clear();
+	auto track_number = metadata->track_number();
+	auto track_artist = metadata->track_artist();
+	auto track_title = metadata->track_title();
+	auto size = this->metadata.size();
+	this->metadata += track_number;
+	if (size < this->metadata.size())
+		this->metadata += L" - ";
+	size = this->metadata.size();
+	this->metadata += track_artist;
+	if (size < this->metadata.size())
+		this->metadata += L" - ";
+	this->metadata += track_title;
+
+	if (!this->metadata.size())
+		this->metadata = get_filename(metadata->get_path());
+
+	this->sui->push_parallel_work([this, metadata, source = this->tex_picture_source](){
+		this->load_image(*metadata, source);
+	});
+}
+
+void MainScreen::draw_picture(){
+	int sq = this->sui->get_bounding_square();
+	if (this->background_picture){
+		SDL_Rect rect = { 0, 0, 0, 0 };
+		this->background_picture.draw(rect);
+	}
+	if (this->tex_picture){
+		auto rect = this->tex_picture.get_rect();
+		SDL_Rect dst = { int((sq - rect.w) / 2), int((sq - rect.h) / 2), 0, 0 };
+		this->tex_picture.draw(dst);
+	}
+}
+
+static std::wstring get_blurred_image_path_from_hash(const std::string &hash){
+	return utf8_to_string(std::string(BASE_PATH) + hash + "-blur.webp");
+}
+
+//static std::wstring get_blurred_image_path(const std::wstring &path){
+//	return get_blurred_image_path_from_hash(get_hash(path));
+//}
+
+unsigned MainScreen::finish_picture_load(surface_t picture, const std::wstring &source, const std::string &hash, bool skip_loading){
+	if (skip_loading){
+		__android_log_print(ANDROID_LOG_INFO, "C++AlbumArt", "%s", "Album art load optimized away.\n");
+		return SUI::NOTHING;
+	}
+
+	if (!picture){
+		this->tex_picture_source.clear();
+		this->tex_picture.unload();
+		this->background_picture.unload();
+		return SUI::NOTHING;
+	}
+
+	this->tex_picture_source = source;
+	this->tex_picture.load(picture);
+	{
+		//Try to load cached blurred background image.
+		auto bg_path = get_blurred_image_path_from_hash(hash);
+		bool loaded = false;
+		if (file_exists(bg_path)){
+			auto surface = load_image_from_file(bg_path);
+			if (surface){
+				loaded = true;
+				this->background_picture.load(surface);
+			}
+		}
+		if (!loaded){
+			this->blur_image(picture, bg_path);
+			this->background_picture = this->sui->blur_image(this->tex_picture);
+		}
+	}
+
+	return SUI::REDRAW;
+}
+
+unsigned MainScreen::finish_background_load(surface_t picture){
+	this->background_picture.load(picture);
+	return SUI::REDRAW;
 }

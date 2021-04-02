@@ -66,6 +66,10 @@ Playlist::~Playlist(){
 		this->save_state();
 }
 
+void Playlist::forget_state(){
+	this->state = nullptr;
+}
+
 void Playlist::clear(){
 	this->tracks.clear();
 	this->shuffle_vector.clear();

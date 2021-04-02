@@ -38,6 +38,7 @@ public:
 		*this = std::move(other);
 	}
 	Playlist &operator=(Playlist &&);
+	void forget_state();
 	void clear();
 	void set(const std::vector<std::wstring> &v){
 		this->clear();
@@ -63,6 +64,9 @@ public:
 	}
 	void load(bool file, const std::wstring &path);
 	void append(bool file, const std::wstring &path);
+	bool is_empty() const{
+		return !this->tracks.size();
+	}
 };
 
 std::wstring to_string(PlaybackMode);

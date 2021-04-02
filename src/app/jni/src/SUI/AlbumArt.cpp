@@ -6,9 +6,13 @@ Distributed under a permissive license. See COPYING.txt for details.
 */
 
 #include "../stdafx.h"
+
+#include "MainScreen.h"
 #include "SUI.h"
 #include "../File.h"
 #include "../Image.h"
+#include "../CommonFunctions.h"
+#include "../Metadata.h"
 
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <SDL_image.h>
@@ -18,46 +22,6 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include <sstream>
 #include <memory>
 #endif
-
-class DelayedPictureLoadStartAction : public DelayedPictureLoadAction{
-	SUI *sui;
-	std::shared_ptr<PictureDecodingJob> job;
-public:
-	DelayedPictureLoadStartAction(SUI &sui, std::shared_ptr<PictureDecodingJob> job): sui(&sui), job(job){}
-	void perform(){
-		this->sui->start_picture_load(this->job);
-	}
-};
-
-class DelayedTextureLoadAction : public DelayedPictureLoadAction{
-	SUI *sui;
-	surface_t picture;
-	std::wstring source_path;
-	std::string hash;
-	bool skip_loading;
-public:
-	DelayedTextureLoadAction(SUI &sui, PictureDecodingJob &job):
-		sui(&sui),
-		picture(job.get_picture()),
-		source_path(job.get_source()),
-		hash(job.get_hash()),
-		skip_loading(job.get_skip_loading()) {}
-	void perform(){
-		this->sui->finish_picture_load(this->picture, this->source_path, this->hash, this->skip_loading);
-	}
-};
-
-class DelayedBGTextureLoadAction : public DelayedPictureLoadAction{
-	SUI *sui;
-	surface_t picture;
-public:
-	DelayedBGTextureLoadAction(SUI &sui, PictureBlurringJob &job):
-		sui(&sui),
-		picture(job.get_picture()) {}
-	void perform(){
-		this->sui->finish_background_load(this->picture);
-	}
-};
 
 const char *vertex_shader =
 #ifndef __ANDROID__
@@ -202,137 +166,152 @@ static std::wstring get_cached_image_path(const std::wstring &path){
 	return utf8_to_string(std::string(BASE_PATH) + get_hash(path) + ".webp");
 }
 
-static std::wstring get_blurred_image_path_from_hash(const std::string &hash){
-	return utf8_to_string(std::string(BASE_PATH) + hash + "-blur.webp");
-}
+//static std::wstring get_blurred_image_path(const std::wstring &path){
+//	return get_blurred_image_path_from_hash(get_hash(path));
+//}
 
-static std::wstring get_blurred_image_path(const std::wstring &path){
-	return get_blurred_image_path_from_hash(get_hash(path));
-}
+void MainScreen::load_image(GenericMetadata &metadata, const std::wstring &original_source){
+	struct Loader{
+		GenericMetadata &metadata;
+		const std::wstring &original_source;
+		std::wstring new_source;
+		std::wstring cached_source;
+		bool skip_loading = false;
+		bool skip_resize = false;
+		surface_t picture;
+		std::string hash;
+		unsigned target_square;
 
-void PictureDecodingJob::sui_perform(WorkerThread &wt){
-	this->skip_resize = 0;
-	unsigned char *buffer;
-	size_t length;
-	std::wstring string_to_hash;
-	if (this->metadata->picture(buffer, length)){
-		this->source = this->metadata->get_path();
-		if (!this->load_picture_from_cache(this->source))
-			this->picture = load_image_from_memory(buffer, length);
-	}else{
-		this->load_picture_from_filesystem();
-	}
-	if (this->picture && !this->skip_resize){
-		this->picture = bind_surface_to_square(this->picture, this->target_square);
-		save_surface_compressed(string_to_utf8(get_cached_image_path(this->source)).c_str(), this->picture);
-	}
-}
-
-bool PictureDecodingJob::load_picture_from_cache(const std::wstring &s){
-	this->hash = ::get_hash(s);
-	auto hashed_path = get_cached_image_path(s);
-	this->picture = load_image_from_file(hashed_path);
-	if (this->picture){
-		this->skip_resize = 1;
-		this->cached_source = hashed_path;
-		return 1;
-	}
-	return 0;
-}
-
-void PictureDecodingJob::load_picture_from_filesystem(){
-	auto path = this->metadata->get_path();
-	auto directory = get_contaning_directory(path);
-	auto path_file = get_filename(path);
-
-	std::wstring patterns[5];
-
-	{
-		patterns[0] = L"front.*";
-		patterns[1] = L"cover.*";
-		{
-			patterns[2] = path_file;
-			auto last_dot = patterns[2].rfind('.');
-			patterns[2] = patterns[2].substr(0, last_dot);
-			patterns[2] += L".*";
+		Loader(MainScreen &screen, GenericMetadata &metadata, const std::wstring &original_source): metadata(metadata), original_source(original_source){
+			this->target_square = screen.get_ui().get_bounding_square();
+			this->new_source = original_source;
 		}
-		{
-			patterns[3] = this->metadata->album();
-			patterns[3] += L".*";
-		}
-		patterns[4] = L"folder.*";
-	}
-
-	std::vector<DirectoryElement> files;
-	list_files(files, directory, FilteringType::RETURN_FILES);
-
-	for (auto &pattern : patterns){
-		for (auto &element : files){
-			const auto &filename = element.name;
-			if (glob(pattern.c_str(), filename.c_str(), [](wchar_t c){ return tolower(c == '\\' ? '/' : c); })){
-				auto path = directory;
-				path += L"/";
-				path += filename;
-				if (path == this->current_source){
-					skip_loading = 1;
-					return;
-				}
-				if (!this->load_picture_from_cache(path))
-					this->picture = load_image_from_file(path);
-				if (this->picture){
-					this->source = path;
-					return;
-				}
+		void operator()(){
+			unsigned char *buffer;
+			size_t length;
+			if (this->metadata.picture(buffer, length)){
+				this->new_source = this->metadata.get_path();
+				this->load_picture_from_cache(this->new_source);
+				if (!this->picture)
+					this->picture = load_image_from_memory(buffer, length);
+			}else{
+				this->load_picture_from_filesystem();
+			}
+			if (this->picture && !this->skip_resize){
+				this->picture = bind_surface_to_square(this->picture, this->target_square);
+				save_surface_compressed(string_to_utf8(get_cached_image_path(this->new_source)).c_str(), this->picture);
 			}
 		}
-	}
-	this->skip_loading = 0;
+
+	private:
+		void load_picture_from_cache(const std::wstring &s){
+			this->hash = ::get_hash(s);
+			auto hashed_path = get_cached_image_path(s);
+			this->picture = load_image_from_file(hashed_path);
+			if (!this->picture)
+				return;
+			this->skip_resize = true;
+			this->cached_source = std::move(hashed_path);
+		}
+		void load_picture_from_filesystem(){
+			auto path = this->metadata.get_path();
+			auto directory = get_contaning_directory(path);
+
+			std::wstring patterns[5];
+
+			{
+				patterns[0] = L"front.*";
+				patterns[1] = L"cover.*";
+				{
+					patterns[2] = path;
+					auto last_dot = patterns[2].rfind('.');
+					patterns[2] = patterns[2].substr(0, last_dot);
+					patterns[2] += L".*";
+				}
+				{
+					patterns[3] = this->metadata.album();
+					patterns[3] += L".*";
+				}
+				patterns[4] = L"folder.*";
+			}
+
+			std::vector<DirectoryElement> files;
+			list_files(files, directory, FilteringType::RETURN_FILES);
+
+			for (auto &pattern : patterns){
+				for (auto &element : files){
+					const auto &filename = element.name;
+					if (glob(pattern.c_str(), filename.c_str(), [](wchar_t c){ return tolower(c == '\\' ? '/' : c); })){
+						auto path = directory;
+						path += L"/";
+						path += filename;
+						if (path == this->original_source){
+							this->skip_loading = true;
+							return;
+						}
+						this->load_picture_from_cache(path);
+						if (!this->picture)
+							this->picture = load_image_from_file(path);
+						if (this->picture){
+							this->new_source = path;
+							return;
+						}
+					}
+				}
+			}
+			this->skip_loading = false;
+		}
+	};
+	
+	Loader loader(*this, metadata, original_source);
+	loader();
+	//We're done, so hand-off the results to the main thread so it can decide what to do.
+	this->sui->push_async_callback([
+		this,
+		p = std::move(loader.picture),
+		s = std::move(loader.new_source),
+		h = std::move(loader.hash),
+		sl = loader.skip_loading
+	](){
+		this->finish_picture_load(p, s, h, sl);
+	});
 }
 
-unsigned PictureDecodingJob::finish(SUI &sui){
-	return sui.finish(*this);
-}
+void MainScreen::blur_image(surface_t image, const std::wstring &path){
+	auto max_square = this->sui->get_max_square();
+	auto visible_region = this->sui->get_visible_region();
+	this->sui->push_parallel_work([this, image0 = image, path, max_square, visible_region](){
+		auto image = image0;
+		auto t0 = clock();
+		{
+			if (image->w > image->h)
+				image = scale_surface(image, max_square * image->w / image->h, max_square);
+			else if (image->w < image->h)
+				image = scale_surface(image, max_square, max_square * image->h / image->w);
+			else
+				image = scale_surface(image, max_square, max_square);
+			auto temp = create_rgbq_surface(image->format->BitsPerPixel, visible_region.w, visible_region.h);
+			SDL_Rect src_rect = {
+				-(visible_region.w - image->w) / 2,
+				-(visible_region.h - image->h) / 2,
+				visible_region.w,
+				visible_region.h,
+			};
+			SDL_BlitSurface(image.get(), &src_rect, temp.get(), nullptr);
+			image = temp;
+			image = apply_gaussian_blur2(image, 15);
+			save_surface_compressed(string_to_utf8(path).c_str(), image, 100);
+		}
+		auto t1 = clock();
+		double t = double(t1 - t0);
+		t /= (double)CLOCKS_PER_SEC;
+		t *= 1000;
+		__android_log_print(ANDROID_LOG_INFO, "C++Blur", "MainScreen::blur_image(): %f\n", t);
 
-void SUI::start_picture_load(std::shared_ptr<PictureDecodingJob> job){
-	this->picture_job = this->worker.attach(job);
-}
-
-void SUI::start_picture_blurring(std::shared_ptr<PictureBlurringJob> job){
-	this->picture_job = this->worker.attach(job);
-}
-
-unsigned SUI::receive(MetaDataUpdate &mdu){
-	auto metadata = mdu.get_metadata();
-	this->metadata.clear();
-	auto track_number = metadata->track_number();
-	auto track_artist = metadata->track_artist();
-	auto track_title = metadata->track_title();
-	auto size = this->metadata.size();
-	this->metadata += track_number;
-	if (size < this->metadata.size())
-		this->metadata += L" - ";
-	size = this->metadata.size();
-	this->metadata += track_artist;
-	if (size < this->metadata.size())
-		this->metadata += L" - ";
-	this->metadata += track_title;
-
-	if (!this->metadata.size())
-		this->metadata = get_filename(metadata->get_path());
-
-	std::shared_ptr<PictureDecodingJob> job(new PictureDecodingJob(
-		this->finished_jobs_queue, metadata,
-		this->get_bounding_square(),
-		this->get_visible_region(),
-		this->tex_picture_source
-	));
-	job->description = to_string(metadata->get_path());
-	if (this->ui_in_foreground)
-		this->start_picture_load(job);
-	else{
-		this->dpla.reset(new DelayedPictureLoadStartAction(*this, job));
-	}
-	return NOTHING;
+		this->sui->push_async_callback([this, image](){
+			this->finish_background_load(image);
+		});
+	});
 }
 
 Texture SUI::blur_image(Texture tex){
@@ -373,110 +352,4 @@ Texture SUI::blur_image(Texture tex){
 	
 	__android_log_print(ANDROID_LOG_INFO, "C++Shader", "Blurring done in %f ms\n", (double)(t1 - t0) / (double)CLOCKS_PER_SEC * 1000.0);
 	return ret;
-}
-
-unsigned SUI::finish(PictureDecodingJob &job){
-	unsigned ret = NOTHING;
-	if (job.get_id() != this->picture_job->get_id())
-		return ret;
-	auto picture = job.get_picture();
-	this->picture_job.reset();
-	if (this->ui_in_foreground){
-		ret = this->finish_picture_load(picture, job.get_source(), job.get_hash(), job.get_skip_loading());
-	}else{
-		this->dpla.reset(new DelayedTextureLoadAction(*this, job));
-	}
-	return ret;
-}
-
-unsigned SUI::finish_picture_load(surface_t picture, const std::wstring &source, const std::string &hash, bool skip_loading){
-	if (skip_loading){
-		__android_log_print(ANDROID_LOG_INFO, "C++AlbumArt", "%s", "Album art load optimized away.\n");
-		return NOTHING;
-	}
-
-	if (!picture){
-		this->tex_picture_source.clear();
-		this->tex_picture.unload();
-		this->background_picture.unload();
-		return NOTHING;
-	}
-
-	this->tex_picture_source = source;
-	this->tex_picture.load(picture);
-	{
-		//Try to load cached blurred background image.
-		auto bg_path = get_blurred_image_path_from_hash(hash);
-		bool loaded = 0;
-		if (file_exists(bg_path)){
-			auto surface = load_image_from_file(bg_path);
-			if (surface){
-				loaded = 1;
-				this->background_picture.load(surface);
-			}
-		}
-		if (!loaded){
-			this->start_picture_blurring(std::make_shared<PictureBlurringJob>(
-				this->finished_jobs_queue,
-				this->get_max_square(),
-				this->get_visible_region(),
-				picture,
-				bg_path
-			));
-			this->background_picture = this->blur_image(this->tex_picture);
-		}
-	}
-
-	return REDRAW;
-}
-
-void PictureBlurringJob::sui_perform(WorkerThread &wt){
-	auto t0 = clock();
-	{
-		if (this->picture->w > this->picture->h)
-			this->picture = scale_surface(this->picture, this->target_square * this->picture->w / this->picture->h, this->target_square);
-		else if (this->picture->w < this->picture->h)
-			this->picture = scale_surface(this->picture, this->target_square, this->target_square * this->picture->h / this->picture->w);
-		else
-			this->picture = scale_surface(this->picture, this->target_square, this->target_square);
-		auto temp = create_rgbq_surface(this->picture->format->BitsPerPixel, this->trim_rect.w, this->trim_rect.h);
-		SDL_Rect src_rect = {
-			-(this->trim_rect.w - this->picture->w) / 2,
-			-(this->trim_rect.h - this->picture->h) / 2,
-			this->trim_rect.w,
-			this->trim_rect.h,
-		};
-		SDL_BlitSurface(this->picture.get(), &src_rect, temp.get(), nullptr);
-		this->picture = temp;
-		this->picture = apply_gaussian_blur2(this->picture, 15);
-		save_surface_compressed(string_to_utf8(this->path).c_str(), this->picture, 100);
-	}
-	auto t1 = clock();
-	double t = double(t1 - t0);
-	t /= (double)CLOCKS_PER_SEC;
-	t *= 1000;
-	__android_log_print(ANDROID_LOG_INFO, "C++Blur", "PictureBlurringJob::sui_perform(): %f\n", t);
-}
-
-unsigned PictureBlurringJob::finish(SUI &sui){
-	return sui.finish(*this);
-}
-
-unsigned SUI::finish(PictureBlurringJob &job){
-	unsigned ret = NOTHING;
-	if (job.get_id() != this->picture_job->get_id())
-		return ret;
-	auto picture = job.get_picture();
-	this->picture_job.reset();
-	if (this->ui_in_foreground){
-		ret = this->finish_background_load(job.get_picture());
-	}else{
-		this->dpla.reset(new DelayedBGTextureLoadAction(*this, job));
-	}
-	return ret;
-}
-
-unsigned SUI::finish_background_load(surface_t picture){
-	this->background_picture.load(picture);
-	return REDRAW;
 }

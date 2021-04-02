@@ -8,6 +8,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "../stdafx.h"
 #include "SeekBar.h"
 #include "MainScreen.h"
+#include "../AudioPlayer.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <sstream>
 #endif
@@ -15,16 +16,15 @@ Distributed under a permissive license. See COPYING.txt for details.
 SeekBar::SeekBar(SUI *sui, MainScreen *parent):
 	GUIElement(sui, parent),
 	main_screen(parent),
-	region(parent->get_seekbar_region()),
-	drag_started(0){
+	region(parent->get_seekbar_region()){
 }
 
 void SeekBar::update(){
-	double total_time = this->sui->get_current_total_time();
+	double total_time = this->main_screen->get_current_total_time();
 	if (total_time < 0)
 		return;
 	auto &player = this->sui->get_player();
-	double current_time = player.get_current_time();
+	double current_time = this->main_screen->get_player().get_current_time();
 
 	{
 		auto target = this->sui->get_target();
@@ -41,8 +41,8 @@ void SeekBar::update(){
 		parse_into_hms(stream, !this->drag_started ? current_time : this->multiplier * total_time);
 		stream <<" / ";
 		parse_into_hms(stream, total_time);
-		stream <<std::endl
-			<<this->sui->get_metadata();
+		stream << std::endl
+			<< this->main_screen->get_metadata();
 		this->sui->get_font()->draw_text(stream.str(), this->region.x, this->region.y, this->sui->get_bounding_square(), 2);
 	}
 }
@@ -77,7 +77,7 @@ unsigned SeekBar::handle_event(const SDL_Event &event){
 					break;
 				this->sui->request_update();
 				auto x = this->sui->transform_mouse_x(event.motion.x);
-				this->sui->get_player().request_absolute_scaling_seek((double)x / (double)this->region.w);
+				this->main_screen->get_player().get_player().request_absolute_scaling_seek((double)x / (double)this->region.w);
 				this->drag_started = 0;
 				ret |= SUI::REDRAW;
 			}

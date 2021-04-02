@@ -16,7 +16,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include <sstream>
 #endif
 
-ApplicationState application_state;
+ApplicationState application_state(false);
 
 #define SAVE_PATH (BASE_PATH "settings.json")
 
@@ -150,7 +150,7 @@ nlohmann::json::array_t save_json_array(const std::vector<T> &src){
 	return ret;
 }
 
-ApplicationState::ApplicationState(){
+ApplicationState::ApplicationState(bool read_only): read_only(read_only){
 	this->reset();
 	std::ifstream file(SAVE_PATH);
 	if (!file)
@@ -170,11 +170,11 @@ ApplicationState::ApplicationState(){
 	std::vector<int> player_indices;
 	read_json_array(player_indices, json, string_player_indices);
 	for (auto i : player_indices)
-		this->players[i] = {i};
+		this->players[i] = {this->read_only, i, false};
 
 	if (!this->players.size()){
 		this->current_player = 0;
-		this->players[0] = {0};
+		this->players[0] = {this->read_only, 0, true};
 	}
 }
 
@@ -192,7 +192,9 @@ std::string PlaylistState::get_path() const{
 	return get_indexed_path("playlist-", this->index);
 }
 
-PlaybackState::PlaybackState(int index): index(index){
+PlaybackState::PlaybackState(int index, bool force_new): index(index){
+	if (force_new)
+		return;
 	auto file = std::ifstream(this->get_path());
 	if (!file)
 		return;
@@ -217,7 +219,9 @@ PlaybackState &PlaybackState::operator=(PlaybackState &&other){
 	return *this;
 }
 
-PlaylistState::PlaylistState(int index): index(index){
+PlaylistState::PlaylistState(int index, bool force_new): index(index){
+	if (force_new)
+		return;
 	auto file = std::ifstream(this->get_path());
 	if (!file)
 		return;
@@ -277,11 +281,15 @@ void PlaylistState::save() const{
 }
 
 void PlayerState::save() const{
+	if (this->read_only)
+		return;
 	this->playback.save();
 	this->playlist.save();
 }
 
 void ApplicationState::save(){
+	if (this->read_only)
+		return;
 	nlohmann::json json;
 	{
 		std::lock_guard<std::mutex> lg(this->mutex);
@@ -293,8 +301,14 @@ void ApplicationState::save(){
 		SAVE_JSON(json, last_browse_directory);
 		SAVE_JSON(json, visualization_mode);
 		SAVE_JSON(json, display_fps);
+		SAVE_JSON(json, current_player);
+		std::vector<int> temp;
+		temp.reserve(this->players.size());
+		for (auto &kv : this->players)
+			temp.push_back(kv.first);
+		json[string_player_indices] = save_json_array(temp);
 	}
-	
+
 	std::ofstream file(SAVE_PATH);
 	file << json.dump();
 }
@@ -307,6 +321,26 @@ void ApplicationState::reset(){
 	this->players.clear();
 	this->current_player = 0;
 }
+
+PlayerState &ApplicationState::new_player(){
+	std::lock_guard<std::mutex> lg(this->mutex);
+	int next_id = 0;
+	if (this->players.size())
+		next_id = this->players.rbegin()->first + 1;
+	return this->players[next_id] = {this->read_only, next_id, true};
+}
+
+void ApplicationState::erase(PlayerState &state){
+	std::lock_guard<std::mutex> lg(this->mutex);
+	auto it = this->players.find(state.get_playback().get_index());
+	if (it == this->players.end())
+		return;
+	this->players.erase(it);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void PlaybackState::set_playback_mode(Mode playback_mode){
 	AutoMutex am(this->mutex);
@@ -426,7 +460,7 @@ void ApplicationState::set_current_player_index(int i){
 		return;
 	this->current_player = i;
 	if (this->players.find(i) == this->players.end())
-		this->players[i] = {i};
+		this->players[i] = {this->read_only, i, true};
 	this->no_changes = false;
 }
 

@@ -8,6 +8,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "stdafx.h"
 #include "AudioPlayerState.h"
 #include "AudioPlayer.h"
+#include "SUI/MainScreen.h"
 
 AudioPlayerState::AudioPlayerState(AudioPlayer &parent, PlayerState &player_state): playlist(player_state){
 	this->parent = &parent;
@@ -79,6 +80,9 @@ AudioPlayerState &AudioPlayerState::operator=(AudioPlayerState &&other){
 	move(this->internal_queue, other.internal_queue);
 	move(this->time_of_last_pause, other.time_of_last_pause);
 	move(this->last_buffer_played, other.last_buffer_played);
+	move(this->main_screen, other.main_screen);
+	if (this->main_screen)
+		this->main_screen->player = this;
 
 	return *this;
 }
@@ -104,14 +108,16 @@ void AudioPlayerState::try_update_total_time(){
 	this->current_total_time = this->now_playing->get_total_time();
 	if (this->current_total_time < 0)
 		return;
-	this->push_maybe_to_internal_queue(new TotalTimeUpdate(this, this->current_total_time));
+	this->push_maybe_to_internal_queue([this, t = this->current_total_time](){
+		this->main_screen->on_total_time_update(t);
+	});
 }
 
 void AudioPlayerState::on_end(){
 	if (this->state == PlayState::ENDING)
 		return;
 	this->state = PlayState::ENDING;
-	this->push_to_internal_queue(new PlaybackEnd);
+	this->push_to_internal_queue(new PlaybackEnd(*this));
 }
 
 void AudioPlayerState::on_stop(){
@@ -125,13 +131,14 @@ void AudioPlayerState::on_stop(){
 		this->last_freq_seen = 0;
 	}
 	this->player_state->get_playback().set_current_time(-1);
-	this->parent->device.close();
-	this->parent->external_queue_out.push(AudioPlayer::eqe_t(new PlaybackStop));
+	this->parent->sui->push_async_callback([this](){
+		this->main_screen->on_playback_stop();
+	});
 }
 
 void AudioPlayerState::on_pause(){
 	this->time_of_last_pause = SDL_GetTicks();
-	application_state.get_current_player().get_playback().set_current_time(this->get_current_time());
+	this->player_state->get_playback().set_current_time(this->get_current_time());
 }
 
 double AudioPlayerState::get_current_time(){
@@ -142,18 +149,6 @@ double AudioPlayerState::get_current_time(){
 		return 0;
 	}
 	return (double)this->last_position_seen / (double)this->last_freq_seen;
-}
-
-void AudioPlayerState::push_maybe_to_internal_queue(ExternalQueueElement *p){
-	std::shared_ptr<ExternalQueueElement> sp(p);
-	{
-		AutoLocker<internal_queue_t> al(this->internal_queue);
-		if (this->internal_queue.unlocked_is_empty()){
-			this->parent->external_queue_out.push(sp);
-			return;
-		}
-	}
-	this->internal_queue.push(sp);
 }
 
 void AudioPlayerState::eliminate_buffers(audio_position_t *pos){
@@ -181,13 +176,13 @@ void AudioPlayerState::eliminate_buffers(audio_position_t *pos){
 }
 
 bool AudioPlayerState::process(){
-	if (this->state == PlayState::PAUSED && this->parent->device.is_open()){
+	/*if (this->state == PlayState::PAUSED && this->parent->device.is_open()){
 		unsigned now = SDL_GetTicks();
 		if (now >= this->time_of_last_pause + 5000){
 			__android_log_print(ANDROID_LOG_INFO, "C++Audio", "%s", "Audio inactivity timeout. Closing device.\n");
 			this->parent->device.close();
 		}
-	}
+	}*/
 	audio_buffer_t buffer;
 	std::shared_ptr<DecoderException> exc;
 	try{
@@ -279,6 +274,8 @@ void AudioPlayerState::audio_callback(Uint8 *stream, int len){
 }
 
 bool AudioPlayerState::execute_hardplay(){
+	if (this->is_empty())
+		return true;
 	this->parent->device.start_audio();
 	switch (this->state){
 		case PlayState::STOPPED:
@@ -345,6 +342,7 @@ bool AudioPlayerState::execute_stop(){
 			break;
 		case PlayState::PLAYING:
 		case PlayState::PAUSED:
+		case PlayState::ENDING:
 			this->parent->device.pause_audio();
 			this->eliminate_buffers();
 			this->now_playing.reset();
@@ -359,7 +357,7 @@ bool AudioPlayerState::execute_absolute_seek(double param, bool scaling){
 	//TODO: Find some way to merge this code with AudioPlayerState::execute_relative_seek().
 	if (!this->now_playing)
 		return true;
-	AudioPlayer::AudioLocker al(*this->parent);
+	AudioDevice::AudioLocker al(this->parent->device);
 	audio_position_t pos = invalid_audio_position;
 	this->eliminate_buffers(&pos);
 	if (pos == invalid_audio_position){
@@ -376,7 +374,7 @@ bool AudioPlayerState::execute_absolute_seek(double param, bool scaling){
 bool AudioPlayerState::execute_relative_seek(double seconds){
 	if (!this->now_playing)
 		return true;
-	AudioPlayer::AudioLocker al(*this->parent);
+	AudioDevice::AudioLocker al(this->parent->device);
 	audio_position_t pos = invalid_audio_position;
 	this->eliminate_buffers(&pos);
 	if (pos == invalid_audio_position){
@@ -391,7 +389,7 @@ bool AudioPlayerState::execute_relative_seek(double seconds){
 }
 
 bool AudioPlayerState::execute_previous(){
-	AudioPlayer::AudioLocker al(*this->parent);
+	AudioDevice::AudioLocker al(this->parent->device);
 	this->eliminate_buffers();
 	this->now_playing.reset();
 	if (this->playlist.back())
@@ -400,7 +398,7 @@ bool AudioPlayerState::execute_previous(){
 }
 
 bool AudioPlayerState::execute_next(){
-	AudioPlayer::AudioLocker al(*this->parent);
+	AudioDevice::AudioLocker al(this->parent->device);
 	this->eliminate_buffers();
 	this->now_playing.reset();
 	if (this->playlist.next(true))
@@ -418,12 +416,24 @@ bool AudioPlayerState::execute_load(bool load, bool file, const std::wstring &pa
 	return true;
 }
 
-bool AudioPlayerState::execute_metadata_update(std::shared_ptr<GenericMetadata> metadata){
-	this->push_maybe_to_internal_queue(new MetaDataUpdate(this, metadata));
+bool AudioPlayerState::execute_metadata_update(const std::shared_ptr<GenericMetadata> &metadata){
+	this->push_maybe_to_internal_queue([this, metadata](){
+		this->main_screen->on_metadata_update(metadata);
+	});
 	return true;
 }
 
 bool AudioPlayerState::execute_playback_end(){
-	this->on_stop();
+	this->execute_stop();
 	return true;
+}
+
+bool AudioPlayerState::is_empty() const{
+	return this->playlist.is_empty();
+}
+
+void AudioPlayerState::erase(){
+	application_state.erase(*this->player_state);
+	this->player_state = nullptr;
+	this->playlist.forget_state();
 }

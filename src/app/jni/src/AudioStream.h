@@ -40,7 +40,7 @@ public:
 	double get_total_time(){
 		return this->decoder->get_seconds_length();
 	}
-	void metadata_update(std::shared_ptr<GenericMetadata>);
+	void metadata_update(const std::shared_ptr<GenericMetadata> &);
 	AudioFormat get_stream_format() const{
 		return this->decoder->get_audio_format();
 	}

@@ -25,6 +25,12 @@ Mutex::~Mutex(){
 	SDL_DestroyMutex(this->mutex);
 }
 
+Mutex &Mutex::operator=(Mutex &&other){
+	this->mutex = other.mutex;
+	other.mutex = nullptr;
+	return *this;
+}
+
 void Mutex::lock(){
 	SDL_LockMutex(this->mutex);
 }
@@ -39,6 +45,15 @@ SynchronousEvent::SynchronousEvent(){
 
 SynchronousEvent::~SynchronousEvent(){
 	SDL_DestroyCond(this->c);
+}
+
+SynchronousEvent &SynchronousEvent::operator=(SynchronousEvent &&other){
+	this->signalled = other.signalled;
+	other.signalled = false;
+	this->c = other.c;
+	other.c = nullptr;
+	this->m = std::move(other.m);
+	return *this;
 }
 
 void SynchronousEvent::set(){
@@ -84,18 +99,13 @@ void RecursiveMutex::unlock(){
 	this->mutex.unlock();
 }
 
-WorkerThread::WorkerThread(bool low_priority): execute(1), low_priority(low_priority){
-	this->next_id.value = 0;
-	this->sdl_thread = SDL_CreateThread(_thread, "WorkerThread", this);
+WorkerThread::WorkerThread(bool low_priority): execute(true), low_priority(low_priority){
+	this->thread = std::thread([this](){ this->thread_func(); });
 }
 
 WorkerThread::~WorkerThread(){
-	{
-		std::shared_ptr<TerminateJob> tj(new TerminateJob);
-		auto handle = this->attach(tj);
-		tj->wait();
-	}
-	SDL_WaitThread(this->sdl_thread, 0);
+	this->queue.push([this](){ this->execute = false; });
+	this->thread.join();
 }
 
 void lower_priority(){
@@ -110,21 +120,12 @@ void lower_priority(){
 #endif
 }
 
-void WorkerThread::thread(){
+void WorkerThread::thread_func(){
 	if (this->low_priority)
 		lower_priority();
 	while (this->execute){
 		auto job = this->queue.pop();
-		if (job->was_cancelled())
-			continue;
-		this->current_job = job;
-		job->perform(*this);
+		if (job)
+			job();
 	}
-}
-
-std::shared_ptr<WorkerThreadJobHandle> WorkerThread::attach(std::shared_ptr<WorkerThreadJob> job){
-	job->set_id(SDL_AtomicAdd(&this->next_id, 1));
-	std::shared_ptr<WorkerThreadJobHandle> ret(new WorkerThreadJobHandle(job));
-	this->queue.push(job);
-	return ret;
 }

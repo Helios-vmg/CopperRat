@@ -57,7 +57,11 @@ int main(int argc, char **argv){
 	SDL_Init(SDL_INIT_EVERYTHING);
 	initialize_resources();
 	try{
-		SUI sui(*(AudioPlayer *)android_get_player());
+		auto &player = *(AudioPlayer *)android_get_player();
+		SUI sui(player);
+		player.sui = &sui;
+		player.initialize(false);
+		sui.initialize();
 		sui.loop();
 		__android_log_print(ANDROID_LOG_INFO, "C++main", "%s", "Terminating normally.\n");
 	}catch (const std::exception &e){

@@ -14,7 +14,7 @@ class MainScreen;
 class SeekBar : public GUIElement{
 	MainScreen *main_screen;
 	SDL_Rect region;
-	bool drag_started;
+	bool drag_started = false;
 	double multiplier;
 public:
 	SeekBar(SUI *sui, MainScreen *parent);

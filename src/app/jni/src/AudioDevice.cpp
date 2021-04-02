@@ -43,7 +43,7 @@ void AudioDevice::open_in_main(){
 void AudioDevice::close_in_main(){
 	if (this->audio_is_open){
 		SDL_CloseAudio();
-		this->audio_is_open = 0;
+		this->audio_is_open = false;
 	}
 }
 
@@ -59,6 +59,7 @@ void AudioDevice::close(){
 	application_state.save();
 	if (this->audio_is_open)
 		this->close_in_main();
+	this->playing = false;
 }
 
 #undef SDL_PauseAudio
@@ -66,8 +67,10 @@ void AudioDevice::close(){
 void AudioDevice::start_audio(){
 	this->open();
 	SDL_PauseAudio(0);
+	this->playing = true;
 }
 
 void AudioDevice::pause_audio(){
 	SDL_PauseAudio(1);
+	this->playing = false;
 }
