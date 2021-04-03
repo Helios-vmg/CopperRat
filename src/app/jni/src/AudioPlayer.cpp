@@ -89,10 +89,7 @@ void AudioPlayer::thread_loop(){
 		bool continue_loop = this->handle_requests();
 		if (!continue_loop)
 			break;
-		bool nothing_was_done = true;
-		for (auto &kv : this->players)
-			nothing_was_done &= !kv.second->process();
-		if (nothing_was_done)
+		if (!this->current_player.load()->process())
 			SDL_Delay(10);
 	}
 }
