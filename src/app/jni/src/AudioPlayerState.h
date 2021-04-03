@@ -14,6 +14,9 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "CommonFunctions.h"
 #include "AudioDevice.h"
 #include "SUI/MainScreen.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
+#include <optional>
+#endif
 
 class AudioPlayer;
 class AudioStream;
@@ -77,6 +80,7 @@ class AudioPlayerState{
 	internal_queue_t internal_queue;
 	unsigned time_of_last_pause;
 	audio_buffer_t last_buffer_played;
+	std::optional<Uint32> last_save_time;
 
 	void on_end();
 	void eliminate_buffers(audio_position_t * = 0);
@@ -88,6 +92,7 @@ class AudioPlayerState{
 	}
 	template <typename F>
 	void push_maybe_to_internal_queue(F &&f);
+	void periodic_saving(Uint32);
 public:
 	MainScreen *main_screen = nullptr;
 	
@@ -108,7 +113,7 @@ public:
 		return this->state;
 	}
 	//Returns false if nothing (expensive) was done.
-	bool process();
+	bool process(Uint32);
 	void audio_callback(Uint8 *stream, int len);
 	audio_buffer_t get_last_buffer_played(){
 		audio_buffer_t ret;
@@ -126,6 +131,7 @@ public:
 	}
 	bool is_empty() const;
 	void erase();
+	void save();
 
 	//execute_* functions run in the internal thread!
 	bool execute_hardplay();

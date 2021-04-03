@@ -40,8 +40,16 @@ AudioPlayerState::AudioPlayerState(AudioPlayer &parent, PlayerState &player_stat
 }
 
 AudioPlayerState::~AudioPlayerState(){
-	if (this->player_state)
-		this->player_state->get_playback().set_current_time(this->state == PlayState::STOPPED ? -1 : this->get_current_time());
+	this->save();
+}
+
+void AudioPlayerState::save(){
+	if (!this->player_state)
+		return;
+	this->playlist.save();
+	auto &playback = this->player_state->get_playback();
+	playback.set_current_time(this->state == PlayState::STOPPED ? -1 : this->get_current_time());
+	playback.save();
 }
 
 template <typename T>
@@ -155,14 +163,7 @@ void AudioPlayerState::eliminate_buffers(audio_position_t *pos){
 	}
 }
 
-bool AudioPlayerState::process(){
-	/*if (this->state == PlayState::PAUSED && this->parent->device.is_open()){
-		unsigned now = SDL_GetTicks();
-		if (now >= this->time_of_last_pause + 5000){
-			__android_log_print(ANDROID_LOG_INFO, "C++Audio", "%s", "Audio inactivity timeout. Closing device.\n");
-			this->parent->device.close();
-		}
-	}*/
+bool AudioPlayerState::process(Uint32 now){
 	audio_buffer_t buffer;
 	std::shared_ptr<DecoderException> exc;
 	try{
@@ -173,6 +174,8 @@ bool AudioPlayerState::process(){
 	}catch (DecoderException &e){
 		exc.reset(static_cast<DecoderException *>(e.clone()));
 	}
+
+	this->periodic_saving(now);
 
 	bool b_continue = false;
 	if (!buffer){
@@ -191,6 +194,17 @@ bool AudioPlayerState::process(){
 	raw_file.write((char *)buffer.raw_pointer(0), buffer.byte_length());
 #endif
 	return true;
+}
+
+void AudioPlayerState::periodic_saving(Uint32 now){
+	if (!this->last_save_time.has_value()){
+		this->last_save_time = now;
+		return;
+	}
+	if (*this->last_save_time + 10000 < now)
+		return;
+	this->save();
+	this->last_save_time = now;
 }
 
 void AudioPlayerState::audio_callback(Uint8 *stream, int len){

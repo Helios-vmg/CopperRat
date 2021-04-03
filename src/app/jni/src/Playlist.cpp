@@ -63,7 +63,7 @@ Playlist &Playlist::operator=(Playlist &&other){
 
 Playlist::~Playlist(){
 	if (this->state)
-		this->save_state();
+		this->save();
 }
 
 void Playlist::forget_state(){
@@ -76,7 +76,7 @@ void Playlist::clear(){
 	this->current_track = -1;
 }
 
-void Playlist::save_state(){
+void Playlist::save(){
 	auto &playback = this->state->get_playback();
 	playback.set_playback_mode(this->mode);
 	playback.set_shuffle(this->shuffle);
@@ -106,7 +106,7 @@ void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
 	else if (this->current_track >= p)
 		this->current_track += (int)n;
 	this->tracks.insert(this->tracks.begin() + p, v.begin(), v.end());
-	this->save_state();
+	this->save();
 }
 
 bool Playlist::toggle_shuffle(){
@@ -126,7 +126,7 @@ bool Playlist::toggle_shuffle(){
 		}
 	}
 	this->shuffle = !this->shuffle;
-	this->save_state();
+	this->save();
 	return this->shuffle;
 }
 

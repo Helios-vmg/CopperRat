@@ -41,10 +41,10 @@ void AudioDevice::open_in_main(){
 }
 
 void AudioDevice::close_in_main(){
-	if (this->audio_is_open){
-		SDL_CloseAudio();
-		this->audio_is_open = false;
-	}
+	if (!this->audio_is_open)
+		return;
+	SDL_CloseAudio();
+	this->audio_is_open = false;
 }
 
 void AudioDevice::open(){
@@ -73,4 +73,17 @@ void AudioDevice::start_audio(){
 void AudioDevice::pause_audio(){
 	SDL_PauseAudio(1);
 	this->playing = false;
+}
+
+bool AudioDevice::update(Uint32 now){
+	if (this->is_playing()){
+		this->last_active = now;
+		return false;
+	}
+	if (!this->last_active.has_value() || *this->last_active + 5000 < now)
+		return false;
+	__android_log_print(ANDROID_LOG_INFO, "C++Audio", "%s", "Audio inactivity timeout. Closing device.\n");
+	this->close();
+	this->last_active.reset();
+	return true;
 }

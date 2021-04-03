@@ -61,6 +61,7 @@ extern "C"{
 #include <random>
 #include <array>
 #include <thread>
+#include <optional>
 #include "tremor/ivorbisfile.h"
 //#include <vorbis/vorbisfile.h>
 #include <webp/encode.h>

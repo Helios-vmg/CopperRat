@@ -9,9 +9,11 @@ Distributed under a permissive license. See COPYING.txt for details.
 
 #include "Exception.h"
 #include "Threads.h"
+#ifndef HAVE_PRECOMPILED_HEADERS
+#include <optional>
+#endif
 
 class AudioPlayer;
-class AudioDevicePlayOwnership;
 
 class DeviceInitializationException : public CR_Exception{
 public:
@@ -27,20 +29,24 @@ class AudioDevice{
 	bool audio_is_open;
 	std::string error_string;
 	bool playing = false;
+	std::optional<Uint32> last_active;
 
 	void open_in_main();
+	void close_in_main();
 public:
 	AudioDevice(AudioPlayer &);
 	~AudioDevice();
 	void open();
 	void close();
-	void close_in_main();
 	void start_audio();
 	void pause_audio();
 	bool is_open() const{
 		return this->audio_is_open;
 	}
-	AudioDevicePlayOwnership request_ownership();
+	bool is_playing() const{
+		return this->playing;
+	}
+	bool update(Uint32);
 	
 	class AudioLocker{
 		bool restore;

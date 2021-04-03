@@ -27,7 +27,6 @@ class Playlist{
 		return this->current_track < 0 || (size_t)this->current_track >= this->tracks.size();
 	}
 	void load_playlist(const std::wstring &path);
-	void save_state();
 public:
 	Playlist() = default;
 	Playlist(PlayerState &);
@@ -67,6 +66,7 @@ public:
 	bool is_empty() const{
 		return !this->tracks.size();
 	}
+	void save();
 };
 
 std::wstring to_string(PlaybackMode);

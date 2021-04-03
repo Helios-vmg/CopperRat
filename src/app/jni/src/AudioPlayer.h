@@ -35,9 +35,8 @@ class AudioPlayer{
 	bool running = false;
 	AudioDevice device;
 	external_queue_in_t external_queue_in;
-	SDL_Thread *sdl_thread = nullptr;
+	std::thread sdl_thread;
 	static void AudioCallback(void *udata, Uint8 *stream, int len);
-	static int _thread(void *);
 	std::map<int, std::unique_ptr<AudioPlayerState>> players;
 	std::atomic<AudioPlayerState *> current_player {nullptr};
 

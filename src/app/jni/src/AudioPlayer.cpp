@@ -11,6 +11,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "ApplicationState.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <fstream>
+#include <optional>
 #ifdef PROFILING
 #if defined WIN32
 #include <fstream>
@@ -48,7 +49,7 @@ void AudioPlayer::initialize(bool start_thread){
 	
 	if (start_thread){
 		this->running = true;
-		this->sdl_thread = SDL_CreateThread(_thread, "AudioPlayerThread", this);
+		this->sdl_thread = std::thread([this](){ this->thread(); });
 	}
 }
 
@@ -69,14 +70,9 @@ void AudioPlayer::initialize(bool start_thread){
 
 AudioPlayer::~AudioPlayer(){
 #ifndef PROFILING
-	if (this->sdl_thread)
-		SDL_WaitThread(this->sdl_thread, nullptr);
+	if (this->sdl_thread.joinable())
+		this->sdl_thread.join();
 #endif
-}
-
-int AudioPlayer::_thread(void *p){
-	((AudioPlayer *)p)->thread();
-	return 0;
 }
 
 //#define OUTPUT_TO_FILE
@@ -85,11 +81,13 @@ std::ofstream raw_file;
 #endif
 
 void AudioPlayer::thread_loop(){
-	while (true){
-		bool continue_loop = this->handle_requests();
-		if (!continue_loop)
-			break;
-		if (!this->current_player.load()->process())
+	while (this->handle_requests()){
+		auto now = SDL_GetTicks();
+		if (this->device.update(now)){
+			for (auto &kv : this->players)
+				kv.second->save();
+		}
+		if (!this->current_player.load()->process(now))
 			SDL_Delay(10);
 	}
 }
