@@ -13,8 +13,6 @@ import android.content.Intent;
 import android.os.IBinder;
 
 public class PlayerService extends Service {
-    private long player = 0;
-    private long sui = 0;
     private Thread thread = null;
     private Notification notification = null;
     private static PlayerService instance;
@@ -32,8 +30,6 @@ public class PlayerService extends Service {
     public void onCreate() {
         super.onCreate();
         startForeground(0, this.notification);
-        this.player = init_player();
-        this.sui = init_sui();
     }
 
     class ThreadCallback implements Runnable{
@@ -50,7 +46,7 @@ public class PlayerService extends Service {
     }
 
     private void threadCallback(){
-        run_player(this.player);
+        run_player();
     }
 
     @Override
@@ -65,11 +61,13 @@ public class PlayerService extends Service {
     @Override
     public void onDestroy() {
         if (this.thread != null) {
-            stop_player(this.player);
+            stop_player();
             try {
                 this.thread.join();
             } catch (InterruptedException e) {}
             this.thread = null;
+            CopperRat.getInstance().destroyPlayer();
+            CopperRat.getInstance().destroySettings();
         }
     }
 
@@ -80,17 +78,6 @@ public class PlayerService extends Service {
         return null;
     }
 
-    public long getPlayer(){
-        return this.player;
-    }
-
-    public long getSui(){
-        return this.sui;
-    }
-
-    public static native long init_player();
-    public static native long init_sui();
-    public static native void run_player(long player);
-    public static native void stop_player(long player);
-
+    public static native void run_player();
+    public static native void stop_player();
 }

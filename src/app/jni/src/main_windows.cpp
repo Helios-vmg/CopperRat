@@ -37,6 +37,7 @@ void proper_main(){
 }
 
 int main(int argc, char **argv){
+	application_state = std::make_unique<ApplicationState>(false);
 	setlocale(LC_ALL, "en.UTF-8");
 	SDL_Init(SDL_INIT_EVERYTHING);
 	initialize_resources();
@@ -47,5 +48,6 @@ int main(int argc, char **argv){
 		__android_log_print(ANDROID_LOG_DEBUG, "C++Exception", "%s", e.what());
 	}
 	SDL_Quit();
+	application_state.reset();
 	return 0;
 }

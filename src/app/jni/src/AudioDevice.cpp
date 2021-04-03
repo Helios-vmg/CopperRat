@@ -56,7 +56,7 @@ void AudioDevice::open(){
 }
 
 void AudioDevice::close(){
-	application_state.save();
+	application_state->save();
 	if (this->audio_is_open)
 		this->close_in_main();
 	this->playing = false;

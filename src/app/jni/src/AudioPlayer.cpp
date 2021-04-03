@@ -39,12 +39,12 @@ void AudioPlayer::AudioCallback(void *udata, Uint8 *stream, int len){
 
 void AudioPlayer::initialize(bool start_thread){
 	{
-		auto ul = application_state.lock();
-		for (auto &kv : application_state.get_players())
-			this->players.emplace(kv.first, AudioPlayerState{*this, kv.second});
+		auto ul = application_state->lock();
+		for (auto &kv : application_state->get_players())
+			this->players.emplace(kv.first, std::make_unique<AudioPlayerState>(*this, kv.second));
 	}
 
-	this->current_player = &this->players[application_state.get_current_player_index()];
+	this->current_player = this->players[application_state->get_current_player_index()].get();
 	
 	if (start_thread){
 		this->running = true;
@@ -91,7 +91,7 @@ void AudioPlayer::thread_loop(){
 			break;
 		bool nothing_was_done = true;
 		for (auto &kv : this->players)
-			nothing_was_done &= !kv.second.process();
+			nothing_was_done &= !kv.second->process();
 		if (nothing_was_done)
 			SDL_Delay(10);
 	}
@@ -143,9 +143,11 @@ void AudioPlayer::thread(){
 #endif
 
 	this->device.close();
+	/*
 	this->sui->push_async_callback([](){
 		//TODO
 	});
+	*/
 }
 
 bool AudioPlayer::handle_requests(){
@@ -186,43 +188,52 @@ PlayState::Value AudioPlayer::get_state() const{
 AudioPlayerState &AudioPlayer::new_player(){
 	Future<AudioPlayerState *> ret;
 	this->external_queue_in.push([this, &ret](){
-		auto &ps = application_state.new_player();
-		auto &new_player = this->players.emplace(ps.get_playback().get_index(), AudioPlayerState{*this, ps}).first->second;
-		ret = &new_player;
+		auto &ps = application_state->new_player();
+		auto &new_player = this->players.emplace(ps.get_playback().get_index(), std::make_unique<AudioPlayerState>(*this, ps)).first->second;
+		ret = new_player.get();
 		return true;
 	});
 	return **ret;
 }
 
 void AudioPlayer::switch_to_player(AudioPlayerState &state){
-	this->external_queue_in.push([this, s = &state](){
-		auto index = s->player_state->get_playback().get_index();
-		auto it = this->players.find(index);
-		if (it == this->players.end()){
-			assert(false);
-			return true;
-		}
-		auto old_active = this->current_player.load()->is_active();
-		this->current_player = &it->second;
-		auto new_active = this->current_player.load()->is_active();
-		if (!old_active && new_active)
-			this->device.start_audio();
-		else if (old_active && !new_active)
-			this->device.pause_audio();
-		application_state.set_current_player_index(index);
+	this->external_queue_in.push([this, &state](){
+		this->execute_switch_to_player(state);
 		return true;
 	});
 }
 
+void AudioPlayer::execute_switch_to_player(AudioPlayerState &state){
+	auto index = state.player_state->get_playback().get_index();
+	auto it = this->players.find(index);
+	if (it == this->players.end()){
+		assert(false);
+		return;
+	}
+	auto old_active = this->current_player.load()->is_active();
+	this->current_player = it->second.get();
+	auto new_active = this->current_player.load()->is_active();
+	if (!old_active && new_active)
+		this->device.start_audio();
+	else if (old_active && !new_active)
+		this->device.pause_audio();
+	application_state->set_current_player_index(index);
+}
+
 void AudioPlayer::erase(AudioPlayerState &state){
-	this->external_queue_in.push([this, s = &state](){
-		auto index = s->player_state->get_playback().get_index();
-		auto it = this->players.find(index);
-		if (it == this->players.end()){
-			assert(false);
-			return true;
-		}
-		s->erase();
-		this->players.erase(it);
+	this->external_queue_in.push([this, &state](){
+		this->execute_erase(state);
+		return true;
 	});
+}
+
+void AudioPlayer::execute_erase(AudioPlayerState &state){
+	auto index = state.player_state->get_playback().get_index();
+	auto it = this->players.find(index);
+	if (it == this->players.end()){
+		assert(false);
+		return;
+	}
+	state.erase();
+	this->players.erase(it);
 }

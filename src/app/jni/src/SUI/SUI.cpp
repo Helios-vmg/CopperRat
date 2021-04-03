@@ -47,8 +47,8 @@ SUI::SUI(AudioPlayer &player): GUIElement(this, nullptr), player(&player){}
 SUI::~SUI(){}
 
 void SUI::initialize(){
-	this->set_visualization_mode(application_state.get_visualization_mode());
-	this->set_display_fps(application_state.get_display_fps());
+	this->set_visualization_mode(application_state->get_visualization_mode());
+	this->set_display_fps(application_state->get_display_fps());
 	::get_dots_per_millimeter();
 	this->true_resolution.x = 0;
 	this->true_resolution.y = 0;
@@ -87,11 +87,11 @@ void SUI::initialize(){
 	this->stacks.reserve(map.size());
 	size_t i = 0;
 	for (auto &kv : map){
-		if (&current == &kv.second)
+		if (&current == kv.second.get())
 			this->active_stack = i;
 		i++;
 		std::vector<current_element_t> stack;
-		this->start_gui(stack, kv.second);
+		this->start_gui(stack, *kv.second);
 		this->stacks.emplace_back(std::move(stack));
 	}
 }
@@ -384,7 +384,7 @@ void SUI::start_gui(std::vector<current_element_t> &dst, AudioPlayerState &state
 	main_screen->set_on_load_request([this](){ this->load_file_menu(); });
 	main_screen->set_on_menu_request([this](){
 		this->options_menu();
-		application_state.save();
+		application_state->save();
 	});
 	this->display(dst, main_screen);
 }
@@ -411,8 +411,8 @@ void SUI::load_file_menu(){
 		bool load = button / 2 == 0;
 		bool file = button % 2 == 0;
 
-		auto path = application_state.get_last_browse_directory();
-		auto root = application_state.get_last_root();
+		auto path = application_state->get_last_browse_directory();
+		auto root = application_state->get_last_root();
 		if (!root.size())
 			root = get_external_storage_path();
 		auto browser = std::make_shared<FileBrowser>(this->sui, this->sui, file, false, root, path);
@@ -423,8 +423,8 @@ void SUI::load_file_menu(){
 		browser->set_on_accept([this, load, file, root{std::move(root)}](std::wstring &&path){
 			auto browser = std::static_pointer_cast<FileBrowser>(this->stacks[this->active_stack].back());
 			this->undisplay();
-			application_state.set_last_root(root);
-			application_state.set_last_browse_directory(browser->get_new_initial_directory());
+			application_state->set_last_root(root);
+			application_state->set_last_browse_directory(browser->get_new_initial_directory());
 			this->load(load, file, std::move(path));
 		});
 	});
@@ -436,8 +436,8 @@ void SUI::options_menu(){
 		auto &playlist = this->get_player().get_playlist();
 		auto playback_mode = playlist.get_playback_mode();
 		bool shuffling = playlist.get_shuffle();
-		auto visualization_mode = application_state.get_visualization_mode();
-		auto display_fps = application_state.get_display_fps();
+		auto visualization_mode = application_state->get_visualization_mode();
+		auto display_fps = application_state->get_display_fps();
 		strings.push_back(L"Playback mode: " + to_string(playback_mode));
 		strings.push_back(std::wstring(L"Shuffling: O") + (shuffling ? L"N" : L"FF"));
 		strings.push_back(L"Visualization mode: " + to_string(visualization_mode));
@@ -451,7 +451,7 @@ void SUI::options_menu(){
 	lv->set_on_selection([this](size_t button){
 		this->undisplay();
 		auto &playlist = this->get_player().get_playlist();
-		auto &playback = application_state.get_current_player().get_playback();
+		auto &playback = application_state->get_current_player().get_playback();
 		switch (button){
 			case 0:
 				playback.set_playback_mode(playlist.cycle_mode());
@@ -461,12 +461,12 @@ void SUI::options_menu(){
 				break;
 			case 2:
 				visualization_mode = (VisualizationMode)(((int)visualization_mode + 1) % (int)VisualizationMode::END);
-				application_state.set_visualization_mode(visualization_mode);
+				application_state->set_visualization_mode(visualization_mode);
 				this->set_visualization_mode(visualization_mode);
 				break;
 			case 3:
 				display_fps = !display_fps;
-				application_state.set_display_fps(display_fps);
+				application_state->set_display_fps(display_fps);
 				this->set_display_fps(display_fps);
 				break;
 		}

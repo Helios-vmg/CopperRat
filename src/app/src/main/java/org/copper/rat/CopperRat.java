@@ -67,16 +67,6 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
 
     public CopperRat(){
         instance = this;
-        //NotificationChannel nc = new NotificationChannel("CopperRatNC", "CopperRat", NotificationManager.IMPORTANCE_HIGH);
-
-        /*builder.
-        Intent notificationIntent = new Intent(this, ExampleActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-        notification.setLatestEventInfo(this, getText(R.string.notification_title),
-                getText(R.string.notification_message), pendingIntent);
-        startForeground(ONGOING_NOTIFICATION_ID, notification);
-*/
-
     }
 
     @Override
@@ -84,17 +74,18 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
         super.onCreate(savedInstanceState);
         createChannel();
         this.sendNotification();
-        startService(new Intent(this, PlayerService.class));
+        init_settings();
+        init_player();
     }
 
     @Override
     protected void onDestroy() {
+        stopService(this.i);
         if (this.notification != null) {
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             manager.cancelAll();
             this.notification = null;
         }
-
         super.onDestroy();
     }
 
@@ -209,11 +200,19 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
         }
     }
 
-    public long getPlayer(){
-        return PlayerService.getInstance().getPlayer();
+    public void destroyPlayer(){
+        destroy_player();
     }
-    public long getSui(){
-        return PlayerService.getInstance().getSui();
+
+    public void destroySettings(){
+        destroy_settings();
+    }
+
+    private Intent i;
+
+    public void startService(){
+        this.i = new Intent(this, PlayerService.class);
+        startService(i);
     }
 
     private static void copyResourceToFileSystem(Application app, int id, String destinationPath){
@@ -236,4 +235,8 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
             Log.e("Resources", "There was an exception! " + e.toString());
         }
     }
+    public static native void init_settings();
+    public static native void destroy_settings();
+    public static native void init_player();
+    public static native void destroy_player();
 }

@@ -67,26 +67,6 @@ move(T &dst, T &src){
 	dst = std::move(src);
 }
 
-AudioPlayerState &AudioPlayerState::operator=(AudioPlayerState &&other){
-	move(this->parent, other.parent);
-	move(this->player_state, other.player_state);
-	move(this->state, other.state);
-	move(this->playlist, other.playlist);
-	move(this->last_freq_seen, other.last_freq_seen);
-	move(this->last_position_seen, other.last_position_seen);
-	move(this->overriding_current_time, other.overriding_current_time);
-	move(this->now_playing, other.now_playing);
-	move(this->current_total_time, other.current_total_time);
-	move(this->internal_queue, other.internal_queue);
-	move(this->time_of_last_pause, other.time_of_last_pause);
-	move(this->last_buffer_played, other.last_buffer_played);
-	move(this->main_screen, other.main_screen);
-	if (this->main_screen)
-		this->main_screen->player = this;
-
-	return *this;
-}
-
 bool AudioPlayerState::initialize_stream(){
 	if (this->now_playing || this->state == PlayState::STOPPED)
 		return true;
@@ -194,11 +174,11 @@ bool AudioPlayerState::process(){
 		exc.reset(static_cast<DecoderException *>(e.clone()));
 	}
 
-	bool b_continue = 0;
+	bool b_continue = false;
 	if (!buffer){
 		this->now_playing.reset();
 		this->playlist.next();
-		b_continue = 1;
+		b_continue = true;
 	}
 	if (exc)
 		throw *exc;
@@ -433,7 +413,7 @@ bool AudioPlayerState::is_empty() const{
 }
 
 void AudioPlayerState::erase(){
-	application_state.erase(*this->player_state);
+	application_state->erase(*this->player_state);
 	this->player_state = nullptr;
 	this->playlist.forget_state();
 }

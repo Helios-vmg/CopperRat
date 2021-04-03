@@ -16,7 +16,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include <sstream>
 #endif
 
-ApplicationState application_state(false);
+std::unique_ptr<ApplicationState> application_state;
 
 #define SAVE_PATH (BASE_PATH "settings.json")
 
@@ -152,6 +152,14 @@ nlohmann::json::array_t save_json_array(const std::vector<T> &src){
 
 ApplicationState::ApplicationState(bool read_only): read_only(read_only){
 	this->reset();
+	this->load_members();
+	if (!this->players.size()){
+		this->current_player = 0;
+		this->players[0] = {this->read_only, 0, true};
+	}
+}
+
+void ApplicationState::load_members(){
 	std::ifstream file(SAVE_PATH);
 	if (!file)
 		return;
@@ -160,7 +168,7 @@ ApplicationState::ApplicationState(bool read_only): read_only(read_only){
 
 	if (!json.is_object())
 		return;
-
+	
 	READ_JSON(json, last_root);
 	READ_JSON(json, last_browse_directory);
 	READ_JSON(json, visualization_mode);
@@ -171,11 +179,6 @@ ApplicationState::ApplicationState(bool read_only): read_only(read_only){
 	read_json_array(player_indices, json, string_player_indices);
 	for (auto i : player_indices)
 		this->players[i] = {this->read_only, i, false};
-
-	if (!this->players.size()){
-		this->current_player = 0;
-		this->players[0] = {this->read_only, 0, true};
-	}
 }
 
 std::string get_indexed_path(const char *constant_part, int index){
@@ -360,12 +363,16 @@ void PlaybackState::set_shuffle(bool shuffle){
 
 void PlaybackState::set_current_track(int current_track){
 	AutoMutex am(this->mutex);
+	if (this->current_track == current_track)
+		return;
 	this->current_track = current_track;
 	this->no_changes = false;
 }
 
 void PlaybackState::set_current_time(double current_time){
 	AutoMutex am(this->mutex);
+	if (this->current_time == current_time)
+		return;
 	this->current_time = current_time;
 	this->no_changes = false;
 }

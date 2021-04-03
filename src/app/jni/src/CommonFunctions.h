@@ -271,7 +271,7 @@ int get_screen_width();
 int get_screen_height();
 void initialize_resources();
 void *android_get_player();
-void *android_get_sui();
+void android_start_thread();
 std::wstring get_external_storage_path();
 
 inline std::string to_string(const std::string &s){

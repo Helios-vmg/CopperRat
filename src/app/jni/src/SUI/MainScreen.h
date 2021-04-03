@@ -36,7 +36,7 @@ enum class SpectrumQuality{
 };
 
 class MainScreen : public GUIElement{
-	double current_total_time;
+	double current_total_time = -1;
 	Texture tex_buttons;
 	audio_buffer_t last_buffer;
 	unsigned last_length;

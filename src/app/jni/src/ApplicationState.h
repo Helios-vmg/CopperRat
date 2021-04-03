@@ -151,6 +151,7 @@ class ApplicationState{
 	int current_player = 0;
 
 	void reset();
+	void load_members();
 public:
 	ApplicationState(bool read_only = false);
 	~ApplicationState(){
@@ -190,4 +191,4 @@ public:
 	}
 };
 
-extern ApplicationState application_state;
+extern std::unique_ptr<ApplicationState> application_state;

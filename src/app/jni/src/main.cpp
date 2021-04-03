@@ -10,37 +10,47 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "SUI/SUI.h"
 #include "CommonFunctions.h"
 #include "File.h"
+#include "ApplicationState.h"
+#include <memory>
 #include <locale.h>
 #include <jni.h>
 
-extern "C" JNIEXPORT jlong JNICALL init_player(JNIEnv *env, jclass cls){
-	return (jlong)(intptr_t)new AudioPlayer();
+std::unique_ptr<AudioPlayer> player;
+
+extern "C" JNIEXPORT void JNICALL init_settings(JNIEnv *env, jclass cls){
+	application_state = std::make_unique<ApplicationState>(false);
 }
 
-extern "C" JNIEXPORT jlong JNICALL init_sui(JNIEnv *env, jclass cls){
-	auto &player = *(AudioPlayer *)android_get_player();
-	auto sui = new SUI(player);
-	player.sui = sui;
-	player.initialize(false);
-	sui->initialize();
-	return (jlong)(intptr_t)sui;
+extern "C" JNIEXPORT void JNICALL destroy_settings(JNIEnv *env, jclass cls){
+	application_state.reset();
 }
 
-extern "C" JNIEXPORT void JNICALL run_player(JNIEnv *env, jclass cls, jlong lplayer){
-	auto player = (AudioPlayer *)(intptr_t)lplayer;
+extern "C" JNIEXPORT void JNICALL init_player(JNIEnv *env, jclass cls){
+	player = std::make_unique<AudioPlayer>();
+}
+
+extern "C" JNIEXPORT void JNICALL destroy_player(JNIEnv *env, jclass cls){
+	player.reset();
+}
+
+extern "C" JNIEXPORT void JNICALL run_player(JNIEnv *env, jclass cls){
 	player->loop();
 }
 
-extern "C" JNIEXPORT void JNICALL stop_player(JNIEnv *env, jclass cls, jlong lplayer){
-	auto player = (AudioPlayer *)(intptr_t)lplayer;
+extern "C" JNIEXPORT void JNICALL stop_player(JNIEnv *env, jclass cls){
 	player->request_exit();
 }
 
+static JNINativeMethod CopperRat_functions[] = {
+	{ "init_settings",    "()V", (void *)init_settings    },
+	{ "destroy_settings", "()V", (void *)destroy_settings },
+	{ "init_player",      "()V", (void *)init_player      },
+	{ "destroy_player",   "()V", (void *)destroy_player   },
+};
+
 static JNINativeMethod PlayerService_functions[] = {
-		{ "init_player", "()J",  (void *)init_player },
-		{ "init_sui",    "()J",  (void *)init_sui    },
-		{ "run_player",  "(J)V", (void *)run_player  },
-		{ "stop_player", "(J)V", (void *)stop_player },
+	{ "run_player",  "()V", (void *)run_player  },
+	{ "stop_player", "()V", (void *)stop_player },
 };
 
 template <size_t N>
@@ -57,6 +67,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved){
 		return JNI_VERSION_1_4;
 	}
 
+	register_methods(env, "org/copper/rat/CopperRat", CopperRat_functions);
 	register_methods(env, "org/copper/rat/PlayerService", PlayerService_functions);
 	return JNI_VERSION_1_4;
 }
@@ -67,7 +78,11 @@ int main(int argc, char **argv){
 	SDL_Init(SDL_INIT_EVERYTHING);
 	initialize_resources();
 	try{
-		auto &sui = *(SUI *)android_get_sui();
+		SUI sui(*player);
+		player->sui = &sui;
+		player->initialize(false);
+		sui.initialize();
+		android_start_thread();
 		sui.loop();
 		__android_log_print(ANDROID_LOG_INFO, "C++main", "%s", "Terminating normally.\n");
 	}catch (const std::exception &e){

@@ -96,10 +96,8 @@ public:
 	~AudioPlayerState();
 	AudioPlayerState(const AudioPlayerState &) = delete;
 	AudioPlayerState &operator=(const AudioPlayerState &) = delete;
-	AudioPlayerState(AudioPlayerState &&other){
-		*this = std::move(other);
-	}
-	AudioPlayerState &operator=(AudioPlayerState &&);
+	AudioPlayerState(AudioPlayerState &&other) = delete;
+	AudioPlayerState &operator=(AudioPlayerState &&) = delete;
 	AudioPlayer &get_player() const{
 		return *this->parent;
 	}

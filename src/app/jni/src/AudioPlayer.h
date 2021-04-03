@@ -38,12 +38,14 @@ class AudioPlayer{
 	SDL_Thread *sdl_thread = nullptr;
 	static void AudioCallback(void *udata, Uint8 *stream, int len);
 	static int _thread(void *);
-	std::map<int, AudioPlayerState> players;
+	std::map<int, std::unique_ptr<AudioPlayerState>> players;
 	std::atomic<AudioPlayerState *> current_player {nullptr};
 
 	void thread();
 	void thread_loop();
 	bool handle_requests();
+	void execute_switch_to_player(AudioPlayerState &);
+	void execute_erase(AudioPlayerState &);
 public:
 	SUI *sui = nullptr;
 	
@@ -79,10 +81,10 @@ public:
 	void request_absolute_scaling_seek(double scale);
 	void request_relative_seek(double seconds);
 	void request_load(bool load, bool file, std::wstring &&path);
-	std::map<int, AudioPlayerState> &get_players(){
+	std::map<int, std::unique_ptr<AudioPlayerState>> &get_players(){
 		return this->players;
 	}
-	const std::map<int, AudioPlayerState> &get_players() const{
+	const std::map<int, std::unique_ptr<AudioPlayerState>> &get_players() const{
 		return this->players;
 	}
 	AudioPlayerState &get_current_player(){
