@@ -286,9 +286,9 @@ class WorkerThreadJobHandle;
 
 class CancellableJob{
 protected:
-	std::atomic<bool> cancelled = false;
+	std::atomic<bool> cancelled;
 public:
-	CancellableJob() = default;
+	CancellableJob(): cancelled(false){}
 	CancellableJob(const CancellableJob &) = delete;
 	CancellableJob operator=(const CancellableJob &) = delete;
 	CancellableJob(CancellableJob &&) = delete;

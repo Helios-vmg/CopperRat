@@ -87,16 +87,7 @@ class AudioPlayerState{
 		this->internal_queue.push(sp);
 	}
 	template <typename F>
-	void push_maybe_to_internal_queue(F &&f){
-		{
-			AutoLocker<internal_queue_t> al(this->internal_queue);
-			if (this->internal_queue.unlocked_is_empty()){
-				this->parent->sui->push_async_callback(f);
-				return;
-			}
-		}
-		this->internal_queue.push(std::make_shared<ExternalQueueElement>(std::move(f), *this));
-	}
+	void push_maybe_to_internal_queue(F &&f);
 public:
 	MainScreen *main_screen = nullptr;
 	
@@ -115,7 +106,7 @@ public:
 	bool initialize_stream();
 	void try_update_total_time();
 	double get_current_time();
-	auto get_state() const{
+	PlayState get_state() const{
 		return this->state;
 	}
 	//Returns false if nothing (expensive) was done.

@@ -41,7 +41,7 @@ void AudioPlayer::initialize(bool start_thread){
 	{
 		auto ul = application_state.lock();
 		for (auto &kv : application_state.get_players())
-			this->players.try_emplace(kv.first, *this, kv.second);
+			this->players.emplace(kv.first, AudioPlayerState{*this, kv.second});
 	}
 
 	this->current_player = &this->players[application_state.get_current_player_index()];
@@ -187,7 +187,7 @@ AudioPlayerState &AudioPlayer::new_player(){
 	Future<AudioPlayerState *> ret;
 	this->external_queue_in.push([this, &ret](){
 		auto &ps = application_state.new_player();
-		auto &new_player = this->players.try_emplace(ps.get_playback().get_index(), *this, ps).first->second;
+		auto &new_player = this->players.emplace(ps.get_playback().get_index(), AudioPlayerState{*this, ps}).first->second;
 		ret = &new_player;
 		return true;
 	});

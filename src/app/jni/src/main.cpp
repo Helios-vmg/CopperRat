@@ -17,6 +17,15 @@ extern "C" JNIEXPORT jlong JNICALL init_player(JNIEnv *env, jclass cls){
 	return (jlong)(intptr_t)new AudioPlayer();
 }
 
+extern "C" JNIEXPORT jlong JNICALL init_sui(JNIEnv *env, jclass cls){
+	auto &player = *(AudioPlayer *)android_get_player();
+	auto sui = new SUI(player);
+	player.sui = sui;
+	player.initialize(false);
+	sui->initialize();
+	return (jlong)(intptr_t)sui;
+}
+
 extern "C" JNIEXPORT void JNICALL run_player(JNIEnv *env, jclass cls, jlong lplayer){
 	auto player = (AudioPlayer *)(intptr_t)lplayer;
 	player->loop();
@@ -29,7 +38,8 @@ extern "C" JNIEXPORT void JNICALL stop_player(JNIEnv *env, jclass cls, jlong lpl
 
 static JNINativeMethod PlayerService_functions[] = {
 		{ "init_player", "()J",  (void *)init_player },
-		{ "run_player",  "(J)V", (void *)run_player },
+		{ "init_sui",    "()J",  (void *)init_sui    },
+		{ "run_player",  "(J)V", (void *)run_player  },
 		{ "stop_player", "(J)V", (void *)stop_player },
 };
 
@@ -57,11 +67,7 @@ int main(int argc, char **argv){
 	SDL_Init(SDL_INIT_EVERYTHING);
 	initialize_resources();
 	try{
-		auto &player = *(AudioPlayer *)android_get_player();
-		SUI sui(player);
-		player.sui = &sui;
-		player.initialize(false);
-		sui.initialize();
+		auto &sui = *(SUI *)android_get_sui();
 		sui.loop();
 		__android_log_print(ANDROID_LOG_INFO, "C++main", "%s", "Terminating normally.\n");
 	}catch (const std::exception &e){

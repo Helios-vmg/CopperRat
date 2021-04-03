@@ -165,6 +165,21 @@ void *android_get_player(){
 #endif
 }
 
+void *android_get_sui(){
+#ifndef __ANDROID__
+    return nullptr;
+#else
+    auto env = (JNIEnv *)SDL_AndroidGetJNIEnv();
+    auto activity = (jobject)SDL_AndroidGetActivity();
+    auto clazz = env->FindClass("org/copper/rat/CopperRat");
+    auto getSui = env->GetMethodID(clazz, "getSui", "()J");
+    auto ret = env->CallLongMethod(activity, getSui);
+    env->DeleteLocalRef(activity);
+    env->DeleteLocalRef(clazz);
+    return (void *)(intptr_t)ret;
+#endif
+}
+
 bool is_inside(int x, int y, const SDL_Rect &region){
 	return x >= region.x && x < region.x + region.w && y >= region.y && y < region.y + region.h;
 }

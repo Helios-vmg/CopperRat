@@ -7,7 +7,7 @@ LOCAL_MODULE := main
 SDL_PATH := ../SDL
 
 LOCAL_CFLAGS   += -O3 -DSDL_GPU_DISABLE_OPENGL -DGLEW_NO_GLU -DSDL_GPU_DISABLE_GLES_1 -DSDL_GPU_DISABLE_GLES_3 -fPIC -DBYTE_ORDER=1 -DLITTLE_ENDIAN=1 #-DPROFILING
-LOCAL_CXXFLAGS += -O3 -std=gnu++11 -fexceptions -frtti "-DBOOST_NOINLINE=" -DSDL_GPU_DISABLE_OPENGL -fPIC #-DPROFILING
+LOCAL_CXXFLAGS += -O3 -std=c++14 -fexceptions -frtti "-DBOOST_NOINLINE=" -DSDL_GPU_DISABLE_OPENGL -fPIC #-DPROFILING
 LOCAL_CXXFLAGS += -Wno-bitwise-op-parentheses -Wno-logical-op-parentheses -Wno-switch
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/SDL_gpu/
@@ -22,30 +22,32 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libmpg123/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../SDL2_image-2.0.0/
 
 LOCAL_SRC_FILES := $(SDL_PATH)/src/main/android/SDL_android_main.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/ApplicationState.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioBuffer.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioDevice.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioPlayer.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioPlayerState.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/AudioStream.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/base64.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/BitShiftingFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/ChannelMixingFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/CommonFunctions.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Decoder.cpp
-LOCAL_SRC_FILES += $(LOCAL_PATH)/FLACDecoder.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/File.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/FLACDecoder.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Image.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/main.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Metadata.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Mp3Decoder.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/MultiplicationFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/OggDecoder.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Playlist.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/QueueElements.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/ResamplingFilter.cpp
-LOCAL_SRC_FILES += $(LOCAL_PATH)/Settings.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SignednessFilter.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/Threads.cpp
-LOCAL_SRC_FILES += $(LOCAL_PATH)/base64.cpp
-LOCAL_SRC_FILES += $(LOCAL_PATH)/main.cpp
-LOCAL_SRC_FILES += $(LOCAL_PATH)/tinyxml2.cpp
+LOCAL_SRC_FILES += $(LOCAL_PATH)/XorShift128.cpp
 
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/AlbumArt.cpp
 LOCAL_SRC_FILES += $(LOCAL_PATH)/SUI/Button.cpp

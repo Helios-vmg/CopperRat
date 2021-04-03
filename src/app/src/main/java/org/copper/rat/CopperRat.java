@@ -212,6 +212,9 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
     public long getPlayer(){
         return PlayerService.getInstance().getPlayer();
     }
+    public long getSui(){
+        return PlayerService.getInstance().getSui();
+    }
 
     private static void copyResourceToFileSystem(Application app, int id, String destinationPath){
         InputStream stream;

@@ -39,7 +39,7 @@ class AudioPlayer{
 	static void AudioCallback(void *udata, Uint8 *stream, int len);
 	static int _thread(void *);
 	std::map<int, AudioPlayerState> players;
-	std::atomic<AudioPlayerState *> current_player = nullptr;
+	std::atomic<AudioPlayerState *> current_player {nullptr};
 
 	void thread();
 	void thread_loop();
@@ -79,10 +79,10 @@ public:
 	void request_absolute_scaling_seek(double scale);
 	void request_relative_seek(double seconds);
 	void request_load(bool load, bool file, std::wstring &&path);
-	auto &get_players(){
+	std::map<int, AudioPlayerState> &get_players(){
 		return this->players;
 	}
-	auto &get_players() const{
+	const std::map<int, AudioPlayerState> &get_players() const{
 		return this->players;
 	}
 	AudioPlayerState &get_current_player(){
@@ -99,3 +99,15 @@ public:
 	audio_buffer_t get_last_buffer_played();
 	PlayState::Value get_state() const;
 };
+
+template <typename F>
+void AudioPlayerState::push_maybe_to_internal_queue(F &&f){
+	{
+		AutoLocker<internal_queue_t> al(this->internal_queue);
+		if (this->internal_queue.unlocked_is_empty()){
+			this->parent->sui->push_async_callback(f);
+			return;
+		}
+	}
+	this->internal_queue.push(std::make_shared<ExternalQueueElement>(std::move(f), *this));
+}

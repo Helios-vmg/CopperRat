@@ -83,10 +83,10 @@ public:
 	AudioPlayerState &get_player() const{
 		return *this->player;
 	}
-	auto get_current_total_time() const{
+	double get_current_total_time() const{
 		return this->current_total_time;
 	}
-	auto &get_metadata() const{
+	const std::wstring &get_metadata() const{
 		return this->metadata;
 	}
 	void on_total_time_update(double t);

@@ -9,6 +9,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 
 #include "Threads.h"
 #include <mutex>
+#include <map>
 
 enum class VisualizationMode{
 	NONE = 0,
@@ -61,7 +62,7 @@ public:
 	void set_current_time(double);
 	
 	//Getters:
-	auto get_index() const{
+	int get_index() const{
 		return this->index;
 	}
 	Mode get_playback_mode() const;
@@ -181,10 +182,10 @@ public:
 	const PlayerState &get_current_player() const;
 	PlayerState &get_current_player();
 	int get_current_player_index() const;
-	auto &get_players() const{
+	const std::map<int, PlayerState> &get_players() const{
 		return this->players;
 	}
-	auto &get_players(){
+	std::map<int, PlayerState> &get_players(){
 		return this->players;
 	}
 };

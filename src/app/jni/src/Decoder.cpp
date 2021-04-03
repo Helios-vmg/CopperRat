@@ -7,7 +7,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 
 #include "stdafx.h"
 #include "OggDecoder.h"
-#include "FlacDecoder.h"
+#include "FLACDecoder.h"
 #include "Mp3Decoder.h"
 #include "CommonFunctions.h"
 #ifndef HAVE_PRECOMPILED_HEADERS

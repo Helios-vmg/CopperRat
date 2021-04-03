@@ -126,6 +126,6 @@ void special_random_shuffle(It begin, It in_end, It out_end, UniformGenerator<si
 }
 
 template <typename It>
-void random_shuffle(It begin, It end, UniformGenerator<size_t> &rng){
+void cr_random_shuffle(It begin, It end, UniformGenerator<size_t> &rng){
 	return special_random_shuffle(begin, end, end, rng);
 }

@@ -15,6 +15,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include <string>
 #include <type_traits>
 #include <memory>
+#include <deque>
 #include <android/log.h>
 #endif
 
@@ -270,6 +271,7 @@ int get_screen_width();
 int get_screen_height();
 void initialize_resources();
 void *android_get_player();
+void *android_get_sui();
 std::wstring get_external_storage_path();
 
 inline std::string to_string(const std::string &s){

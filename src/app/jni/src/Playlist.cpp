@@ -36,7 +36,7 @@ void playlist_random_shuffle(It begin, It end){
 	auto n1 = begin + n / 3;
 	auto n2 = begin + n * 2 / 3;
 	special_random_shuffle(begin, n2, n1, size_t_gen);
-	random_shuffle(n1, end, size_t_gen);
+	cr_random_shuffle(n1, end, size_t_gen);
 }
 
 Playlist::Playlist(PlayerState &state): state(&state){
@@ -99,7 +99,7 @@ void Playlist::insert(const std::vector<std::wstring> &v, size_t p){
 		this->shuffle_vector.resize(previous_size + n);
 		for (size_t i = 0; i < n; i++)
 			this->shuffle_vector[previous_size + i] = (int)(i + p);
-		random_shuffle(this->shuffle_vector.begin() + previous_size, this->shuffle_vector.end(), size_t_gen);
+		cr_random_shuffle(this->shuffle_vector.begin() + previous_size, this->shuffle_vector.end(), size_t_gen);
 	}
 	if (this->current_track < 0)
 		this->current_track = 0;
@@ -122,7 +122,7 @@ bool Playlist::toggle_shuffle(){
 				this->shuffle_vector[i] = (int)i;
 			std::swap(this->shuffle_vector[0], this->shuffle_vector[this->current_track]);
 			this->current_track = 0;
-			random_shuffle(this->shuffle_vector.begin() + 1, this->shuffle_vector.end(), size_t_gen);
+			cr_random_shuffle(this->shuffle_vector.begin() + 1, this->shuffle_vector.end(), size_t_gen);
 		}
 	}
 	this->shuffle = !this->shuffle;

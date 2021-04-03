@@ -14,6 +14,7 @@ import android.os.IBinder;
 
 public class PlayerService extends Service {
     private long player = 0;
+    private long sui = 0;
     private Thread thread = null;
     private Notification notification = null;
     private static PlayerService instance;
@@ -32,6 +33,7 @@ public class PlayerService extends Service {
         super.onCreate();
         startForeground(0, this.notification);
         this.player = init_player();
+        this.sui = init_sui();
     }
 
     class ThreadCallback implements Runnable{
@@ -82,7 +84,12 @@ public class PlayerService extends Service {
         return this.player;
     }
 
+    public long getSui(){
+        return this.sui;
+    }
+
     public static native long init_player();
+    public static native long init_sui();
     public static native void run_player(long player);
     public static native void stop_player(long player);
 
