@@ -23,6 +23,9 @@ enum class ButtonSignal{
 	SEEKBACK,
 	SEEKFORTH,
 	NEXT,
+	PreviousPlayer,
+	Options,
+	NextPlayer,
 };
 
 MainScreen::MainScreen(SUI *sui, GUIElement *parent, AudioPlayerState &player):
@@ -398,6 +401,16 @@ void MainScreen::on_button(int signal){
 		case ButtonSignal::NEXT:
 			player.request_next();
 			break;
+		case ButtonSignal::PreviousPlayer:
+			this->sui->switch_to_previous_player();
+			break;
+		case ButtonSignal::Options:
+			if (this->on_menu_request)
+				this->on_menu_request();
+			break;
+		case ButtonSignal::NextPlayer:
+			this->sui->switch_to_next_player();
+			break;
 	}
 }
 
@@ -442,11 +455,40 @@ void MainScreen::prepare_buttons(){
 	this->tex_buttons.set_alpha(0.5);
 	for (i = 0; i < n; i++){
 		Subtexture st(this->tex_buttons, rects[i]);
-		std::shared_ptr<GraphicButton> button(new GraphicButton(this->sui, this));
+		auto button = std::make_shared<GraphicButton>(this->sui, this);
 		button->set_graphic(st);
 		button->set_position(rects[i].x, rects[i].y + square);
 		button->set_on_click([this, i](){ this->on_button(i); });
 		this->children.push_back(button);
+	}
+
+	{
+		auto vr = this->sui->get_visible_region();
+		auto bs = this->sui->get_bounding_square();
+		const int divider = 10;
+		auto k = vr.w / divider;
+		SDL_Rect rect = { vr.x, vr.y, k, bs };
+		
+		auto button = std::make_shared<Button>(this->sui, this);
+		button->set_bounding_box(rect);
+		button->set_on_click([this, n](){ this->on_button(n); });
+		this->children.emplace_back(std::move(button));
+
+		rect.x += k;
+		rect.w = k * (divider - 2);
+		
+		button = std::make_shared<Button>(this->sui, this);
+		button->set_bounding_box(rect);
+		button->set_on_click([this, n](){ this->on_button(n + 1); });
+		this->children.emplace_back(std::move(button));
+
+		rect.x += rect.w;
+		rect.w = vr.w - rect.x;
+		
+		button = std::make_shared<Button>(this->sui, this);
+		button->set_bounding_box(rect);
+		button->set_on_click([this, n](){ this->on_button(n + 2); });
+		this->children.emplace_back(std::move(button));
 	}
 }
 

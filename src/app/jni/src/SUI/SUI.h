@@ -193,8 +193,6 @@ private:
 		this->stacks[this->active_stack].pop_back();
 		this->request_update();
 	}
-	void switch_to_next_player();
-	void switch_to_previous_player();
 	void switch_player(int direction);
 	void set_geometry();
 public:
@@ -250,4 +248,6 @@ public:
 		this->push_async_callback(std::move(f), true);
 	}
 	void push_parallel_work(std::function<void()> &&);
+	void switch_to_next_player();
+	void switch_to_previous_player();
 };
