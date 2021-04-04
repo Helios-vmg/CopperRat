@@ -201,7 +201,7 @@ void AudioPlayerState::periodic_saving(Uint32 now){
 		this->last_save_time = now;
 		return;
 	}
-	if (*this->last_save_time + 10000 < now)
+	if (*this->last_save_time + 10000 > now)
 		return;
 	this->save();
 	this->last_save_time = now;

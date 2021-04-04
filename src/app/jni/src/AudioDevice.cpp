@@ -80,7 +80,7 @@ bool AudioDevice::update(Uint32 now){
 		this->last_active = now;
 		return false;
 	}
-	if (!this->last_active.has_value() || *this->last_active + 5000 < now)
+	if (!this->last_active.has_value() || *this->last_active + 5000 > now)
 		return false;
 	__android_log_print(ANDROID_LOG_INFO, "C++Audio", "%s", "Audio inactivity timeout. Closing device.\n");
 	this->close();
