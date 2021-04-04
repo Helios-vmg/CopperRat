@@ -205,7 +205,9 @@ void AudioPlayer::execute_switch_to_player(AudioPlayerState &state){
 		assert(false);
 		return;
 	}
-	auto old_active = this->current_player.load()->is_active();
+	auto p = this->current_player.load();
+	auto old_active = p->is_active();
+	p->save();
 	this->current_player = it->second.get();
 	auto new_active = this->current_player.load()->is_active();
 	if (!old_active && new_active)
