@@ -129,6 +129,13 @@ void OggMetadata::add_vorbis_comment(const void *buffer, size_t length){
 	this->add(field_name, field_value);
 }
 
+void OggMetadata::set_picture(const void *buffer, size_t length){
+	this->ogg_picture.resize(length);
+	if (!length)
+		return;
+	memcpy(&this->ogg_picture[0], buffer, length);
+}
+
 bool OggMetadata::picture(unsigned char *&buffer, size_t &length){
 	if (!this->ogg_picture.size())
 		return 0;

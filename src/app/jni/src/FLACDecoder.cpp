@@ -173,6 +173,10 @@ void FlacDecoder::metadata_callback(const FLAC__StreamMetadata *metadata){
 				this->declared_af_set = !!this->declared_af.freq;
 			}
 			break;
+		case FLAC__METADATA_TYPE_PICTURE:
+			this->metadata.set_picture(metadata->data.picture.data, metadata->data.picture.data_length);
+			this->parent.metadata_update(this->metadata.clone());
+			break;
 	}
 }
 

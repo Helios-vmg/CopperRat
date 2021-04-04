@@ -79,6 +79,7 @@ public:
 	std::wstring date(){
 		return this->get_string_or_nothing(DATE);
 	}
+	void set_picture(const void *buffer, size_t length);
 	bool picture(unsigned char *&buffer, size_t &length);
 	bool track_gain(double &);
 	bool track_peak(double &);
