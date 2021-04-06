@@ -23,7 +23,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include <memory>
 #endif
 
-const char *vertex_shader =
+extern const char * const vertex_shader =
 #ifndef __ANDROID__
 "#version 120\n"
 #else
@@ -52,7 +52,7 @@ double gauss_kernel(double x, double sigma){
 	return exp((x * x) / -(2 * sigma * sigma)) / (9.4247779607693797153879301498385 * sigma * sigma);
 }
 
-std::string generate_fragment_shader(double sigma, double texture_w, double texture_h, bool vertical){
+static std::string generate_fragment_shader(double sigma, double texture_w, double texture_h, bool vertical){
 	std::stringstream stream;
 	stream <<
 #ifndef __ANDROID__
@@ -129,7 +129,7 @@ void SUI::create_shaders(){
 		__android_log_print(ANDROID_LOG_ERROR, "C++Shader", "%s", this->blur_v.get_error_string().c_str());
 		return;
 	}
-	this->apply_blur = 1;
+	this->apply_blur = true;
 }
 
 template <typename Iterator>

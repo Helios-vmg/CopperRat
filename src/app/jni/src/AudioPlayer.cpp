@@ -191,14 +191,14 @@ AudioPlayerState &AudioPlayer::new_player(){
 	return **ret;
 }
 
-void AudioPlayer::switch_to_player(AudioPlayerState &state){
-	this->external_queue_in.push([this, &state](){
-		this->execute_switch_to_player(state);
+void AudioPlayer::switch_to_player(AudioPlayerState &state, bool save_allowed){
+	this->external_queue_in.push([this, &state, save_allowed](){
+		this->execute_switch_to_player(state, save_allowed);
 		return true;
 	});
 }
 
-void AudioPlayer::execute_switch_to_player(AudioPlayerState &state){
+void AudioPlayer::execute_switch_to_player(AudioPlayerState &state, bool save_allowed){
 	auto index = state.player_state->get_playback().get_index();
 	auto it = this->players.find(index);
 	if (it == this->players.end()){
@@ -207,7 +207,8 @@ void AudioPlayer::execute_switch_to_player(AudioPlayerState &state){
 	}
 	auto p = this->current_player.load();
 	auto old_active = p->is_active();
-	p->save();
+	if (save_allowed)
+		p->save();
 	this->current_player = it->second.get();
 	auto new_active = this->current_player.load()->is_active();
 	if (!old_active && new_active)

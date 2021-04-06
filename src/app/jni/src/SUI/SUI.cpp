@@ -66,9 +66,9 @@ void SUI::initialize(){
 	__android_log_print(ANDROID_LOG_INFO, "C++SUI", "Determined resolution: %dx%d\n", this->true_resolution.w, this->true_resolution.h);
 
 	if (ratio > tall)
-	    h = (int)(Q(w) / ratio);
-	else if (ratio < tall)
 		w = (int)(Q(h) * ratio);
+	else if (ratio < tall)
+		h = (int)(Q(w) / ratio);
 
 	__android_log_print(ANDROID_LOG_INFO, "C++SUI", "Using resolution: %dx%d\n", w, h);
 
@@ -318,11 +318,6 @@ void SUI::loop(){
 	std::deque<Uint32> fps_queue;
 	unsigned status;
 	const auto min_time = (Uint32)(1000.0 / 60.0);
-	SDL_Color black;
-	black.r = 0;
-	black.g = 0;
-	black.b = 0;
-	black.a = 255;
 	while (!check_flag(status = this->handle_in_events(), QUIT)){
 		try{
 			this->handle_out_events();
@@ -368,8 +363,7 @@ void SUI::loop(){
 		}else
 			this->current_framerate = -1;
 
-		GPU_ClearColor(this->screen, black);
-		GPU_Clear(this->screen);
+		GPU_ClearColor(this->screen, {0, 0, 0, 255});
 		this->stacks[this->active_stack].back()->update();
 		if (display_string.size())
 			this->font->draw_text(display_string, 0, 0, INT_MAX, 2.0);
@@ -486,6 +480,7 @@ void SUI::switch_to_previous_player(){
 
 void SUI::switch_player(int direction){
 	this->active_stack = this->active_stack + direction;
+	bool save = true;
 	if (this->active_stack >= this->stacks.size()){
 		auto &ms = static_cast<MainScreen &>(*this->stacks.back().front());
 		auto &player = ms.get_player();
@@ -499,9 +494,10 @@ void SUI::switch_player(int direction){
 			this->player->erase(player);
 			this->stacks.pop_back();
 			this->active_stack = direction > 0 ? 0 : this->stacks.size() - 1;
+			save = false;
 		}
 	}
 	auto &screen = static_cast<MainScreen &>(*this->stacks[this->active_stack].front());
-	this->player->switch_to_player(screen.get_player());
+	this->player->switch_to_player(screen.get_player(), save);
 	this->request_update();
 }

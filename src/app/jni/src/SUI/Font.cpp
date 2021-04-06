@@ -83,11 +83,12 @@ void preprocess_image(SDL_Surface *img){
 		for (int x = 0; x < h; x++){
 			auto pixel = (Uint32 *)(pixels + x * bps + y * pitch);
 			if (*pixel & cmask)
-				*pixel |= amask;
+				*pixel = cmask | amask;
 			else
 				*pixel = 0;
 		}
 	}
+#if 0
 	for (int cy = 0; cy < 16; cy++){
 		for (int cx = 0; cx < 16; cx++){
 			for (int y = 0; y < 16; y++){
@@ -96,7 +97,7 @@ void preprocess_image(SDL_Surface *img){
 						y0 = cy * 16 + y,
 						w0 = 16,
 						h0 = 16;
-					bool black = 0;
+					bool black = false;
 					auto px = pixels + x0 * bps + y0 * pitch;
 					auto pixel = (Uint32 *)px;
 					auto pixel0 = (Uint32 *)(px - bps);
@@ -117,6 +118,7 @@ void preprocess_image(SDL_Surface *img){
 			}
 		}
 	}
+#endif
 	SDL_UnlockSurface(img);
 }
 
@@ -147,22 +149,29 @@ void Font::load_page(unsigned page){
 
 void Font::compute_rendering_pairs(void (*f)(void *, const rendering_pair &), void *user, const std::string *text, const std::wstring *wtext, int x0, int y0, int wrap_at, double scale){
 	int x = x0,
-		y = y0;
+		y = y0,
+		x2 = x,
+		y2 = y;
 	size_t n = text ? text->size() : wtext->size();
-	const int vertical_advance = int(16 * scale);
+	const int height = 16;
+	const int vertical_advance = int(height * scale);
 	const int halfwidth_size = 8;
 	const int fullwidth_size = halfwidth_size * 2;
 	for (size_t i = 0; i < n;){
 		wchar_t c = text ? (unsigned char)(*text)[i] : (*wtext)[i];
 		int character_width = (int)this->width_bitmap[c] + 1;
-		if (x + character_width * halfwidth_size * scale > wrap_at){
+		if (x2 + character_width * halfwidth_size * scale > wrap_at){
 			x = x0;
-			y += vertical_advance;
+			x2 = x0;
+			y += height;
+			y2 += vertical_advance;
 			continue;
 		}
 		if (c == '\n'){
 			x = x0;
-			y += vertical_advance;
+			x2 = x0;
+			y += height;
+			y2 += vertical_advance;
 		}else{
 			rendering_pair rp;
 			rp.page = (unsigned)c >> 8;
@@ -172,17 +181,18 @@ void Font::compute_rendering_pairs(void (*f)(void *, const rendering_pair &), vo
 			rp.src.h = (float)fullwidth_size;
 			rp.dst.x = (float)x;
 			rp.dst.y = (float)y;
-			rp.dst.w = float(rp.src.w * scale);
-			rp.dst.h = float(rp.src.h * scale);
-			rp.scale = (float)scale;
+			rp.dst.w = float(rp.src.w * 1);
+			rp.dst.h = float(rp.src.h * 1);
+			rp.scale = (float)1;
 			x += (int)rp.dst.w;
+			x2 += (int)(rp.dst.w * scale);
 			f(user, rp);
 		}
 		i++;
 	}
 }
 
-void Font::draw_text(const std::string *text, const std::wstring *wtext, int x0, int y0, int wrap_at, double scale){
+void Font::draw_text(GPU_Target *target, const std::string *text, const std::wstring *wtext, int x0, int y0, int wrap_at, double scale){
 	std::vector<rendering_pair> pairs;
 	auto f = [](void *p, const rendering_pair &rp){
 		auto &pairs = *(std::vector<rendering_pair> *)p;
@@ -193,12 +203,13 @@ void Font::draw_text(const std::string *text, const std::wstring *wtext, int x0,
 	std::sort(pairs.begin(), pairs.end(), [](const rendering_pair &a, const rendering_pair &b){ return a.page < b.page; });
 	int last_page = -1;
 	texture_t page;
+
 	for (auto &rp : pairs){
 		if (rp.page != last_page){
 			page = this->get_page(rp.page);
 			last_page = rp.page;
 		}
-		GPU_BlitScale(page.get(), &rp.src, this->target,
+		GPU_BlitScale(page.get(), &rp.src, target,
 			rp.dst.x + rp.dst.w / 2,
 			rp.dst.y + rp.dst.h / 2,
 			rp.scale, rp.scale);

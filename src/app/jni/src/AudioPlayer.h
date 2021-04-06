@@ -43,7 +43,7 @@ class AudioPlayer{
 	void thread();
 	void thread_loop();
 	bool handle_requests();
-	void execute_switch_to_player(AudioPlayerState &);
+	void execute_switch_to_player(AudioPlayerState &, bool save_allowed);
 	void execute_erase(AudioPlayerState &);
 public:
 	SUI *sui = nullptr;
@@ -90,7 +90,7 @@ public:
 		return *this->current_player.load();
 	}
 	AudioPlayerState &new_player();
-	void switch_to_player(AudioPlayerState &);
+	void switch_to_player(AudioPlayerState &, bool save_allowed);
 	void erase(AudioPlayerState &);
 
 	//nodify_* functions are designed to be called from the audio output thread.

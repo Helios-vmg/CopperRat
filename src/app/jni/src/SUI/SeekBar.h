@@ -16,6 +16,11 @@ class SeekBar : public GUIElement{
 	SDL_Rect region;
 	bool drag_started = false;
 	double multiplier;
+	std::unique_ptr<RenderTarget> text_texture;
+	std::unique_ptr<RenderTarget> intermediate;
+	ShaderProgram shader;
+	
+	void create_shaders();
 public:
 	SeekBar(SUI *sui, MainScreen *parent);
 	void update();
