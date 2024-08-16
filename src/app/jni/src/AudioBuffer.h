@@ -93,6 +93,9 @@ public:
 	size_t full_byte_length() const{
 		return this->sample_count * this->bytes_per_sample();
 	}
+	unsigned get_sample_count() const{
+		return this->sample_count;
+	}
 	void set_sample_count(unsigned sample_count){
 		this->sample_count = sample_count;
 	}

@@ -84,43 +84,70 @@ void MainScreen::draw_oscilloscope(Uint32 time){
 		this->last_buffer.unref();
 		return;
 	}
+	if (player_state == PlayState::PAUSED){
+		auto visible_region = this->sui->get_visible_region();
+		this->draw_oscilloscope_final(visible_region.w, visible_region.w);
+		return;
+	}
 	auto buffer = this->player->get_last_buffer_played();
+	if (buffer){
+		buffer.reset_offset();
+		this->complete_buffer_first_seen = SDL_GetTicks();
+		this->last_buffer = buffer;
+	}
 	auto visible_region = this->sui->get_visible_region();
 	memory_sample_count_t length = this->last_buffer.samples();
 	length = std::min(length, (memory_sample_count_t)visible_region.w);
-	if (buffer)
-		this->last_buffer = buffer;
-	else{
-		if (player_state != PlayState::PAUSED && this->last_draw){
-			//this->last_buffer.advance_data_offset((time - this->last_draw) * 44100 / 1000);
-			this->last_buffer.advance_data_offset(length);
-			length = this->last_buffer.samples();
-			length = std::min(length, (memory_sample_count_t)visible_region.w);
-		}
+	if (this->oscilloscope_stretch != 1){
+		length /= this->oscilloscope_stretch;
 	}
-	if (!this->last_buffer)
-		return;
-	if (this->last_buffer.bytes_per_sample() != 2 * this->last_buffer.channels() || !this->last_buffer.samples())
-		return;
-	float last = 0;
-	const float middle = (float)visible_region.w / 2;
-	auto channels = this->last_buffer.channels();
-
-	static std::pair<float, SDL_Color> times[] = {
-		{ 3, { 0, 0, 0, 255 } },
-		{ 1, { 255, 255, 255, 255 } },
-	};
-	for (auto &pair : times){
-		GPU_SetLineThickness(pair.first);
+	if (!(!this->last_buffer || this->last_buffer.bytes_per_sample() != 2 * this->last_buffer.channels() || !this->last_buffer.samples())){
+		auto channels = this->last_buffer.channels();
+		this->oscilloscope_state.resize(length, 0);
 		for (memory_audio_position_t i = 0; i != length; i++){
 			float value = 0;
 			auto sample = this->last_buffer.get_sample_use_channels<Sint16>(i);
 			for (unsigned j = 0; j < channels; j++)
 				value += s16_to_float(sample->values[j]);
 			value /= channels;
+			this->oscilloscope_state[i] = value;
+		}
+		this->last_buffer.advance_data_offset(length);
+		if (length * this->oscilloscope_stretch < visible_region.w * 0.975f){
+			auto actual = SDL_GetTicks() - this->complete_buffer_first_seen;
+			auto frequency = this->player->get_current_frequency();
+			auto expected = (float)this->last_buffer.get_sample_count() / (float)frequency * 1000;
+			if (actual < expected)
+				this->oscilloscope_stretch *= 1.05f;
+		}
+	}else
+		length = visible_region.w;
+	this->draw_oscilloscope_final(length, visible_region.w);
+}
+
+void MainScreen::draw_oscilloscope_final(memory_sample_count_t length, int w){
+	const float middle = (float)w / 2;
+	static const std::pair<float, SDL_Color> times[] = {
+		{ 3, { 0, 0, 0, 255 } },
+		{ 1, { 255, 255, 255, 255 } },
+	};
+	float last = 0;
+	auto n = std::min<size_t>(length, this->oscilloscope_state.size());
+	for (auto &pair : times){
+		GPU_SetLineThickness(pair.first);
+		auto mult = (float)w / (float)n;
+		for (size_t i = 0; i != n; i++){
+			auto value = this->oscilloscope_state[i];
 			auto y = value * middle + middle;
 			if (i)
-				GPU_Line(this->sui->get_target(), (float)i - 1, last, (float)i, y, pair.second);
+				GPU_Line(
+					this->sui->get_target(),
+					((float)i - 1) * mult,
+					last,
+					(float)i * mult,
+					y,
+					pair.second
+				);
 			last = y;
 		}
 	}
@@ -196,7 +223,7 @@ dct_calculator::dct_calculator(unsigned short size) :
 		//f = m * equal_loudness_curve(middle);
 		//f = m * 2 * (middle / 22050);
 		//f = m * exponential_function2(middle / 22050.f, 1e+1);
-		f = m * 2.5 * (middle /22050);
+		f = m * 2.5 * (middle / 22050);
 		freq += freq_fractional;
 	}
 }
@@ -308,27 +335,45 @@ void MainScreen::draw_spectrum(Uint32 time, SpectrumQuality quality, bool spectr
 		return;
 	const auto &frequency_domain = dct->result_store;
 	if (this->spectrum_state.size() != frequency_domain.size()){
-		this->spectrum_state = frequency_domain;
+		this->spectrum_state.resize(frequency_domain.size());
+		for (size_t i = frequency_domain.size(); i--;){
+			auto &dst = this->spectrum_state[i];
+			auto &src = frequency_domain[i];
+			dst.speed = 0;
+			dst.value = src;
+		}
 	}else{
 		for (size_t i = 0; i < this->spectrum_state.size(); i++){
 			auto &a = this->spectrum_state[i];
 			auto &b = frequency_domain[i];
-			const float delta = 0.075f;
-			if (a <= b)
-				a = b;
-			else if (a >= delta)
-				a -= delta;
-			else
-				a = 0;
+#if 1
+			a.value = b;
+#else
+			const float delta = 1.f/1200.f;
+			if (a.value <= b){
+				a.value = b;
+				a.speed = 0;
+			}else{
+				a.value += a.speed;
+				a.speed -= delta;
+				if (a.value < 0){
+					a.value = 0;
+					a.speed = 0;
+				}else if (a.value < b){
+					a.value = b;
+					a.speed = 0;
+				}
+			}
+#endif
 		}
 	}
 	float mul = (float)visible_region.w / (float)frequency_domain.size();
 	auto target = this->sui->get_target();
 	if (!spectrogram){
 		float x0 = 0;
-		for (auto val : this->spectrum_state){
+		for (auto &val : this->spectrum_state){
 			//float value = (log10(val) + 5) / 7;
-			float value = val;
+			float value = val.value;
 			if (value < 0)
 				value = 0;
 			//else if (value > 1)
@@ -339,7 +384,7 @@ void MainScreen::draw_spectrum(Uint32 time, SpectrumQuality quality, bool spectr
 			GPU_RectangleFilled(target, x0, y0, x1, y1, { 255, 255, 255, 255 });
 			x0 = x1;
 		}
-	} else{
+	}else{
 		if (!this->spectrogram_data.size() || frequency_domain.size() != this->spectrogram_data_h || visible_region.w != this->spectrogram_data_w){
 			this->spectrogram_data_h = (unsigned)frequency_domain.size();
 			this->spectrogram_data_w = visible_region.w;

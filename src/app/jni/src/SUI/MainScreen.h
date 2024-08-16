@@ -42,13 +42,20 @@ class MainScreen : public GUIElement{
 	unsigned last_length;
 	std::shared_ptr<dct_calculator> dct;
 	std::vector<float> spectrogram_data;
-	std::vector<float> spectrum_state;
+	struct frequency{
+		float value;
+		float speed;
+	};
+	std::vector<frequency> spectrum_state;
 	unsigned spectrogram_data_w,
 		spectrogram_data_h;
 	size_t spectrogram_data_head;
 	std::function<void()> on_load_request;
 	std::function<void()> on_menu_request;
+	std::vector<float> oscilloscope_state;
+	float oscilloscope_stretch = 1;
 	Uint32 last_draw;
+	Uint32 complete_buffer_first_seen = 0;
 	std::wstring metadata;
 	//If the currently loaded picture came from a file, this string contains
 	//the path. If no picture is currently loaded, or if the one that is loaded
@@ -61,6 +68,7 @@ class MainScreen : public GUIElement{
 	void prepare_buttons();
 	void on_button(int);
 	void draw_oscilloscope(Uint32 time);
+	void draw_oscilloscope_final(memory_sample_count_t length, int w);
 	void draw_spectrum(Uint32 time, SpectrumQuality, bool spectrogram);
 	void draw_picture();
 	void load_image(GenericMetadata &metadata, const std::wstring &original_source);

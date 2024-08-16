@@ -139,6 +139,11 @@ double AudioPlayerState::get_current_time(){
 	return (double)this->last_position_seen / (double)this->last_freq_seen;
 }
 
+unsigned AudioPlayerState::get_current_frequency(){
+	AutoMutex am(this->position_mutex);
+	return this->last_freq_seen;
+}
+
 void AudioPlayerState::eliminate_buffers(audio_position_t *pos){
 	AutoLocker<internal_queue_t> am(this->internal_queue);
 	std::queue<iqe_t> temp;

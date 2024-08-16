@@ -109,6 +109,7 @@ public:
 	bool initialize_stream();
 	void try_update_total_time();
 	double get_current_time();
+	unsigned get_current_frequency();
 	PlayState get_state() const{
 		return this->state;
 	}
