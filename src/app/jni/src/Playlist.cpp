@@ -14,6 +14,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "XorShift128.h"
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <fstream>
+#include <cassert>
 #endif
 
 thread_local XorShift128 xorshift128;

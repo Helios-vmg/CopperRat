@@ -12,6 +12,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #ifndef HAVE_PRECOMPILED_HEADERS
 #include <fstream>
 #include <optional>
+#include <cassert>
 #ifdef PROFILING
 #if defined WIN32
 #include <fstream>

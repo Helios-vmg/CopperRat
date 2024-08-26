@@ -10,6 +10,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include <cstdint>
 #include <algorithm>
 #include <array>
+#include <cassert>
 
 typedef std::array<std::uint32_t, 4> xorshift128_state;
 

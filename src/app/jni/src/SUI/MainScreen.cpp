@@ -13,6 +13,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include "ListView.h"
 #include "SeekBar.h"
 #include "../AudioPlayer.h"
+#include <cassert>
 
 enum class ButtonSignal{
 	PLAY = 0,

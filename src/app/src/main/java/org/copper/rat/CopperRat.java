@@ -42,11 +42,9 @@ import android.util.Log;
 import android.graphics.*;
 import android.media.*;
 import android.hardware.*;
-
-import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
-
+import org.copper.rat.R;
 import org.libsdl.app.SDLActivity;
 
 class ResourceTuple{
@@ -111,6 +109,7 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
 
     public Notification notification = null;
 
+    @RequiresApi(api = Build.VERSION_CODES.HONEYCOMB)
     private void sendNotification(){
         try {
             if (this.notification != null)
@@ -122,22 +121,27 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
                     .setSmallIcon(R.mipmap.ic_launcher2)
                     .setPriority(NotificationCompat.PRIORITY_MAX)
                     .setOngoing(true)
-                    .setNotificationSilent();
+                    /*.setSilent()*/;
 
             Intent notificationIntent = new Intent(this, CopperRat.class);
-            PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            PendingIntent contentIntent = PendingIntent.getActivity(
+                    this,
+                    0,
+                    notificationIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE
+            );
             builder.setContentIntent(contentIntent);
 
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             this.notification = builder.build();
-            manager.notify(0, this.notification);
+            manager.notify(1, this.notification);
         } catch (Throwable t) {
             Log.e("Notification test", t.getMessage());
         }
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    public String getExternalStoragePathN(){
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    public String getExternalStoragePathR(){
         StorageManager sm = (StorageManager)getContext().getSystemService(Context.STORAGE_SERVICE);
         for (int attempt = 0; attempt < 2; attempt++) {
             for (StorageVolume vol : sm.getStorageVolumes()) {
@@ -149,8 +153,8 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
     }
 
     public String getExternalStoragePath(){
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N)
-            return getExternalStoragePathN();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R)
+            return getExternalStoragePathR();
         return "/";
     }
 
@@ -235,6 +239,7 @@ public class CopperRat extends org.libsdl.app.SDLActivity {
             Log.e("Resources", "There was an exception! " + e.toString());
         }
     }
+
     public static native void init_settings();
     public static native void destroy_settings();
     public static native void init_player();

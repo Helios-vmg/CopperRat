@@ -21,6 +21,7 @@ Distributed under a permissive license. See COPYING.txt for details.
 #include <iomanip>
 #include <sstream>
 #include <memory>
+#include <cassert>
 #endif
 
 extern const char * const vertex_shader =

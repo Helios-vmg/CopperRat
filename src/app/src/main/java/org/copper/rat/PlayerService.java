@@ -29,7 +29,7 @@ public class PlayerService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        startForeground(0, this.notification);
+        startForeground(1, this.notification);
     }
 
     class ThreadCallback implements Runnable{

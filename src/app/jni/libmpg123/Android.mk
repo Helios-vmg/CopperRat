@@ -37,8 +37,6 @@ LOCAL_SRC_FILES := \
   icy.c \
   synth_real.c \
   synth_8bit.c \
-  synth_arm.S \
-  synth_arm_accurate.S \
   synth_s32.c \
   compat.c \
   feature.c \
