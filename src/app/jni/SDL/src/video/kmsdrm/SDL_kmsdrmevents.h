@@ -1,7 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
-  Atomic KMSDRM backend by Manuel Alfayate Corchete <redwindwanderer@gmail.com>
+  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -26,7 +25,5 @@
 #define SDL_kmsdrmevents_h_
 
 extern void KMSDRM_PumpEvents(_THIS);
-extern void KMSDRM_EventInit(_THIS);
-extern void KMSDRM_EventQuit(_THIS);
 
 #endif /* SDL_kmsdrmevents_h_ */
